@@ -1,4 +1,4 @@
-# RepriseAI Backend
+# RepriseAI AgentPricing
 
 A FastAPI-based backend service for AI-powered phone detection, analysis, and pricing. It processes uploaded images to detect phone features, generates reports, and calculates final prices using an agentic workflow with Mistral AI integration.
 
