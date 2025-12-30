@@ -1,0 +1,8 @@
+.vscode
+data/
+myenv/
+__pycache__/
+*.pyc
+.env    
+app.py
+final_mobile_master_data.csv
