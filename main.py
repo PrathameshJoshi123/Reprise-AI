@@ -83,6 +83,7 @@ async def predict(
 def health():
     return {"status": "ok"}
 
+
 def run_server():
     uvicorn.run(app, host="127.0.0.1", port=8000)
 
