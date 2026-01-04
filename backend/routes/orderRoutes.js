@@ -1,12 +1,9 @@
-import express from "express";
-import { pool } from "../db.js";
-import { authenticateToken } from "../middleware/authMiddleware.js";
-
+const express = require("express");
 const router = express.Router();
 
-/**
- * CREATE ORDER (Customer Checkout)
- */
+const { pool } = require("../db");
+const { authenticateToken } = require("../middleware/authMiddleware");
+
 router.post("/create", authenticateToken, async (req, res) => {
   try {
     const {
@@ -18,12 +15,12 @@ router.post("/create", authenticateToken, async (req, res) => {
       longitude,
       phone,
       pickupDate,
+      timeSlot, 
       paymentMethod,
     } = req.body;
 
     const customerId = req.user.id;
 
-    // 1️⃣ Save address
     const addressResult = await pool.query(
       `INSERT INTO customer_addresses
        (customer_id, full_address, city, state, pincode, latitude, longitude)
@@ -34,7 +31,6 @@ router.post("/create", authenticateToken, async (req, res) => {
 
     const addressId = addressResult.rows[0].id;
 
-    // 2️⃣ Save order
     const orderResult = await pool.query(
       `INSERT INTO orders
        (customer_id, address_id, phone_model, phone_variant, phone_condition,
@@ -59,8 +55,43 @@ router.post("/create", authenticateToken, async (req, res) => {
     });
   } catch (err) {
     console.error("CREATE ORDER ERROR:", err);
-    res.status(500).json({ error: "Failed to create order" });
+    res.status(500).json({ success: false });
   }
 });
 
-export default router;
+// ASSIGN ORDER TO AGENT (Start Pickup)
+router.patch("/:id/assign", authenticateToken, async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const agentId = req.user.id;
+
+    const result = await pool.query(
+      `
+      UPDATE orders
+      SET status = 'in-progress', agent_id = $1
+      WHERE id = $2 AND status = 'pending' AND agent_id IS NULL
+      RETURNING *
+      `,
+      [agentId, orderId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(409).json({
+        success: false,
+        message: "Order already assigned or not available",
+      });
+    }
+
+    res.json({
+      success: true,
+      order: result.rows[0],
+    });
+  } catch (err) {
+    console.error("ASSIGN ORDER ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+
+
+module.exports = router;

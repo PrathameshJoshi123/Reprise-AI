@@ -62,13 +62,37 @@ export default function Login() {
       }
 
       if (success) {
-        // Route based on user type
-        if (userType === "agent") {
-          navigate("/agent/dashboard");
-        } else {
-          navigate("/sell-phone");
-        }
+  if (userType === "agent") {
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const token = localStorage.getItem("token");
+
+        await fetch(
+          `${import.meta.env.VITE_API_URL}/agent/update-location`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+            }),
+          }
+        );
+
+        navigate("/agent/dashboard");
+      },
+      () => {
+        alert("Location permission is required to receive orders");
       }
+    );
+  } else {
+    navigate("/sell-phone");
+  }
+}
+
     } catch (err) {
       console.error('Auth error:', err);
       setError("An unexpected error occurred. Please try again.");

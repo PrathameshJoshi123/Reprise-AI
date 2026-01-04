@@ -1,33 +1,28 @@
-// routes/index.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-import orderRoutes from "./orderRoutes.js";
 
+const authRoutes = require("./authRoutes");
+const orderRoutes = require("./orderRoutes");
+const agentRoutes = require("./agentRoutes");
+
+router.use("/auth", authRoutes);
 router.use("/orders", orderRoutes);
-import agentRoutes from "./agentRoutes.js";
 router.use("/agent", agentRoutes);
 
-
-// Import route modules
-const authRoutes = require('./authRoutes');
-
-// Mount routes
-router.use('/auth', authRoutes);
-
-// Health check endpoint
-router.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    message: 'CashNow API is running',
-    timestamp: new Date().toISOString()
+// Health check
+router.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "CashNow API is running",
+    timestamp: new Date().toISOString(),
   });
 });
 
-// 404 handler for API routes
+// 404 handler
 router.use((req, res) => {
   res.status(404).json({
     success: false,
-    message: 'API endpoint not found'
+    message: "API endpoint not found",
   });
 });
 

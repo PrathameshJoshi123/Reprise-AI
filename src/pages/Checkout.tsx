@@ -32,11 +32,60 @@ import {
   Clock,
 } from "lucide-react";
 
+import { useAuth } from "@/context/AuthContext"; 
+
+const API_URL = import.meta.env.VITE_API_URL;
+
+const getCurrentLocation = (): Promise<{
+  latitude: number;
+  longitude: number;
+}> => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("Geolocation not supported"));
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+
+        // Accept only accurate readings (<30 meters)
+        if (accuracy <= 30) {
+          navigator.geolocation.clearWatch(watchId);
+          resolve({ latitude, longitude });
+        }
+      },
+      (error) => {
+        navigator.geolocation.clearWatch(watchId);
+        reject(error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 30000,
+        maximumAge: 0,
+      }
+    );
+  });
+};
+
+
 export default function Checkout() {
   const navigate = useNavigate();
+  const { token } = useAuth(); 
   const [paymentMethod, setPaymentMethod] = useState("upi");
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [timeSlot, setTimeSlot] = useState("");
+
+
+  const [form, setForm] = useState({
+    address: "",
+    city: "",
+    state: "",
+    pincode: "",
+    pickupDate: "",
+  });
 
   const phoneData = {
     id: "iphone-13-pro",
@@ -52,36 +101,51 @@ export default function Checkout() {
     window.scrollTo(0, 0);
   };
 
-  const handleSubmitPayment = (e: React.FormEvent) => {
+  const handleSubmitPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Save order to localStorage for agent dashboard
-    const order = {
-      id: `MOB-${Date.now()}`,
-      phone: phoneData,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      customerName: "John Doe",
-      address: "Mumbai, Maharashtra",
-      pickupDate: new Date().toISOString(),
-      paymentMethod: paymentMethod,
-    };
+    try {
+      // ✅ GET REAL LOCATION
+      const { latitude, longitude } = await getCurrentLocation();
 
-    const existingOrders = JSON.parse(
-      localStorage.getItem("agentOrders") || "[]"
-    );
-    localStorage.setItem(
-      "agentOrders",
-      JSON.stringify([...existingOrders, order])
-    );
+      const res = await fetch(`${API_URL}/orders/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          address: form.address,
+          city: form.city,
+          state: form.state,
+          pincode: form.pincode,
+          latitude,
+          longitude,
+          phone: phoneData,
+          pickupDate: form.pickupDate,
+          timeSlot,  
+          paymentMethod,
+        }),
+      });
 
-    setTimeout(() => {
-      setIsSubmitting(false);
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error("Order failed");
+      }
+
       setStep(3);
       window.scrollTo(0, 0);
-    }, 1500);
-  };
+    } catch (err) {
+    console.error("Checkout error:", err);
+    alert(
+      "Location access is required to place the order.\nPlease allow location and try again."
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const stepIcons = [
     { icon: MapPin, label: "Pickup Details" },
@@ -237,6 +301,7 @@ export default function Checkout() {
                           required
                           className="min-h-[80px] border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                           placeholder="House/Flat No., Street, Landmark..."
+                          onChange={(e) => setForm({ ...form, address: e.target.value })}
                         />
                       </div>
 
@@ -253,6 +318,7 @@ export default function Checkout() {
                             required
                             className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                             placeholder="Mumbai"
+                            onChange={(e) => setForm({ ...form, city: e.target.value })}
                           />
                         </div>
                         <div className="space-y-2">
@@ -295,6 +361,7 @@ export default function Checkout() {
                             required
                             className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                             placeholder="400001"
+                            onChange={(e) => setForm({ ...form, pincode: e.target.value })}
                           />
                         </div>
                       </div>
@@ -312,6 +379,7 @@ export default function Checkout() {
                             type="date"
                             required
                             className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                            onChange={(e) => setForm({ ...form, pickupDate: e.target.value })}
                           />
                         </div>
                         <div className="space-y-2">
@@ -321,7 +389,7 @@ export default function Checkout() {
                           >
                             Preferred Time Slot
                           </Label>
-                          <Select>
+                          <Select onValueChange={setTimeSlot}>
                             <SelectTrigger
                               id="pickup-time"
                               className="h-11 border-gray-200"
