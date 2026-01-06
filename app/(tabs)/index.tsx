@@ -12,7 +12,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import "../../global.css";
-import { getPopularDevices } from "../../services/deviceApi";
+import {
+  getDeviceCategories,
+  getPopularDevices,
+  searchProducts,
+} from "../../services/deviceApi";
 
 interface Product {
   id: number;
@@ -28,24 +32,58 @@ interface Product {
   images: string[];
 }
 
-const categories = [
-  { name: "Electronics", icon: "laptop-outline", color: "bg-blue-500" },
-  { name: "Fashion", icon: "shirt-outline", color: "bg-pink-500" },
-  { name: "Home living", icon: "home-outline", color: "bg-green-500" },
-  { name: "Books", icon: "book-outline", color: "bg-orange-500" },
-];
+const categories = getDeviceCategories().map((name) => ({
+  name: name.charAt(0).toUpperCase() + name.slice(1).replace("-", " "),
+  icon:
+    name === "laptops"
+      ? "laptop-outline"
+      : name === "smartphones"
+        ? "phone-portrait-outline"
+        : "tablet-portrait-outline",
+  color:
+    name === "laptops"
+      ? "bg-blue-500"
+      : name === "smartphones"
+        ? "bg-green-500"
+        : "bg-purple-500",
+}));
 
 const Home = () => {
   const [newProducts, setNewProducts] = useState<Product[]>([]);
+  const [searchSuggestions, setSearchSuggestions] = useState<Product[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [likedProducts, setLikedProducts] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const fetchData = async () => {
       const products = await getPopularDevices();
       setNewProducts(products.slice(0, 6));
+      setSearchSuggestions(products.slice(0, 6)); // Initial suggestions
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const debounceTimer = setTimeout(async () => {
+      if (searchQuery.trim()) {
+        const results = await searchProducts(searchQuery);
+        setSearchSuggestions(results);
+      } else {
+        setSearchSuggestions(newProducts); // Reset to initial suggestions
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery, newProducts]);
+
+  const handleSearchFocus = () => {
+    setIsSearchFocused(true);
+  };
+
+  const handleSearchBlur = () => {
+    setIsSearchFocused(false);
+  };
 
   const toggleLike = (productId: number) => {
     setLikedProducts((prev) => {
@@ -57,6 +95,10 @@ const Home = () => {
       }
       return newSet;
     });
+  };
+
+  const navigateToProduct = (productId: number) => {
+    router.push(`/product/${productId}/page`);
   };
 
   return (
@@ -79,6 +121,10 @@ const Home = () => {
               placeholder="Find secondhand treasures..."
               placeholderTextColor="#9CA3AF"
               className="flex-1 ml-3 text-gray-800 text-base"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onFocus={handleSearchFocus}
+              onBlur={handleSearchBlur}
             />
             <TouchableOpacity>
               <Ionicons name="options-outline" size={20} color="#9CA3AF" />
@@ -104,101 +150,144 @@ const Home = () => {
           </LinearGradient>
         </View>
 
-        {/* Explore by Category */}
-        <View className="px-6 py-6">
-          <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-lg font-bold text-gray-800">
-              Explore by Category
+        {/* Search Suggestions Overlay */}
+        {isSearchFocused && (
+          <View className="px-6 py-4 bg-white border-t border-gray-200">
+            <Text className="text-lg font-bold text-gray-800 mb-4">
+              {searchQuery.trim() ? "Search Results" : "Suggestions"}
             </Text>
-            <TouchableOpacity>
-              <Text className="text-orange-500 font-medium">See all</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View className="flex-row justify-between">
-            {categories.map((category, index) => (
-              <TouchableOpacity
-                key={index}
-                className="items-center"
-                style={{ width: "22%" }}
-              >
-                <View
-                  className={`${category.color} w-16 h-16 rounded-2xl items-center justify-center mb-2`}
-                >
-                  <Ionicons
-                    name={category.icon as any}
-                    size={28}
-                    color="white"
-                  />
-                </View>
-                <Text className="text-xs text-gray-600 text-center">
-                  {category.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* New This Week */}
-        <View className="px-6 py-4 pb-8">
-          <Text className="text-lg font-bold text-gray-800 mb-4">
-            New This Week
-          </Text>
-
-          <View className="flex-row flex-wrap justify-between">
-            {newProducts.map((product) => (
-              <View
-                key={product.id}
-                className="bg-white rounded-2xl mb-4 shadow-sm overflow-hidden"
-                style={{ width: "48%" }}
-              >
-                <View className="relative">
-                  <Image
-                    source={{ uri: product.thumbnail }}
-                    className="w-full h-40 bg-gray-100"
-                    resizeMode="cover"
-                  />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View className="flex-row">
+                {searchSuggestions.slice(0, 10).map((product) => (
                   <TouchableOpacity
-                    onPress={() => toggleLike(product.id)}
-                    className="absolute top-2 right-2 bg-white w-8 h-8 rounded-full items-center justify-center"
+                    key={product.id}
+                    className="bg-white rounded-2xl mr-4 shadow-sm overflow-hidden"
+                    style={{ width: 150 }}
+                    onPress={() => navigateToProduct(product.id)}
                   >
-                    <Ionicons
-                      name={
-                        likedProducts.has(product.id)
-                          ? "heart"
-                          : "heart-outline"
-                      }
-                      size={18}
-                      color={
-                        likedProducts.has(product.id) ? "#EF4444" : "#9CA3AF"
-                      }
+                    <Image
+                      source={{ uri: product.thumbnail }}
+                      className="w-full h-24 bg-gray-100"
+                      resizeMode="cover"
                     />
-                  </TouchableOpacity>
-                </View>
-
-                <View className="p-3">
-                  <Text
-                    className="text-sm font-semibold text-gray-800 mb-1"
-                    numberOfLines={1}
-                  >
-                    {product.title}
-                  </Text>
-                  <Text className="text-orange-500 font-bold text-base">
-                    ${product.price.toFixed(2)}
-                  </Text>
-                  {product.stock > 0 && (
-                    <View className="flex-row items-center mt-1">
-                      <View className="w-2 h-2 rounded-full bg-green-500 mr-1" />
-                      <Text className="text-xs text-gray-500">
-                        {product.stock} in stock
+                    <View className="p-2">
+                      <Text
+                        className="text-sm font-semibold text-gray-800 mb-1"
+                        numberOfLines={1}
+                      >
+                        {product.title}
+                      </Text>
+                      <Text className="text-orange-500 font-bold text-sm">
+                        ${product.price.toFixed(2)}
                       </Text>
                     </View>
-                  )}
-                </View>
+                  </TouchableOpacity>
+                ))}
               </View>
-            ))}
+            </ScrollView>
           </View>
-        </View>
+        )}
+
+        {/* Explore by Category */}
+        {!isSearchFocused && (
+          <View className="px-6 py-6">
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-lg font-bold text-gray-800">
+                Explore by Category
+              </Text>
+              <TouchableOpacity>
+                <Text className="text-orange-500 font-medium">See all</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View className="flex-row justify-between">
+              {categories.map((category, index) => (
+                <TouchableOpacity
+                  key={index}
+                  className="items-center"
+                  style={{ width: "22%" }}
+                >
+                  <View
+                    className={`${category.color} w-16 h-16 rounded-2xl items-center justify-center mb-2`}
+                  >
+                    <Ionicons
+                      name={category.icon as any}
+                      size={28}
+                      color="white"
+                    />
+                  </View>
+                  <Text className="text-xs text-gray-600 text-center">
+                    {category.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* New This Week */}
+        {!isSearchFocused && (
+          <View className="px-6 py-4 pb-8">
+            <Text className="text-lg font-bold text-gray-800 mb-4">
+              New This Week
+            </Text>
+
+            <View className="flex-row flex-wrap justify-between">
+              {newProducts.map((product) => (
+                <TouchableOpacity
+                  key={product.id}
+                  className="bg-white rounded-2xl mb-4 shadow-sm overflow-hidden"
+                  style={{ width: "48%" }}
+                  onPress={() => navigateToProduct(product.id)}
+                >
+                  <View className="relative">
+                    <Image
+                      source={{ uri: product.thumbnail }}
+                      className="w-full h-40 bg-gray-100"
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity
+                      onPress={() => toggleLike(product.id)}
+                      className="absolute top-2 right-2 bg-white w-8 h-8 rounded-full items-center justify-center"
+                    >
+                      <Ionicons
+                        name={
+                          likedProducts.has(product.id)
+                            ? "heart"
+                            : "heart-outline"
+                        }
+                        size={18}
+                        color={
+                          likedProducts.has(product.id) ? "#EF4444" : "#9CA3AF"
+                        }
+                      />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View className="p-3">
+                    <Text
+                      className="text-sm font-semibold text-gray-800 mb-1"
+                      numberOfLines={1}
+                    >
+                      {product.title}
+                    </Text>
+                    <Text className="text-orange-500 font-bold text-base">
+                      ${product.price.toFixed(2)}
+                    </Text>
+                    {product.stock > 0 && (
+                      <View className="flex-row items-center mt-1">
+                        <View className="w-2 h-2 rounded-full bg-green-500 mr-1" />
+                        <Text className="text-xs text-gray-500">
+                          {product.stock} in stock
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
