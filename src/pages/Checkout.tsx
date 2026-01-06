@@ -40,34 +40,38 @@ const getCurrentLocation = (): Promise<{
   latitude: number;
   longitude: number;
 }> => {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if (!navigator.geolocation) {
-      reject(new Error("Geolocation not supported"));
+      // fallback
+      resolve({ latitude: 19.076, longitude: 72.8777 });
       return;
     }
 
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
+    const timeoutId = setTimeout(() => {
+      // fallback if GPS takes too long
+      resolve({ latitude: 19.076, longitude: 72.8777 });
+    }, 8000); // 8 seconds max
 
-        // Accept only accurate readings (<30 meters)
-        if (accuracy <= 30) {
-          navigator.geolocation.clearWatch(watchId);
-          resolve({ latitude, longitude });
-        }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        clearTimeout(timeoutId);
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
       },
-      (error) => {
-        navigator.geolocation.clearWatch(watchId);
-        reject(error);
+      () => {
+        clearTimeout(timeoutId);
+        resolve({ latitude: 19.076, longitude: 72.8777 }); // fallback
       },
       {
         enableHighAccuracy: true,
-        timeout: 30000,
-        maximumAge: 0,
+        timeout: 7000,
       }
     );
   });
 };
+
 
 
 export default function Checkout() {

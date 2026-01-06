@@ -15,9 +15,17 @@ router.post("/create", authenticateToken, async (req, res) => {
       longitude,
       phone,
       pickupDate,
-      timeSlot, 
       paymentMethod,
+      time_slot, // optional if you added it
     } = req.body;
+
+    // ✅ VALIDATE LOCATION
+    if (latitude == null || longitude == null) {
+      return res.status(400).json({
+        success: false,
+        message: "Location access is required to place the order",
+      });
+    }
 
     const customerId = req.user.id;
 
@@ -34,8 +42,8 @@ router.post("/create", authenticateToken, async (req, res) => {
     const orderResult = await pool.query(
       `INSERT INTO orders
        (customer_id, address_id, phone_model, phone_variant, phone_condition,
-        price, pickup_date, payment_method)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        price, pickup_date, payment_method, time_slot)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        RETURNING *`,
       [
         customerId,
@@ -46,6 +54,7 @@ router.post("/create", authenticateToken, async (req, res) => {
         phone.price,
         pickupDate,
         paymentMethod,
+        time_slot || null,
       ]
     );
 

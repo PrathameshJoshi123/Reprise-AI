@@ -35,53 +35,69 @@ router.get("/nearby-orders", authenticateToken, async (req, res) => {
     }
 
     // 3️⃣ Distance-based query
-    const ordersResult = await pool.query(
-      `
-      SELECT *
-      FROM (
-        SELECT 
-          o.id,
-          o.phone_model,
-          o.phone_variant,
-          o.phone_condition,
-          o.price,
-          o.status,
-          o.time_slot,
+   const ordersResult = await pool.query(
+  `
+  SELECT
+    sub.id,
+    sub.phone_model,
+    sub.phone_variant,
+    sub.phone_condition,
+    sub.price,
+    sub.status,
+    sub.pickup_date,
 
-          o.pickup_date,
+    sub.customer_name,
+    sub.customer_phone,
+
+    sub.full_address,
+    sub.city,
+    sub.pincode,
+    sub.latitude,
+    sub.longitude,
+    sub.distance_km
+
+  FROM (
+    SELECT 
+      o.id,
+      o.phone_model,
+      o.phone_variant,
+      o.phone_condition,
+      o.price,
+      o.status,
+      o.pickup_date,
+
+      c.name AS customer_name,
+      c.phone AS customer_phone,
+
+      ca.full_address,
+      ca.city,
+      ca.pincode,
+      ca.latitude,
+      ca.longitude,
+
+      (
+        6371 * acos(
+          cos(radians($1))
+          * cos(radians(ca.latitude))
+          * cos(radians(ca.longitude) - radians($2))
+          + sin(radians($1))
+          * sin(radians(ca.latitude))
+        )
+      ) AS distance_km
+
+    FROM orders o
+    INNER JOIN customers c ON o.customer_id = c.id
+    INNER JOIN customer_addresses ca ON o.address_id = ca.id
+    WHERE o.status = 'pending'
+      AND o.agent_id IS NULL
+  ) AS sub
+  WHERE sub.distance_km <= 20
+  ORDER BY sub.distance_km ASC
+  `,
+  [latitude, longitude]
+);
 
 
-          c.name AS customer_name,
-          c.phone AS customer_phone,
-
-          ca.full_address,
-          ca.city,
-          ca.pincode,
-          ca.latitude,        
-          ca.longitude
-
-          (
-            6371 * acos(
-              cos(radians($1))
-              * cos(radians(ca.latitude))
-              * cos(radians(ca.longitude) - radians($2))
-              + sin(radians($1))
-              * sin(radians(ca.latitude))
-            )
-          ) AS distance_km
-
-        FROM orders o
-        JOIN customers c ON o.customer_id = c.id
-        JOIN customer_addresses ca ON o.address_id = ca.id
-        WHERE o.status = 'pending'
-        AND o.agent_id IS NULL
-
-      ) AS sub
-      WHERE distance_km <= 20
-      ORDER BY distance_km ASC
-      `,
-      [latitude, longitude]
-    );
 
     res.json({
       success: true,
