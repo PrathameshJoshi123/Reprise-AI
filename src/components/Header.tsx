@@ -53,22 +53,23 @@ export function Header() {
             </Link>
 
             <nav className="hidden md:flex items-center space-x-6 ml-10">
-              {isLoggedIn ? (
-                <Link
-                  to="/sell"
-                  className="text-sm font-medium hover:text-primary transition-colors"
-                >
-                  Sell Phone
-                </Link>
-              ) : (
-                <span
-                  className="text-sm font-medium text-gray-400 cursor-not-allowed opacity-60"
-                  title="Login to access selling"
-                >
-                  Sell Phone
-                </span>
-              )}
-              {isLoggedIn && user?.role === "customer" && (
+              {isLoggedIn && user?.role === "customer" ? (
+  <Link
+    to="/sell"
+    className="text-sm font-medium hover:text-primary transition-colors"
+  >
+    Sell Phone
+  </Link>
+) : !isLoggedIn ? (
+  <span
+    className="text-sm font-medium text-gray-400 cursor-not-allowed opacity-60"
+    title="Login to access selling"
+  >
+    Sell Phone
+  </span>
+) : null}
+
+{isLoggedIn && user?.role === "customer" && (
   <Link
     to="/my-orders"
     className="text-sm font-medium hover:text-primary transition-colors"
@@ -76,6 +77,7 @@ export function Header() {
     My Orders
   </Link>
 )}
+
 
               <Link
                 to="/how-it-works"

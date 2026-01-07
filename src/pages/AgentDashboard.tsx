@@ -155,6 +155,32 @@ export default function AgentDashboard() {
     }
   };
 
+  const cancelPickup = async (orderId: string) => {
+  try {
+    const res = await fetch(
+      `${import.meta.env.VITE_API_URL}/orders/${orderId}/cancel`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    const data = await res.json();
+
+    if (data.success) {
+      // Remove from My Pickups immediately
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    } else {
+      alert(data.message || "Failed to cancel order");
+    }
+  } catch (err) {
+    console.error("Cancel pickup failed", err);
+  }
+};
+
+
   /* ======================
      STATS
   ====================== */
@@ -284,13 +310,24 @@ export default function AgentDashboard() {
                     )}
 
                     {order.status === "in-progress" && (
-                      <Button
-                        size="sm"
-                        onClick={() => completePickup(order.id)}
-                      >
-                        Complete
-                      </Button>
-                    )}
+  <div className="flex gap-2 mt-2">
+    <Button
+      size="sm"
+      onClick={() => completePickup(order.id)}
+    >
+      Complete
+    </Button>
+
+    <Button
+      size="sm"
+      variant="destructive"
+      onClick={() => cancelPickup(order.id)}
+    >
+      Cancel
+    </Button>
+  </div>
+)}
+
                   </div>
                 </div>
               </div>

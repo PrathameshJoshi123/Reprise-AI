@@ -144,6 +144,44 @@ router.patch("/:id/complete", authenticateToken, async (req, res) => {
   }
 });
 
+// ❌ CANCEL PICKUP (Return order to Nearby Orders)
+router.patch("/:id/cancel", authenticateToken, async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const agentId = req.user.id;
+
+    const result = await pool.query(
+      `
+      UPDATE orders
+      SET status = 'pending',
+          agent_id = NULL
+      WHERE id = $1
+        AND agent_id = $2
+        AND status = 'in-progress'
+      RETURNING *
+      `,
+      [orderId, agentId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Order cannot be cancelled",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Order returned to nearby orders",
+      order: result.rows[0],
+    });
+  } catch (err) {
+    console.error("CANCEL ORDER ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+
 // ✅ MOVE THIS UP — GET MY ORDERS
 router.get("/my", authenticateToken, async (req, res) => {
   try {
