@@ -2,18 +2,24 @@ import re
 from typing import TypedDict, Optional, List, Literal
 from .tools import retriever
 from langgraph.graph import START, StateGraph, END
-from langchain_groq import ChatGroq
+
 from dotenv import load_dotenv
+
+
+from langchain_groq import ChatGroq
 import os
 
-# 1. SETUP ENVIRONMENT & LLM
-load_dotenv()
+def get_llm():
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY not set")
 
-llm = ChatGroq(
-    model="openai/gpt-oss-120b",
-    temperature=0,
-    api_key=os.getenv("GROQ_API_KEY")
-)
+    return ChatGroq(
+        model="openai/gpt-oss-120b",
+        temperature=0,
+        api_key=api_key
+    )
+
 
 # 2. DEFINE STATE
 class PricingState(TypedDict):
@@ -81,7 +87,9 @@ def get_dynamic_deduction(model_name: str, issue_type: str) -> float:
     Return ONLY a decimal number (e.g., 0.35). DO NOT write any text or reasoning."""
     
     try:
+        llm = get_llm()
         response = llm.invoke(prompt)
+
         content = response.content.strip()
         
         # USE ROBUST PARSING
