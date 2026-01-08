@@ -76,7 +76,7 @@ export default function AgentDashboard() {
     refetchInterval: 30000,
   });
 
-  // New: Fetch nearby orders only when filter is "all"
+  // New: Fetch nearby orders always for agents
   const {
     data: nearbyOrders = [],
     isLoading: isNearbyLoading,
@@ -87,16 +87,17 @@ export default function AgentDashboard() {
       const response = await api.get("/sell-phone/agent/nearby-orders");
       return response.data as Order[];
     },
-    enabled: !!user && user.role === "agent" && selectedFilter === "all",
+    enabled: !!user && user.role === "agent",
     refetchInterval: 30000,
   });
 
-  // Mutation for accepting orders (invalidate myOrders)
+  // Mutation for accepting orders (invalidate both myOrders and nearbyOrders)
   const acceptOrderMutation = useMutation({
     mutationFn: (orderId: number) =>
       api.post(`/sell-phone/orders/${orderId}/accept`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agentMyOrders"] });
+      queryClient.invalidateQueries({ queryKey: ["nearbyOrders"] });
     },
   });
 
@@ -134,7 +135,9 @@ export default function AgentDashboard() {
 
   // Loading/error combined, including nearby when applicable
   const isLoading =
-    isMyOrdersLoading || isUserLoading || (selectedFilter === "all" && isNearbyLoading);
+    isMyOrdersLoading ||
+    isUserLoading ||
+    (selectedFilter === "all" && isNearbyLoading);
   const error = myOrdersError || (selectedFilter === "all" && nearbyError);
 
   const getStatusColor = (status: string) => {
