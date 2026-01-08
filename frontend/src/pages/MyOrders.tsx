@@ -17,7 +17,9 @@ import {
 } from "lucide-react";
 
 const fetchOrders = async (token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const API_URL = (
+    import.meta.env.VITE_API_URL || "http://localhost:8000"
+  ).replace(/\/$/, "");
   const response = await fetch(`${API_URL}/sell-phone/my-orders`, {
     headers: { Authorization: `Bearer ${token}` },
   });

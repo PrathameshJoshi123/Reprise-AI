@@ -179,8 +179,9 @@ export default function Checkout() {
     };
 
     try {
-      const API_URL =
-        (import.meta.env.VITE_API_URL as string) || "http://localhost:8000";
+      const API_URL = (
+        import.meta.env.VITE_API_URL || "http://localhost:8000"
+      ).replace(/\/$/, "");
       const res = await fetch(`${API_URL}/sell-phone/orders`, {
         method: "POST",
         headers: {
