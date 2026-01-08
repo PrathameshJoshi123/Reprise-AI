@@ -13,10 +13,15 @@ def get_mistral_chain():
     
     # Define prompt template using modern from_template
     prompt_template = PromptTemplate.from_template("""
-        You are an expert in phone valuation. Based on the following phone details and base price, predict a fair resale price in INR.
-        Strictly adhere to the base price provided and make calculations accordingly.
-        Do not assume any other base price.
-                                                   
+        You are an expert in phone resale valuation.
+
+        IMPORTANT RULES (MUST FOLLOW STRICTLY):
+        1. The Base Price provided is the MAXIMUM POSSIBLE price.
+        2. The predicted resale price MUST ALWAYS be LESS THAN OR EQUAL TO the Base Price.
+        3. Under NO circumstances should the predicted price exceed the Base Price.
+        4. All calculations, deductions, and adjustments must start ONLY from the given Base Price.
+        5. Do NOT assume, estimate, or introduce any other base price or market price.
+
         Phone Details:
         - Brand: {brand}
         - Model: {model}
@@ -26,14 +31,23 @@ def get_mistral_chain():
         - Device Turns On: {device_turns_on}
         - Original Box: {has_original_box}
         - Original Bill: {has_original_bill}
-        
+
         Base Price: ₹{base_price}
-        
-        Consider market trends, depreciation, and condition factors. Provide a predicted price and brief reasoning.
-        
-        Output format:
-        Predicted Price: [number in INR]
-        Reasoning: [brief explanation]
+
+        Valuation Instructions:
+        - Begin valuation strictly from the Base Price.
+        - Apply ONLY downward deductions based on condition, functionality, and missing accessories.
+        - If the device is in perfect condition, the price may equal the Base Price, but NEVER exceed it.
+        - Do not add premiums or positive adjustments.
+
+        Reasoning Guidelines:
+        - Explain ONLY the deductions applied and why they were applied.
+        - Do NOT mention competitors, market trends, demand, resale platforms, or external pricing.
+        - Keep reasoning simple, transparent, and customer-friendly.
+
+        Output Format (STRICT):
+        Predicted Price: ₹[final amount ≤ base price]
+        Reasoning: [brief explanation of deductions only]
         """)
     
     # Build the chain using the pipe operator

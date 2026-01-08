@@ -38,6 +38,7 @@ export default function PhoneDetail() {
   const [deviceTurnsOn, setDeviceTurnsOn] = useState<string>("");
   const [hasOriginalBox, setHasOriginalBox] = useState<string>("");
   const [hasOriginalBill, setHasOriginalBill] = useState<string>("");
+  const [customRamInput, setCustomRamInput] = useState(""); // New state for custom RAM input
 
   // Fetch phone data from backend
   const {
@@ -83,22 +84,22 @@ export default function PhoneDetail() {
   const { data: variantPrice } = useQuery({
     queryKey: ["phoneVariantPrice", phoneId, selectedRam, selectedStorage],
     queryFn: async () => {
-      const ramMap: { [key: string]: number } = {
-        "4gb": 4,
-        "6gb": 6,
-        "8gb": 8,
+      // Updated to parse selectedRam dynamically (e.g., "8gb" -> 8)
+      const parseRam = (ram: string) => {
+        const match = ram.match(/^(\d+)gb$/i);
+        return match ? parseInt(match[1], 10) : 0;
       };
-      const storageMap: { [key: string]: number } = {
-        "128gb": 128,
-        "256gb": 256,
-        "512gb": 512,
-        "1tb": 1024,
+      const parseStorage = (storage: string) => {
+        const match = storage.match(/^(\d+)gb$/i);
+        return match ? parseInt(match[1], 10) : storage === "1tb" ? 1024 : 0;
       };
       const API_URL = (
         import.meta.env.VITE_API_URL || "http://localhost:8000"
       ).replace(/\/$/, "");
       const response = await fetch(
-        `${API_URL}/sell-phone/phones/${phoneId}/price?ram_gb=${ramMap[selectedRam]}&storage_gb=${storageMap[selectedStorage]}`
+        `${API_URL}/sell-phone/phones/${phoneId}/price?ram_gb=${parseRam(
+          selectedRam
+        )}&storage_gb=${parseStorage(selectedStorage)}`
       );
       if (!response.ok) throw new Error("Failed to fetch variant price");
       return response.json();
@@ -159,23 +160,27 @@ export default function PhoneDetail() {
     refetchOnReconnect: false,
   });
 
-  // Dynamically build options from variants
+  // Dynamically build options from variants (filter out null/invalid entries)
   const ramOptions =
-    variants?.rams?.map((ram: number) => ({
-      id: `${ram}gb`,
-      name: `${ram}GB`,
-      priceAdjustment: 0, // Placeholder; adjust based on logic if needed
-    })) || [];
+    (variants?.rams || [])
+      .filter((r: any) => typeof r === "number" && Number.isFinite(r) && r > 0)
+      .map((ram: number) => ({
+        id: `${ram}gb`,
+        name: `${ram}GB`,
+        priceAdjustment: 0, // Placeholder; adjust based on logic if needed
+      })) || [];
 
   const storageOptions =
-    variants?.storages?.map((storage: number) => {
-      const name = storage >= 1024 ? `${storage / 1024}TB` : `${storage}GB`;
-      return {
-        id: `${storage}gb`,
-        name,
-        priceAdjustment: 0, // Placeholder; adjust based on logic if needed
-      };
-    }) || [];
+    (variants?.storages || [])
+      .filter((s: any) => typeof s === "number" && Number.isFinite(s) && s > 0)
+      .map((storage: number) => {
+        const name = storage >= 1024 ? `${storage / 1024}TB` : `${storage}GB`;
+        return {
+          id: `${storage}gb`,
+          name,
+          priceAdjustment: 0, // Placeholder; adjust based on logic if needed
+        };
+      }) || [];
 
   if (isLoading) return <p>Loading phone details...</p>;
   if (error) return <p>Error loading phone: {error.message}</p>;
@@ -188,7 +193,6 @@ export default function PhoneDetail() {
     brand: phoneData.Brand,
     image: `/assets/phones/${phoneData.id}.png`, // Fallback image
     releaseYear: new Date().getFullYear(), // Placeholder, not in DB
-    description: `Phone model: ${phoneData.Model} with ${phoneData.RAM_GB}GB RAM and ${phoneData.Internal_Storage_GB}GB storage.`,
     basePrice,
     // Keep options as predefined (not in DB)
     ramOptions,
@@ -229,18 +233,20 @@ export default function PhoneDetail() {
 
   // Map selections to API payload
   const getPhoneDetailsForAPI = () => {
-    const ramMap: { [key: string]: number } = { "4gb": 4, "6gb": 6, "8gb": 8 };
-    const storageMap: { [key: string]: number } = {
-      "128gb": 128,
-      "256gb": 256,
-      "512gb": 512,
-      "1tb": 1024,
+    // Updated to parse selectedRam dynamically
+    const parseRam = (ram: string) => {
+      const match = ram.match(/^(\d+)gb$/i);
+      return match ? parseInt(match[1], 10) : 0;
+    };
+    const parseStorage = (storage: string) => {
+      const match = storage.match(/^(\d+)gb$/i);
+      return match ? parseInt(match[1], 10) : storage === "1tb" ? 1024 : 0;
     };
     return {
       brand: phone.brand,
       model: phoneData.Model, // Use from DB
-      ram_gb: ramMap[selectedRam] || 0,
-      storage_gb: storageMap[selectedStorage] || 0,
+      ram_gb: parseRam(selectedRam),
+      storage_gb: parseStorage(selectedStorage),
       screen_condition: selectedScreenCondition,
       device_turns_on: deviceTurnsOn === "yes",
       has_original_box: hasOriginalBox === "yes",
@@ -249,7 +255,10 @@ export default function PhoneDetail() {
   };
 
   const canProceed = () => {
-    if (currentStep === 1) return selectedRam !== "";
+    if (currentStep === 1) {
+      // Updated: If ramOptions exist, check selectedRam; else check customRamInput
+      return ramOptions.length > 0 ? selectedRam !== "" : customRamInput !== "";
+    }
     if (currentStep === 2) return selectedStorage !== "";
     if (currentStep === 3)
       return (
@@ -262,6 +271,27 @@ export default function PhoneDetail() {
   };
 
   const progress = (currentStep / STEPS.length) * 100;
+
+  // Helper: safe display for RAM/storage to avoid "null" or "NaN"
+  const formatRamDisplay = (selRam: string) => {
+    if (selRam) {
+      const n = parseInt(String(selRam).replace(/gb$/i, ""), 10);
+      if (Number.isFinite(n) && n > 0) return `${n}GB`;
+    }
+    if (phoneData?.RAM_GB) return `${phoneData.RAM_GB}GB`;
+    return "unknown";
+  };
+
+  const formatStorageDisplay = (selStorage: string) => {
+    if (selStorage) {
+      if (/1tb/i.test(selStorage)) return "1TB";
+      const n = parseInt(String(selStorage).replace(/gb$/i, ""), 10);
+      if (Number.isFinite(n) && n > 0) return `${n}GB`;
+    }
+    if (phoneData?.Internal_Storage_GB)
+      return `${phoneData.Internal_Storage_GB}GB`;
+    return "unknown";
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
@@ -364,6 +394,11 @@ export default function PhoneDetail() {
                         <p className="text-sm font-semibold text-blue-600 mt-1">
                           Base: ₹{phone.basePrice.toLocaleString()}
                         </p>
+                        {/* Safe dynamic RAM and Storage display */}
+                        <p className="text-sm text-gray-600 mt-1">
+                          RAM: {formatRamDisplay(selectedRam)} | Storage:{" "}
+                          {formatStorageDisplay(selectedStorage)}
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -397,42 +432,65 @@ export default function PhoneDetail() {
             <div className="flex flex-col justify-center">
               <div className="max-w-xl mx-auto w-full space-y-4">
                 {/* Step 1: RAM Selection */}
-                {currentStep === 1 && (
-                  <RadioGroup
-                    value={selectedRam}
-                    onValueChange={setSelectedRam}
-                    className="space-y-4"
-                  >
-                    {phone.ramOptions.map((ram) => (
-                      <div key={ram.id}>
-                        <RadioGroupItem
-                          value={ram.id}
-                          id={`ram-${ram.id}`}
-                          className="peer sr-only"
-                        />
-                        <Label
-                          htmlFor={`ram-${ram.id}`}
-                          className="flex items-center gap-4 border-2 rounded-2xl p-5 cursor-pointer peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 hover:bg-white/80 bg-white/60 backdrop-blur transition-all hover:shadow-lg"
-                        >
-                          <div
-                            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                              selectedRam === ram.id
-                                ? "border-blue-600 bg-blue-600"
-                                : "border-gray-300"
-                            }`}
+                {currentStep === 1 &&
+                  (ramOptions.length > 0 ? (
+                    // Existing radio group if options available
+                    <RadioGroup
+                      value={selectedRam}
+                      onValueChange={setSelectedRam}
+                      className="space-y-4"
+                    >
+                      {ramOptions.map((ram) => (
+                        <div key={ram.id}>
+                          <RadioGroupItem
+                            value={ram.id}
+                            id={`ram-${ram.id}`}
+                            className="peer sr-only"
+                          />
+                          <Label
+                            htmlFor={`ram-${ram.id}`}
+                            className="flex items-center gap-4 border-2 rounded-2xl p-5 cursor-pointer peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 hover:bg-white/80 bg-white/60 backdrop-blur transition-all hover:shadow-lg"
                           >
-                            {selectedRam === ram.id && (
-                              <div className="w-3 h-3 rounded-full bg-white" />
-                            )}
-                          </div>
-                          <span className="font-semibold text-lg flex-grow">
-                            {ram.name}
-                          </span>
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                )}
+                            <div
+                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                                selectedRam === ram.id
+                                  ? "border-blue-600 bg-blue-600"
+                                  : "border-gray-300"
+                              }`}
+                            >
+                              {selectedRam === ram.id && (
+                                <div className="w-3 h-3 rounded-full bg-white" />
+                              )}
+                            </div>
+                            <span className="font-semibold text-lg flex-grow">
+                              {ram.name}
+                            </span>
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  ) : (
+                    // New input field if no options
+                    <div className="space-y-4">
+                      <Label
+                        htmlFor="custom-ram"
+                        className="text-lg font-semibold"
+                      >
+                        Enter RAM (GB)
+                      </Label>
+                      <input
+                        id="custom-ram"
+                        type="number"
+                        value={customRamInput}
+                        onChange={(e) => {
+                          setCustomRamInput(e.target.value);
+                          setSelectedRam(`${e.target.value}gb`); // Set selectedRam for consistency
+                        }}
+                        placeholder="e.g., 8"
+                        className="w-full border-2 rounded-2xl p-5 bg-white/60 backdrop-blur focus:border-blue-600 focus:bg-blue-50 transition-all"
+                      />
+                    </div>
+                  ))}
 
                 {/* Step 2: Storage Selection */}
                 {currentStep === 2 && (
