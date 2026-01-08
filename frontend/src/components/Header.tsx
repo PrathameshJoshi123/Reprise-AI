@@ -53,12 +53,27 @@ export function Header() {
             </Link>
 
             <nav className="hidden md:flex items-center space-x-6 ml-10">
-              <Link
-                to="/sell-phone"
-                className="text-sm font-medium hover:text-primary transition-colors"
-              >
-                Sell Phone
-              </Link>
+              {/* Sell Phone: only visible to customers.
+								Unauthenticated users see a CTA that navigates to /login.
+								Agents do not see this link. */}
+              {isLoggedIn ? (
+                user?.role === "customer" ? (
+                  <Link
+                    to="/sell-phone"
+                    className="text-sm font-medium hover:text-primary transition-colors"
+                  >
+                    Sell Phone
+                  </Link>
+                ) : null
+              ) : (
+                <Link
+                  to="/login"
+                  className="text-sm font-medium hover:text-primary transition-colors"
+                >
+                  Sell Phone
+                </Link>
+              )}
+
               <Link
                 to="/how-it-works"
                 className="text-sm font-medium hover:text-primary transition-colors"
@@ -138,12 +153,16 @@ export function Header() {
                   </Link>
                 </Button>
 
-                {/* Sell Now button */}
-                <Link to="/sell-phone">
-                  <Button className="bg-primary text-primary-foreground hover:brightness-95 hidden md:inline-flex">
-                    Sell Now
-                  </Button>
-                </Link>
+                {/* Sell Now button (desktop): if not logged in, send to /login.
+							Customers will navigate to actual /sell-phone route via nav link above.
+							Agents won't see Sell Now as a separate CTA. */}
+                {!isLoggedIn && (
+                  <Link to="/login">
+                    <Button className="bg-primary text-primary-foreground hover:brightness-95 hidden md:inline-flex">
+                      Sell Now
+                    </Button>
+                  </Link>
+                )}
 
                 {/* Become Agent button */}
                 <Link to="/login">
@@ -166,12 +185,25 @@ export function Header() {
               </SheetTrigger>
               <SheetContent side="right">
                 <div className="grid gap-6 py-6">
-                  <Link
-                    to="/sell-phone"
-                    className="text-base font-medium hover:text-blue-600 transition-colors"
-                  >
-                    Sell Phone
-                  </Link>
+                  {/* Sell Phone in mobile: same visibility rules as desktop */}
+                  {isLoggedIn ? (
+                    user?.role === "customer" ? (
+                      <Link
+                        to="/sell-phone"
+                        className="text-base font-medium hover:text-blue-600 transition-colors"
+                      >
+                        Sell Phone
+                      </Link>
+                    ) : null
+                  ) : (
+                    <Link
+                      to="/login"
+                      className="text-base font-medium hover:text-blue-600 transition-colors"
+                    >
+                      Sell Phone
+                    </Link>
+                  )}
+
                   <Link
                     to="/how-it-works"
                     className="text-base font-medium hover:text-blue-600 transition-colors"

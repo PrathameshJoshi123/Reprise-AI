@@ -8,6 +8,7 @@ import SellPhone from "./pages/SellPhone";
 import PhoneDetail from "./pages/PhoneDetail";
 import { lazy, Suspense } from "react";
 import { AuthProvider } from "@/context/AuthContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Lazy load less critical pages
 const Login = lazy(() => import("./pages/Login"));
@@ -42,7 +43,14 @@ const App = () => (
             <Routes>
               {/* Main pages */}
               <Route path="/" element={<Index />} />
-              <Route path="/sell-phone" element={<SellPhone />} />
+              <Route
+                path="/sell-phone"
+                element={
+                  <ProtectedRoute>
+                    <SellPhone />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/sell/:phoneId" element={<PhoneDetail />} />
 
               {/* Customer routes */}
