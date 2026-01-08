@@ -1,29 +1,41 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 from shared.db.connections import get_db
 from services.auth import models as auth_models, utils as auth_utils
 from services.sell_phone.schema import models as sell_models
-from ..schema.schemas import AdminUserCreate, AdminUserUpdate, UserOut, OrderOut
+from ..schema.schemas import (
+    AdminUserCreate,
+    AdminUserUpdate,
+    AdminUserOut,
+    AdminOrderOut,
+)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
-@router.get("/users", response_model=list[UserOut])
+@router.get("/users", response_model=list[AdminUserOut])
 def list_users(
     role: str = None,  # Optional filter: "agent" or "customer"
     db: Session = Depends(get_db),
     current_admin: auth_models.User = Depends(auth_utils.require_role(["admin"])),
 ):
     """
-    List all users (agents and customers). Admins can filter by role.
+    List users — only load fields required by the admin UI to avoid fetching everything.
     """
-    query = db.query(auth_models.User)
+    query = db.query(auth_models.User).options(
+        load_only(
+            auth_models.User.id,
+            auth_models.User.email,
+            auth_models.User.full_name,
+            auth_models.User.role,
+        )
+    )
     if role:
         query = query.filter(auth_models.User.role == role)
     # Exclude other admins for security
     query = query.filter(auth_models.User.role.in_(["agent", "customer"]))
     return query.all()
 
-@router.post("/users", response_model=UserOut, status_code=201)
+@router.post("/users", response_model=AdminUserOut, status_code=201)
 def create_user(
     payload: AdminUserCreate,
     db: Session = Depends(get_db),
@@ -56,7 +68,7 @@ def create_user(
     db.refresh(user)
     return user
 
-@router.put("/users/{user_id}", response_model=UserOut)
+@router.put("/users/{user_id}", response_model=AdminUserOut)
 def update_user(
     user_id: int,
     payload: AdminUserUpdate,
@@ -103,16 +115,26 @@ def delete_user(
     db.commit()
     return {"message": "User deleted successfully"}
 
-@router.get("/orders", response_model=list[OrderOut])
+@router.get("/orders", response_model=list[AdminOrderOut])
 def list_orders(
     status: str = None,  # Optional filter by order status
     db: Session = Depends(get_db),
     current_admin: auth_models.User = Depends(auth_utils.require_role(["admin"])),
 ):
     """
-    List all orders. Admins can filter by status.
+    List orders — only load fields required by the admin UI to avoid fetching everything.
     """
-    query = db.query(sell_models.Order)
+    query = db.query(sell_models.Order).options(
+        load_only(
+            sell_models.Order.id,
+            sell_models.Order.phone_name,
+            sell_models.Order.customer_name,
+            sell_models.Order.agent_name,
+            sell_models.Order.status,
+            sell_models.Order.quoted_price,
+            sell_models.Order.created_at,
+        )
+    )
     if status:
         query = query.filter(sell_models.Order.status == status)
     return query.order_by(sell_models.Order.created_at.desc()).all()
