@@ -76,6 +76,21 @@ export default function AgentDashboard() {
     refetchInterval: 30000,
   });
 
+  // New: Fetch nearby orders only when filter is "all"
+  const {
+    data: nearbyOrders = [],
+    isLoading: isNearbyLoading,
+    error: nearbyError,
+  } = useQuery({
+    queryKey: ["nearbyOrders"],
+    queryFn: async () => {
+      const response = await api.get("/sell-phone/agent/nearby-orders");
+      return response.data as Order[];
+    },
+    enabled: !!user && user.role === "agent" && selectedFilter === "all",
+    refetchInterval: 30000,
+  });
+
   // Mutation for accepting orders (invalidate myOrders)
   const acceptOrderMutation = useMutation({
     mutationFn: (orderId: number) =>
@@ -89,10 +104,13 @@ export default function AgentDashboard() {
     acceptOrderMutation.mutate(orderId);
   };
 
-  // Filter myOrders for the list based on selectedFilter
-  const filteredOrders = myOrders.filter((order) =>
+  // Filter myOrders for the list based on selectedFilter, and combine with nearbyOrders for "all"
+  let filteredOrders = myOrders.filter((order) =>
     selectedFilter === "all" ? true : order.status === selectedFilter
   );
+  if (selectedFilter === "all") {
+    filteredOrders = [...filteredOrders, ...nearbyOrders];
+  }
 
   // Compute stats from myOrders
   const stats = {
@@ -114,9 +132,10 @@ export default function AgentDashboard() {
     enabled: !!user && user.role === "agent",
   });
 
-  // Loading/error combined
-  const isLoading = isMyOrdersLoading || isUserLoading;
-  const error = myOrdersError;
+  // Loading/error combined, including nearby when applicable
+  const isLoading =
+    isMyOrdersLoading || isUserLoading || (selectedFilter === "all" && isNearbyLoading);
+  const error = myOrdersError || (selectedFilter === "all" && nearbyError);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -364,7 +383,7 @@ export default function AgentDashboard() {
                   </div>
                 </div>
               ))
-            )}
+            }
           </div>
         </div>
       </main>
