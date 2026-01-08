@@ -363,10 +363,10 @@ export default function AgentDashboard() {
                           <Button
                             size="sm"
                             onClick={() => handleAcceptOrder(order.id)}
-                            disabled={acceptOrderMutation.isLoading}
+                            disabled={acceptOrderMutation.isPending}
                             className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                           >
-                            {acceptOrderMutation.isLoading
+                            {acceptOrderMutation.isPending
                               ? "Accepting..."
                               : "Accept Order"}
                           </Button>
@@ -383,7 +383,7 @@ export default function AgentDashboard() {
                   </div>
                 </div>
               ))
-            }
+            )}
           </div>
         </div>
       </main>
