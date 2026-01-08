@@ -22,6 +22,7 @@ const MyOrders = lazy(() => import("@/pages/MyOrders"));
 const AgentLogin = lazy(() => import("./pages/AgentLogin"));
 const CustomerLogin = lazy(() => import("./pages/CustomerLogin"));
 const AgentDashboard = lazy(() => import("./pages/AgentDashboard"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="/agent/login" element={<AgentLogin />} />
               <Route path="/agent/dashboard" element={<AgentDashboard />} />
               <Route path="/my-orders" element={<MyOrders />} />
+              <Route path="/admin" element={<AdminDashboard />} />
 
               {/* Catch all */}
               <Route path="*" element={<NotFound />} />
