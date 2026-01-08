@@ -5,16 +5,19 @@ import {
   useEffect,
   ReactNode,
 } from "react";
+import api from "../lib/api"; // Adjust the import based on your project structure
 
 interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   role: "user" | "agent" | "customer" | "admin";
 }
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   isLoggedIn: boolean;
   login: (
     identifier: string,
@@ -27,7 +30,10 @@ interface AuthContextType {
     password: string,
     role?: "user" | "agent" | "customer",
     name?: string,
-    phone?: string
+    phone?: string,
+    address?: string,
+    latitude?: number | null,
+    longitude?: number | null
   ) => Promise<boolean>;
   logout: () => void;
 }
@@ -39,15 +45,17 @@ const API_URL =
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
   // Load user & token from localStorage on mount
   useEffect(() => {
     const savedUser = localStorage.getItem("currentUser");
-    const token = localStorage.getItem("accessToken");
-    if (savedUser && token) {
+    const savedToken = localStorage.getItem("accessToken");
+    if (savedUser && savedToken) {
       try {
         const parsedUser = JSON.parse(savedUser);
         setUser(parsedUser);
+        setToken(savedToken);
       } catch (e) {
         localStorage.removeItem("currentUser");
         localStorage.removeItem("accessToken");
@@ -70,22 +78,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     name?: string
   ): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password }),
+      const response = await api.post("/auth/login", {
+        identifier,
+        password,
       });
-      if (!res.ok) return false;
-      const data = await res.json(); // { access_token, token_type }
-      const token = data.access_token;
+      const token = response.data.access_token;
       localStorage.setItem("accessToken", token);
+      setToken(token);
 
-      const me = await fetchMe(token);
+      // Fetch user data after login
+      const userResponse = await api.get("/auth/me");
       const mappedUser: User = {
-        id: String(me.id),
-        name: me.full_name || name || me.email.split("@")[0],
-        email: me.email,
-        role: (me.role as User["role"]) || "customer",
+        id: String(userResponse.data.id),
+        name:
+          userResponse.data.full_name ||
+          name ||
+          userResponse.data.email.split("@")[0],
+        email: userResponse.data.email,
+        phone: userResponse.data.phone,
+        role: (userResponse.data.role as User["role"]) || "customer",
       };
       localStorage.setItem("currentUser", JSON.stringify(mappedUser));
       setUser(mappedUser);
@@ -100,7 +111,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     role: "user" | "agent" | "customer" = "customer",
     name?: string,
-    phone?: string
+    phone?: string,
+    address?: string,
+    latitude?: number | null,
+    longitude?: number | null
   ): Promise<boolean> => {
     try {
       const payload = {
@@ -109,6 +123,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         full_name: name,
         phone,
         role: role === "user" ? "customer" : role,
+        address,
+        latitude,
+        longitude,
       };
       const res = await fetch(`${API_URL}/auth/signup`, {
         method: "POST",
@@ -125,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
+    setToken(null);
     localStorage.removeItem("currentUser");
     localStorage.removeItem("accessToken");
     console.log("User logged out");
@@ -132,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoggedIn: !!user, login, signup, logout }}
+      value={{ user, token, isLoggedIn: !!user, login, signup, logout }}
     >
       {children}
     </AuthContext.Provider>

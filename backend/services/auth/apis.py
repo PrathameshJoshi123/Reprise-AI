@@ -13,13 +13,21 @@ def signup(user_in: schemas.UserCreate, db: Session = Depends(utils.get_db)):
     existing = db.query(models.User).filter(models.User.email == user_in.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
+    # require address only for agents (customers can omit address at signup)
+    if getattr(user_in, "role", "customer") == "agent":
+        if not user_in.address or not user_in.address.strip():
+            raise HTTPException(status_code=400, detail="Address is required for agents")
     hashed = utils.get_password_hash(user_in.password)
+    # include optional geolocation if provided
     user = models.User(
         email=user_in.email,
         full_name=user_in.full_name,
         phone=user_in.phone,
+        address=user_in.address,
         hashed_password=hashed,
-        role=user_in.role
+        role=user_in.role,
+        latitude=getattr(user_in, "latitude", None),
+        longitude=getattr(user_in, "longitude", None),
     )
     db.add(user)
     db.commit()
@@ -29,9 +37,13 @@ def signup(user_in: schemas.UserCreate, db: Session = Depends(utils.get_db)):
 @router.post("/login", response_model=schemas.Token, tags=["auth"])
 def login(payload: schemas.UserLogin, db: Session = Depends(utils.get_db)):
     user = db.query(models.User).filter(
-        (models.User.email == payload.identifier) | (models.User.phone == payload.identifier)
+        (models.User.phone == payload.identifier) | (models.User.email == payload.identifier)
     ).first()
-    if not user or not utils.verify_password(payload.password, user.hashed_password):
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect credentials")
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account is inactive")
+    if not utils.verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect credentials")
     token = utils.create_access_token(data={"user_id": user.id, "role": user.role})
     return {"access_token": token, "token_type": "bearer"}

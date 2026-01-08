@@ -5,7 +5,10 @@ class UserBase(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
     phone: Optional[str] = None
+    address: Optional[str] = None
     role: Optional[str] = "customer"
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class UserCreate(UserBase):
     password: str
@@ -13,6 +16,7 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
+    address: Optional[str] = None
     role: Optional[str] = None
     is_active: Optional[bool] = None
 
@@ -21,11 +25,14 @@ class UserOut(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
     phone: Optional[str] = None
+    address: Optional[str] = None
     role: str
     is_active: bool
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 class Token(BaseModel):
     access_token: str

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -16,29 +16,175 @@ import {
   DollarSign,
   Home,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import ReactMarkdown from "react-markdown";
 
-// Mock data for a phone
-const PHONE_DATA = {
-  "iphone-13-pro": {
-    id: "iphone-13-pro",
-    name: "iPhone 13 Pro",
-    brand: "Apple",
-    image: "/assets/phones/iphone-13-pro.png",
-    releaseYear: 2021,
-    description:
-      "The iPhone 13 Pro is Apple's flagship phone featuring a Pro camera system, Super Retina XDR display with ProMotion, and A15 Bionic chip.",
-    basePrice: 45000,
-    ramOptions: [
-      { id: "4gb", name: "4GB", priceAdjustment: -5000 },
-      { id: "6gb", name: "6GB", priceAdjustment: 0 },
-      { id: "8gb", name: "8GB", priceAdjustment: 3000 },
+const STEPS = [
+  { id: 1, name: "RAM", icon: HardDrive },
+  { id: 2, name: "Storage", icon: HardDrive },
+  { id: 3, name: "Condition", icon: Smartphone },
+  { id: 4, name: "Final Quote", icon: DollarSign },
+];
+
+export default function PhoneDetail() {
+  const { phoneId } = useParams<{ phoneId: string }>();
+  const navigate = useNavigate();
+  const [currentStep, setCurrentStep] = useState(1);
+
+  // Form state
+  const [selectedRam, setSelectedRam] = useState("");
+  const [selectedStorage, setSelectedStorage] = useState("");
+  const [selectedScreenCondition, setSelectedScreenCondition] = useState("");
+  const [deviceTurnsOn, setDeviceTurnsOn] = useState<string>("");
+  const [hasOriginalBox, setHasOriginalBox] = useState<string>("");
+  const [hasOriginalBill, setHasOriginalBill] = useState<string>("");
+
+  // Fetch phone data from backend
+  const {
+    data: phoneData,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["phone", phoneId],
+    queryFn: async () => {
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const response = await fetch(`${API_URL}/sell-phone/phones/${phoneId}`);
+      if (!response.ok) throw new Error("Failed to fetch phone");
+      return response.json();
+    },
+    enabled: !!phoneId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+  // Fetch phone variants
+  const { data: variants } = useQuery({
+    queryKey: ["phoneVariants", phoneId],
+    queryFn: async () => {
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const response = await fetch(
+        `${API_URL}/sell-phone/phones/${phoneId}/variants`
+      );
+      if (!response.ok) throw new Error("Failed to fetch variants");
+      return response.json();
+    },
+    enabled: !!phoneId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+  // Fetch dynamic base price based on selections
+  const { data: variantPrice } = useQuery({
+    queryKey: ["phoneVariantPrice", phoneId, selectedRam, selectedStorage],
+    queryFn: async () => {
+      const ramMap: { [key: string]: number } = {
+        "4gb": 4,
+        "6gb": 6,
+        "8gb": 8,
+      };
+      const storageMap: { [key: string]: number } = {
+        "128gb": 128,
+        "256gb": 256,
+        "512gb": 512,
+        "1tb": 1024,
+      };
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const response = await fetch(
+        `${API_URL}/sell-phone/phones/${phoneId}/price?ram_gb=${ramMap[selectedRam]}&storage_gb=${storageMap[selectedStorage]}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch variant price");
+      return response.json();
+    },
+    enabled: !!phoneId && !!selectedRam && !!selectedStorage,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+  // Use dynamic base price if available, else fallback
+  const basePrice = variantPrice?.base_price || phoneData?.Selling_Price || 0;
+
+  // Fetch predicted price from backend
+  const {
+    data: predictionData,
+    isLoading: isPredictionLoading,
+    error: predictionError,
+  } = useQuery({
+    queryKey: [
+      "pricePrediction",
+      selectedRam,
+      selectedStorage,
+      selectedScreenCondition,
+      deviceTurnsOn,
+      hasOriginalBox,
+      hasOriginalBill,
     ],
-    storageOptions: [
-      { id: "128gb", name: "128GB", priceAdjustment: -5000 },
-      { id: "256gb", name: "256GB", priceAdjustment: 0 },
-      { id: "512gb", name: "512GB", priceAdjustment: 5000 },
-      { id: "1tb", name: "1TB", priceAdjustment: 10000 },
-    ],
+    queryFn: async () => {
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const response = await fetch(
+        `${API_URL}/customer-side-prediction/predict-price`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone_details: getPhoneDetailsForAPI(),
+            base_price: basePrice,
+          }),
+        }
+      );
+      if (!response.ok) throw new Error("Failed to fetch prediction");
+      return response.json();
+    },
+    enabled:
+      !!phoneData &&
+      currentStep === 4 &&
+      !!selectedRam &&
+      !!selectedStorage &&
+      !!selectedScreenCondition &&
+      !!deviceTurnsOn &&
+      !!hasOriginalBox &&
+      !!hasOriginalBill,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+  // Dynamically build options from variants
+  const ramOptions =
+    variants?.rams?.map((ram: number) => ({
+      id: `${ram}gb`,
+      name: `${ram}GB`,
+      priceAdjustment: 0, // Placeholder; adjust based on logic if needed
+    })) || [];
+
+  const storageOptions =
+    variants?.storages?.map((storage: number) => {
+      const name = storage >= 1024 ? `${storage / 1024}TB` : `${storage}GB`;
+      return {
+        id: `${storage}gb`,
+        name,
+        priceAdjustment: 0, // Placeholder; adjust based on logic if needed
+      };
+    }) || [];
+
+  if (isLoading) return <p>Loading phone details...</p>;
+  if (error) return <p>Error loading phone: {error.message}</p>;
+  if (!phoneData) return <p>Phone not found</p>;
+
+  // Map DB fields to component structure
+  const phone = {
+    id: phoneData.id,
+    name: phoneData.Brand + " " + phoneData.Model,
+    brand: phoneData.Brand,
+    image: `/assets/phones/${phoneData.id}.png`, // Fallback image
+    releaseYear: new Date().getFullYear(), // Placeholder, not in DB
+    description: `Phone model: ${phoneData.Model} with ${phoneData.RAM_GB}GB RAM and ${phoneData.Internal_Storage_GB}GB storage.`,
+    basePrice,
+    // Keep options as predefined (not in DB)
+    ramOptions,
+    storageOptions,
     screenConditions: [
       {
         id: "good",
@@ -71,195 +217,27 @@ const PHONE_DATA = {
         priceAdjustment: -15000,
       },
     ],
-  },
-  "samsung-s21-ultra": {
-    id: "samsung-s21-ultra",
-    name: "Galaxy S21 Ultra",
-    brand: "Samsung",
-    image: "/assets/phones/samsung-s21.png",
-    releaseYear: 2021,
-    description:
-      "The Samsung Galaxy S21 Ultra features a 108MP camera, 100x Space Zoom, Dynamic AMOLED 2X display, and Exynos 2100/Snapdragon 888 processor.",
-    basePrice: 40000,
-    ramOptions: [
-      { id: "8gb", name: "8GB", priceAdjustment: -3000 },
-      { id: "12gb", name: "12GB", priceAdjustment: 0 },
-      { id: "16gb", name: "16GB", priceAdjustment: 5000 },
-    ],
-    storageOptions: [
-      { id: "128gb", name: "128GB", priceAdjustment: -3000 },
-      { id: "256gb", name: "256GB", priceAdjustment: 0 },
-      { id: "512gb", name: "512GB", priceAdjustment: 4000 },
-    ],
-    screenConditions: [
-      {
-        id: "good",
-        name: "Good",
-        description: "No scratches, pristine condition",
-        priceAdjustment: 0,
-      },
-      {
-        id: "minor-scratches",
-        name: "Minor Scratches",
-        description: "Light scratches, barely visible",
-        priceAdjustment: -4000,
-      },
-      {
-        id: "major-scratches",
-        name: "Major Scratches",
-        description: "Visible scratches across screen",
-        priceAdjustment: -8000,
-      },
-      {
-        id: "cracked",
-        name: "Cracked",
-        description: "Screen has cracks but functional",
-        priceAdjustment: -18000,
-      },
-      {
-        id: "shattered",
-        name: "Shattered",
-        description: "Severely damaged screen",
-        priceAdjustment: -25000,
-      },
-    ],
-  },
-};
-
-const STEPS = [
-  { id: 1, name: "RAM", icon: HardDrive },
-  { id: 2, name: "Storage", icon: HardDrive },
-  { id: 3, name: "Condition", icon: Smartphone },
-  { id: 4, name: "Final Quote", icon: DollarSign },
-];
-
-export default function PhoneDetail() {
-  const { phoneId } = useParams<{ phoneId: string }>();
-  const [currentStep, setCurrentStep] = useState(1);
-
-  // Form state
-  const [selectedRam, setSelectedRam] = useState("");
-  const [selectedStorage, setSelectedStorage] = useState("");
-  const [selectedScreenCondition, setSelectedScreenCondition] = useState("");
-  const [deviceTurnsOn, setDeviceTurnsOn] = useState<string>("");
-  const [hasOriginalBox, setHasOriginalBox] = useState<string>("");
-  const [hasOriginalBill, setHasOriginalBill] = useState<string>("");
-
-  const phone =
-    phoneId && PHONE_DATA[phoneId as keyof typeof PHONE_DATA]
-      ? PHONE_DATA[phoneId as keyof typeof PHONE_DATA]
-      : PHONE_DATA["iphone-13-pro"];
-
-  // Calculate final price
-  const calculatePrice = () => {
-    let price = phone.basePrice;
-
-    // RAM adjustment
-    const ramAdj =
-      phone.ramOptions.find((r) => r.id === selectedRam)?.priceAdjustment || 0;
-    price += ramAdj;
-
-    // Storage adjustment
-    const storageAdj =
-      phone.storageOptions.find((s) => s.id === selectedStorage)
-        ?.priceAdjustment || 0;
-    price += storageAdj;
-
-    // Screen condition adjustment
-    const screenAdj =
-      phone.screenConditions.find((s) => s.id === selectedScreenCondition)
-        ?.priceAdjustment || 0;
-    price += screenAdj;
-
-    // Device turns on bonus
-    if (deviceTurnsOn === "yes") price += 2000;
-    else if (deviceTurnsOn === "no") price -= 8000;
-
-    // Original box bonus
-    if (hasOriginalBox === "yes") price += 1000;
-
-    // Original bill bonus
-    if (hasOriginalBill === "yes") price += 1500;
-
-    return Math.max(price, 0);
   };
 
-  // AI Reasoning Logic
-  const generateAIReasoning = () => {
-    const reasons = [];
-
-    const ramOption = phone.ramOptions.find((r) => r.id === selectedRam);
-    if (ramOption) {
-      if (ramOption.priceAdjustment > 0) {
-        reasons.push(
-          `✓ Higher RAM (${
-            ramOption.name
-          }) increases resale value by ₹${ramOption.priceAdjustment.toLocaleString()}`
-        );
-      } else if (ramOption.priceAdjustment < 0) {
-        reasons.push(
-          `• Lower RAM (${ramOption.name}) reduces value by ₹${Math.abs(
-            ramOption.priceAdjustment
-          ).toLocaleString()}`
-        );
-      }
-    }
-
-    const storageOption = phone.storageOptions.find(
-      (s) => s.id === selectedStorage
-    );
-    if (storageOption) {
-      if (storageOption.priceAdjustment > 0) {
-        reasons.push(
-          `✓ Higher storage (${
-            storageOption.name
-          }) adds ₹${storageOption.priceAdjustment.toLocaleString()} to value`
-        );
-      } else if (storageOption.priceAdjustment < 0) {
-        reasons.push(
-          `• Lower storage (${storageOption.name}) reduces value by ₹${Math.abs(
-            storageOption.priceAdjustment
-          ).toLocaleString()}`
-        );
-      }
-    }
-
-    const screenOption = phone.screenConditions.find(
-      (s) => s.id === selectedScreenCondition
-    );
-    if (screenOption) {
-      if (screenOption.priceAdjustment === 0) {
-        reasons.push(`✓ Excellent screen condition maintains full value`);
-      } else {
-        reasons.push(
-          `• Screen condition (${
-            screenOption.name
-          }) reduces value by ₹${Math.abs(
-            screenOption.priceAdjustment
-          ).toLocaleString()}`
-        );
-      }
-    }
-
-    if (deviceTurnsOn === "yes") {
-      reasons.push(`✓ Device powers on properly adds ₹2,000`);
-    } else if (deviceTurnsOn === "no") {
-      reasons.push(
-        `• Device not turning on significantly reduces value by ₹8,000`
-      );
-    }
-
-    if (hasOriginalBox === "yes") {
-      reasons.push(`✓ Original box included adds ₹1,000`);
-    }
-
-    if (hasOriginalBill === "yes") {
-      reasons.push(
-        `✓ Original bill/invoice adds ₹1,500 (proof of authenticity)`
-      );
-    }
-
-    return reasons;
+  // Map selections to API payload
+  const getPhoneDetailsForAPI = () => {
+    const ramMap: { [key: string]: number } = { "4gb": 4, "6gb": 6, "8gb": 8 };
+    const storageMap: { [key: string]: number } = {
+      "128gb": 128,
+      "256gb": 256,
+      "512gb": 512,
+      "1tb": 1024,
+    };
+    return {
+      brand: phone.brand,
+      model: phoneData.Model, // Use from DB
+      ram_gb: ramMap[selectedRam] || 0,
+      storage_gb: storageMap[selectedStorage] || 0,
+      screen_condition: selectedScreenCondition,
+      device_turns_on: deviceTurnsOn === "yes",
+      has_original_box: hasOriginalBox === "yes",
+      has_original_bill: hasOriginalBill === "yes",
+    };
   };
 
   const canProceed = () => {
@@ -663,9 +641,17 @@ export default function PhoneDetail() {
                     {/* Price Card */}
                     <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-8 text-white">
                       <p className="text-sm opacity-90 mb-2">Estimated Value</p>
-                      <p className="text-6xl font-bold mb-4">
-                        ₹{calculatePrice().toLocaleString()}
-                      </p>
+                      {isPredictionLoading ? (
+                        <p className="text-6xl font-bold mb-4">Loading...</p>
+                      ) : predictionError ? (
+                        <p className="text-6xl font-bold mb-4">Error</p>
+                      ) : (
+                        <p className="text-6xl font-bold mb-4">
+                          ₹
+                          {predictionData?.predicted_price?.toLocaleString() ||
+                            "0"}
+                        </p>
+                      )}
                       <div className="flex items-center gap-2 text-sm opacity-90">
                         <Check size={16} />
                         <span>Instant payment upon verification</span>
@@ -684,31 +670,52 @@ export default function PhoneDetail() {
                         <div className="flex justify-between text-sm pb-3 border-b">
                           <span className="text-gray-600">Base Price</span>
                           <span className="font-semibold">
-                            ₹{phone.basePrice.toLocaleString()}
+                            ₹{basePrice.toLocaleString()}
                           </span>
                         </div>
-                        {generateAIReasoning().map((reason, idx) => (
-                          <div
-                            key={idx}
-                            className="text-sm text-gray-700 pl-4 border-l-2 border-blue-300 py-1"
-                          >
-                            {reason}
+                        {predictionData?.reasoning ? (
+                          <div className="text-sm text-gray-700 pl-4 border-l-2 border-blue-300 py-1">
+                            <ReactMarkdown>
+                              {predictionData.reasoning}
+                            </ReactMarkdown>
                           </div>
-                        ))}
+                        ) : (
+                          <div className="text-sm text-gray-700 pl-4 border-l-2 border-blue-300 py-1">
+                            Loading reasoning...
+                          </div>
+                        )}
                         <div className="pt-3 mt-3 border-t border-gray-200 flex justify-between font-bold">
                           <span>Final Price</span>
                           <span className="text-blue-600">
-                            ₹{calculatePrice().toLocaleString()}
+                            ₹
+                            {predictionData?.predicted_price?.toLocaleString() ||
+                              "0"}
                           </span>
                         </div>
                       </div>
                     </div>
 
-                    <Link to="/checkout">
-                      <Button className="w-full h-14 text-lg rounded-2xl">
-                        Proceed to Sell <ArrowRight className="ml-2" />
-                      </Button>
-                    </Link>
+                    <Button
+                      onClick={() => {
+                        const phoneData = {
+                          name: phone.name,
+                          variant: `${selectedStorage}GB`, // e.g., "256GB"
+                          condition:
+                            phone.screenConditions.find(
+                              (c) => c.id === selectedScreenCondition
+                            )?.name || selectedScreenCondition,
+                          price: predictionData?.predicted_price || 0,
+                        };
+                        localStorage.setItem(
+                          "phoneData",
+                          JSON.stringify(phoneData)
+                        );
+                        navigate("/checkout");
+                      }}
+                      className="w-full h-14 text-lg rounded-2xl"
+                    >
+                      Proceed to Sell <ArrowRight className="ml-2" />
+                    </Button>
                   </div>
                 )}
 
@@ -731,22 +738,6 @@ export default function PhoneDetail() {
           </div>
         </div>
       </main>
-
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #94a3b8;
-        }
-      `}</style>
     </div>
   );
 }

@@ -23,6 +23,9 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -39,18 +42,44 @@ export default function Login() {
     setError("");
     setIsLoading(true);
 
+    // try to get device geolocation (optional)
+    async function getCurrentPosition(): Promise<{
+      lat: number;
+      lon: number;
+    } | null> {
+      if (!navigator?.geolocation) return null;
+      return new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) =>
+            resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+          () => resolve(null),
+          { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 }
+        );
+      });
+    }
+
     try {
       const identifier = email || phone;
       if (authMode === "signup") {
+        // attempt to capture coordinates for signup (best-effort)
+        const coords = await getCurrentPosition();
+        if (coords) {
+          setLatitude(coords.lat);
+          setLongitude(coords.lon);
+        }
         // backend requires an email; create a fallback if user didn't provide one
         const signupEmail =
           email && email.trim() ? email : `${phone}@phone.local`;
+        // pass latitude and longitude as optional last args
         const success = await signup(
           signupEmail,
           password,
           userType,
           name || signupEmail.split("@")[0],
-          phone
+          phone,
+          address,
+          latitude ?? coords?.lat ?? null,
+          longitude ?? coords?.lon ?? null
         );
         if (success) {
           if (userType === "agent") navigate("/agent/dashboard");
@@ -72,8 +101,13 @@ export default function Login() {
           setError("Invalid credentials. Please try again.");
         }
       }
-    } catch {
-      setError("An error occurred. Please try again.");
+    } catch (err: any) {
+      // surface backend error if present (axios/fetch/throw)
+      const serverDetail =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message;
+      setError(serverDetail || "An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -295,6 +329,25 @@ export default function Login() {
                           className="pl-10 h-11"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
+                        />
+                      </div>
+
+                      {/* New Address field */}
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="address"
+                          className="text-gray-700 font-medium"
+                        >
+                          Address
+                        </Label>
+                        <Input
+                          id="address"
+                          type="text"
+                          placeholder="Enter your full address"
+                          className="h-11"
+                          value={address}
+                          onChange={(e) => setAddress(e.target.value)}
+                          required
                         />
                       </div>
                     </div>

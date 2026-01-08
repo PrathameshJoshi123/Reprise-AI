@@ -77,6 +77,14 @@ export function Header() {
               >
                 Contact
               </Link>
+              {isLoggedIn && user?.role === "customer" && (
+                <Link
+                  to="/my-orders"
+                  className="text-sm font-medium hover:text-primary transition-colors"
+                >
+                  My Orders
+                </Link>
+              )}
             </nav>
           </div>
 
@@ -182,6 +190,14 @@ export function Header() {
                   >
                     Contact
                   </Link>
+                  {isLoggedIn && user?.role === "customer" && (
+                    <Link
+                      to="/my-orders"
+                      className="text-base font-medium hover:text-blue-600 transition-colors"
+                    >
+                      My Orders
+                    </Link>
+                  )}
 
                   <div className="border-t pt-6">
                     {isLoggedIn ? (

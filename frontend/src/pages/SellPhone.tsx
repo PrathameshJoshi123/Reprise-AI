@@ -12,59 +12,53 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { Search, ArrowRight, Heart } from "lucide-react";
+import {
+  Search,
+  ArrowRight,
+  Heart,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import Autoplay from "embla-carousel-autoplay";
+import { useQuery } from "@tanstack/react-query";
 
-// Sample data for brands
 const BRANDS = [
   {
-    id: "apple",
-    name: "Apple",
-    logo: "/assets/brands/apple.jpg",
-    popularModels: ["iPhone 13 Pro", "iPhone 12"],
-  },
-  {
-    id: "samsung",
+    id: 1,
     name: "Samsung",
     logo: "/assets/brands/samsung.png",
-    popularModels: ["Galaxy S21", "Galaxy A52"],
+    popularModels: ["Galaxy S21", "Galaxy Note 20", "Galaxy A52"],
   },
   {
-    id: "oneplus",
+    id: 2,
+    name: "Apple",
+    logo: "/assets/brands/apple.png",
+    popularModels: ["iPhone 12", "iPhone 11", "iPhone SE"],
+  },
+  {
+    id: 3,
     name: "OnePlus",
     logo: "/assets/brands/oneplus.png",
-    popularModels: ["OnePlus 9 Pro", "OnePlus Nord"],
+    popularModels: ["OnePlus 9", "OnePlus 8T", "OnePlus Nord"],
   },
   {
-    id: "google",
-    name: "Google",
-    logo: "/assets/brands/googlepixel.jpg",
-    popularModels: ["Pixel 6 Pro", "Pixel 5"],
-  },
-  {
-    id: "xiaomi",
+    id: 4,
     name: "Xiaomi",
-    logo: "/assets/brands/xiaomi.svg",
-    popularModels: ["Mi 11 Ultra", "Redmi Note 10"],
+    logo: "/assets/brands/xiaomi.png",
+    popularModels: ["Mi 11", "Redmi Note 10", "Poco X3"],
   },
   {
-    id: "oppo",
-    name: "OPPO",
+    id: 5,
+    name: "Oppo",
     logo: "/assets/brands/oppo.png",
-    popularModels: ["Find X3 Pro", "Reno6"],
+    popularModels: ["Oppo Find X3", "Oppo Reno 5", "Oppo A54"],
   },
   {
-    id: "vivo",
+    id: 6,
     name: "Vivo",
     logo: "/assets/brands/vivo.png",
-    popularModels: ["X70 Pro", "V21"],
-  },
-  {
-    id: "nokia",
-    name: "Nokia",
-    logo: "/assets/brands/nokia.png",
-    popularModels: ["XR20", "G20"],
+    popularModels: ["Vivo X60", "Vivo V21", "Vivo Y20"],
   },
 ];
 
@@ -75,79 +69,39 @@ const SLIDER_IMAGES = [
   "/images/slider4.jpg",
 ];
 
-// Sample data for popular phones
-const POPULAR_PHONES = [
-  {
-    id: "iphone-13-pro",
-    name: "iPhone 13 Pro",
-    brand: "Apple",
-    image: "/assets/phones/iphone-13-pro.png",
-    maxPrice: 45000,
-  },
-  {
-    id: "samsung-s21-ultra",
-    name: "Galaxy S21 Ultra",
-    brand: "Samsung",
-    image: "/assets/phones/galaxy-s21.png",
-    maxPrice: 40000,
-  },
-  {
-    id: "oneplus-9-pro",
-    name: "OnePlus 9 Pro",
-    brand: "OnePlus",
-    image: "/assets/phones/oneplus9-pro.png",
-    maxPrice: 32000,
-  },
-  {
-    id: "pixel-6-pro",
-    name: "Pixel 6 Pro",
-    brand: "Google",
-    image: "/assets/phones/pixel6-pro.png",
-    maxPrice: 35000,
-  },
-  {
-    id: "iphone-12",
-    name: "iPhone 12",
-    brand: "Apple",
-    image: "/assets/phones/iphone-12.png",
-    maxPrice: 30000,
-  },
-  {
-    id: "xiaomi-mi-11",
-    name: "Mi 11 Ultra",
-    brand: "Xiaomi",
-    image: "/assets/phones/mi11.png",
-    maxPrice: 28000,
-  },
-  {
-    id: "oppo-find-x3",
-    name: "Find X3 Pro",
-    brand: "OPPO",
-    image: "/assets/phones/oppo-findx3.png",
-    maxPrice: 29000,
-  },
-  {
-    id: "vivo-x70-pro",
-    name: "X70 Pro",
-    brand: "Vivo",
-    image: "/assets/phones/vivo.png",
-    maxPrice: 27000,
-  },
-];
-
 export default function SellPhone() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredPhones, setFilteredPhones] = useState(POPULAR_PHONES);
+  const [page, setPage] = useState(1);
+  const limit = 10; // Items per page
+
+  // Fetch phones from backend
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["phones", page, limit, searchQuery],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+      if (searchQuery) params.append("search", searchQuery);
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const response = await fetch(
+        `${API_URL}/sell-phone/phones?${params.toString()}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch phones");
+      return response.json();
+    },
+  });
+
+  const phones = data?.phones || [];
+  const totalPages = data?.total_pages || 1;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const filtered = POPULAR_PHONES.filter(
-      (phone) =>
-        phone.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        phone.brand.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    setFilteredPhones(filtered);
+    // Search is now handled by the query refetch
   };
+
+  // Remove local filtering since backend handles it
+  const filteredPhones = phones;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -227,71 +181,99 @@ export default function SellPhone() {
               </TabsList>
 
               <TabsContent value="popular" className="mt-6">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-                  {filteredPhones.map((phone) => (
-                    <div key={phone.id} className="group">
-                      <Card className="overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border-0 rounded-3xl bg-gradient-to-br from-pink-50 via-blue-50 to-yellow-50 h-[320px]">
-                        <CardContent className="p-4 flex flex-col relative h-full">
-                          {/* Heart Icon */}
-                          <button className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-all hover:scale-110">
-                            <Heart className="w-4 h-4 text-gray-400 hover:text-red-500 transition-colors" />
-                          </button>
+                {isLoading && <p>Loading phones...</p>}
+                {error && <p>Error loading phones: {error.message}</p>}
+                {!isLoading && !error && (
+                  <>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                      {filteredPhones.map((phone) => (
+                        <div key={phone.id} className="group">
+                          <Card className="overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border-0 rounded-3xl bg-gradient-to-br from-pink-50 via-blue-50 to-yellow-50 h-[320px]">
+                            <CardContent className="p-4 flex flex-col relative h-full">
+                              {/* Heart Icon */}
+                              <button className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-all hover:scale-110">
+                                <Heart className="w-4 h-4 text-gray-400 hover:text-red-500 transition-colors" />
+                              </button>
 
-                          <Link
-                            to={`/sell/${phone.id}`}
-                            className="flex flex-col h-full"
-                          >
-                            {/* Product Image: fixed height + robust fallback + object-cover */}
-                            <div className="w-full h-44 md:h-56 mb-3 flex items-center justify-center bg-white/60 backdrop-blur-sm rounded-2xl p-0 group-hover:bg-white/80 transition-all overflow-hidden">
-                              <img
-                                src={
-                                  phone.image ||
-                                  `/assets/phones/${phone.id}.png`
-                                }
-                                alt={phone.name}
-                                className="w-full h-full object-cover drop-shadow-lg group-hover:scale-110 transition-transform duration-300"
-                                onError={(e) => {
-                                  const img = e.target as HTMLImageElement;
-                                  if (img.dataset.attempt === "1") {
-                                    img.src = `https://placehold.co/400x300/e0e7ff/6366f1?text=${encodeURIComponent(
-                                      phone.name
-                                    )}`;
-                                    return;
-                                  }
-                                  img.dataset.attempt = "1";
-                                  img.src = `/assets/phones/${phone.id}.png`;
-                                }}
-                              />
-                            </div>
-
-                            {/* Product Info: fixed space so cards align */}
-                            <div className="flex-grow flex flex-col justify-start">
-                              <h3 className="font-bold text-sm mb-1 line-clamp-2 text-gray-900">
-                                {phone.name}
-                              </h3>
-                              <p className="text-xs text-gray-500 mb-2">
-                                {phone.brand}
-                              </p>
-                              <div className="pt-2">
-                                <div className="flex items-center justify-between gap-2">
-                                  <p className="text-lg font-bold text-gray-900">
-                                    ₹{phone.maxPrice.toLocaleString()}
-                                  </p>
-                                  <Button
-                                    size="sm"
-                                    className="bg-gray-900 hover:bg-gray-800 text-white rounded-full px-4 py-1 text-xs font-medium"
-                                  >
-                                    Buy
-                                  </Button>
+                              <Link
+                                to={`/sell/${phone.id}`}
+                                className="flex flex-col h-full"
+                              >
+                                {/* Product Image */}
+                                <div className="w-full h-44 md:h-56 mb-3 flex items-center justify-center bg-white/60 backdrop-blur-sm rounded-2xl p-0 group-hover:bg-white/80 transition-all overflow-hidden">
+                                  <img
+                                    src={
+                                      phone.image ||
+                                      `/assets/phones/${phone.id}.png`
+                                    }
+                                    alt={phone.Brand + " " + phone.Model}
+                                    className="w-full h-full object-cover drop-shadow-lg group-hover:scale-110 transition-transform duration-300"
+                                    onError={(e) => {
+                                      const img = e.target as HTMLImageElement;
+                                      if (img.dataset.attempt === "1") {
+                                        img.src = `https://placehold.co/400x300/e0e7ff/6366f1?text=${encodeURIComponent(
+                                          phone.Brand + " " + phone.Model
+                                        )}`;
+                                        return;
+                                      }
+                                      img.dataset.attempt = "1";
+                                      img.src = `/assets/phones/${phone.id}.png`;
+                                    }}
+                                  />
                                 </div>
-                              </div>
-                            </div>
-                          </Link>
-                        </CardContent>
-                      </Card>
+
+                                {/* Product Info */}
+                                <div className="flex-grow flex flex-col justify-start">
+                                  <h3 className="font-bold text-sm mb-1 line-clamp-2 text-gray-900">
+                                    {phone.Brand + " " + phone.Model}
+                                  </h3>
+                                  <p className="text-xs text-gray-500 mb-2">
+                                    {phone.Brand}
+                                  </p>
+                                  <div className="pt-2">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <Button
+                                        size="sm"
+                                        className="bg-gray-900 hover:bg-gray-800 text-white rounded-full px-4 py-1 text-xs font-medium"
+                                      >
+                                        Sell
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </Link>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+
+                    {/* Pagination Controls */}
+                    <div className="flex justify-center items-center mt-8 space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(page - 1)}
+                        disabled={page <= 1}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        Previous
+                      </Button>
+                      <span className="text-sm">
+                        Page {page} of {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(page + 1)}
+                        disabled={page >= totalPages}
+                      >
+                        Next
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </>
+                )}
               </TabsContent>
 
               <TabsContent value="brands" className="mt-6">

@@ -16,6 +16,7 @@ const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const AboutUs = lazy(() => import("./pages/AboutUs"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Checkout = lazy(() => import("./pages/Checkout"));
+const MyOrders = lazy(() => import("@/pages/MyOrders"));
 
 // Auth pages
 const AgentLogin = lazy(() => import("./pages/AgentLogin"));
@@ -60,6 +61,7 @@ const App = () => (
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/agent/login" element={<AgentLogin />} />
               <Route path="/agent/dashboard" element={<AgentDashboard />} />
+              <Route path="/my-orders" element={<MyOrders />} />
 
               {/* Catch all */}
               <Route path="*" element={<NotFound />} />

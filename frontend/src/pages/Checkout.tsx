@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useContext, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -31,20 +31,57 @@ import {
   Shield,
   Clock,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Checkout() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
+
+  // Retrieve phoneData from localStorage (set in PhoneDetails) for reliability
+  // Fallback to location.state or default if not available
+  const phoneData = JSON.parse(localStorage.getItem("phoneData") || "null") ||
+    location.state?.phoneData || {
+      id: "default",
+      name: "Unknown Phone",
+      variant: "N/A",
+      condition: "N/A",
+      price: 0,
+    };
+
+  // Form state for pre-filling from user data
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+
+  // new: address / pickup controlled fields
+  const [addressLine, setAddressLine] = useState("");
+  const [cityVal, setCityVal] = useState("");
+  const [stateVal, setStateVal] = useState("");
+  const [pincodeVal, setPincodeVal] = useState("");
+  const [pickupDateVal, setPickupDateVal] = useState("");
+  const [pickupTimeVal, setPickupTimeVal] = useState("");
+
   const [paymentMethod, setPaymentMethod] = useState("upi");
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const phoneData = {
-    id: "iphone-13-pro",
-    name: "iPhone 13 Pro",
-    variant: "256GB",
-    condition: "Good",
-    price: 40000,
-  };
+  // Pre-fill fields if user is logged in
+  useEffect(() => {
+    if (user) {
+      const nameParts = user.name?.split(" ") || [];
+      setFirstName(nameParts[0] || "");
+      setLastName(nameParts.slice(1).join(" ") || "");
+      setPhone(user.phone || "");
+      setEmail(user.email || "");
+      // optional: if user has address fields in user object, set here
+      // setAddressLine(user.address_line || "");
+      // setCityVal(user.city || "");
+      // setStateVal(user.state || "");
+      // setPincodeVal(user.pincode || "");
+    }
+  }, [user]);
 
   const handleSubmitAddress = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,35 +89,128 @@ export default function Checkout() {
     window.scrollTo(0, 0);
   };
 
-  const handleSubmitPayment = (e: React.FormEvent) => {
+  // resolve pickup coordinates: prefer browser geolocation, fallback to Nominatim geocode
+  async function resolvePickupCoords(): Promise<{
+    lat: number | null;
+    lon: number | null;
+  }> {
+    // try browser geolocation first
+    const tryGeolocation = () =>
+      new Promise<{ lat: number; lon: number }>((resolve, reject) => {
+        if (!("geolocation" in navigator)) return reject("no-geolocation");
+        const timer = setTimeout(() => reject("timeout"), 6000);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            clearTimeout(timer);
+            resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+          },
+          (err) => {
+            clearTimeout(timer);
+            reject(err);
+          },
+          {
+            maximumAge: 1000 * 60 * 5,
+            timeout: 6000,
+            enableHighAccuracy: false,
+          }
+        );
+      });
+
+    try {
+      const p = await tryGeolocation();
+      return { lat: p.lat, lon: p.lon };
+    } catch (_err) {
+      // fallback to geocoding the provided address
+    }
+
+    // compose address from controlled fields
+    const parts = [
+      addressLine || "",
+      cityVal || "",
+      stateVal || "",
+      pincodeVal || "",
+    ]
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return { lat: null, lon: null };
+    const q = encodeURIComponent(parts.join(", "));
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`
+      );
+      if (!res.ok) return { lat: null, lon: null };
+      const json = await res.json();
+      if (Array.isArray(json) && json.length > 0) {
+        const item = json[0];
+        return { lat: parseFloat(item.lat), lon: parseFloat(item.lon) };
+      }
+    } catch (e) {
+      // ignore geocode errors
+    }
+    return { lat: null, lon: null };
+  }
+
+  const handleSubmitPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Save order to localStorage for agent dashboard
-    const order = {
-      id: `MOB-${Date.now()}`,
-      phone: phoneData,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      customerName: "John Doe",
-      address: "Mumbai, Maharashtra",
-      pickupDate: new Date().toISOString(),
-      paymentMethod: paymentMethod,
+    // resolve coords before building payload
+    const coords = await resolvePickupCoords();
+
+    const token = localStorage.getItem("accessToken");
+    const payload: any = {
+      phone_name: phoneData.name,
+      variant: phoneData.variant,
+      condition: phoneData.condition,
+      quoted_price: phoneData.price,
+      customer_name: `${firstName} ${lastName}`.trim(),
+      phone_number: phone,
+      email,
+      address_line: addressLine,
+      city: cityVal,
+      state: stateVal,
+      pincode: pincodeVal,
+      pickup_date: pickupDateVal || null,
+      pickup_time: pickupTimeVal || null,
+      payment_method: paymentMethod,
+      // include coords (null if not resolved)
+      pickup_latitude: coords.lat,
+      pickup_longitude: coords.lon,
     };
 
-    const existingOrders = JSON.parse(
-      localStorage.getItem("agentOrders") || "[]"
-    );
-    localStorage.setItem(
-      "agentOrders",
-      JSON.stringify([...existingOrders, order])
-    );
-
-    setTimeout(() => {
+    try {
+      const API_URL =
+        (import.meta.env.VITE_API_URL as string) || "http://localhost:8000";
+      const res = await fetch(`${API_URL}/sell-phone/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || "Failed to create order");
+      }
+      const orderResp = await res.json();
+      // keep local copy for agent dashboard/backwards compatibility
+      const existingOrders = JSON.parse(
+        localStorage.getItem("agentOrders") || "[]"
+      );
+      localStorage.setItem(
+        "agentOrders",
+        JSON.stringify([...existingOrders, orderResp])
+      );
       setIsSubmitting(false);
       setStep(3);
       window.scrollTo(0, 0);
-    }, 1500);
+    } catch (err) {
+      console.error("Order create failed", err);
+      setIsSubmitting(false);
+      // minimal UX: alert. Replace with toast in app.
+      alert("Failed to create order. Please try again.");
+    }
   };
 
   const stepIcons = [
@@ -172,6 +302,8 @@ export default function Checkout() {
                           </Label>
                           <Input
                             id="first-name"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
                             required
                             className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                             placeholder="John"
@@ -186,6 +318,8 @@ export default function Checkout() {
                           </Label>
                           <Input
                             id="last-name"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
                             required
                             className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                             placeholder="Doe"
@@ -203,6 +337,8 @@ export default function Checkout() {
                           </Label>
                           <Input
                             id="phone"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
                             required
                             className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                             placeholder="+91 98765 43210"
@@ -217,6 +353,8 @@ export default function Checkout() {
                           </Label>
                           <Input
                             id="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             type="email"
                             required
                             className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
@@ -234,6 +372,8 @@ export default function Checkout() {
                         </Label>
                         <Textarea
                           id="address"
+                          value={addressLine}
+                          onChange={(e) => setAddressLine(e.target.value)}
                           required
                           className="min-h-[80px] border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                           placeholder="House/Flat No., Street, Landmark..."
@@ -250,6 +390,8 @@ export default function Checkout() {
                           </Label>
                           <Input
                             id="city"
+                            value={cityVal}
+                            onChange={(e) => setCityVal(e.target.value)}
                             required
                             className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                             placeholder="Mumbai"
@@ -262,7 +404,7 @@ export default function Checkout() {
                           >
                             State
                           </Label>
-                          <Select>
+                          <Select value={stateVal} onValueChange={setStateVal}>
                             <SelectTrigger
                               id="state"
                               className="h-11 border-gray-200"
@@ -292,6 +434,8 @@ export default function Checkout() {
                           </Label>
                           <Input
                             id="pincode"
+                            value={pincodeVal}
+                            onChange={(e) => setPincodeVal(e.target.value)}
                             required
                             className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                             placeholder="400001"
@@ -310,6 +454,8 @@ export default function Checkout() {
                           <Input
                             id="pickup-date"
                             type="date"
+                            value={pickupDateVal}
+                            onChange={(e) => setPickupDateVal(e.target.value)}
                             required
                             className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                           />
@@ -321,7 +467,10 @@ export default function Checkout() {
                           >
                             Preferred Time Slot
                           </Label>
-                          <Select>
+                          <Select
+                            value={pickupTimeVal}
+                            onValueChange={setPickupTimeVal}
+                          >
                             <SelectTrigger
                               id="pickup-time"
                               className="h-11 border-gray-200"

@@ -4,6 +4,8 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Package,
   Clock,
@@ -20,27 +22,36 @@ import {
 } from "lucide-react";
 
 interface Order {
-  id: string;
-  phone: {
-    name: string;
-    variant: string;
-    condition: string;
-    price: number;
-  };
-  status: "pending" | "in-progress" | "completed";
-  createdAt: string;
-  customerName: string;
-  address: string;
-  pickupDate: string;
-  paymentMethod: string;
+  id: number;
+  phone_name: string;
+  variant?: string;
+  quoted_price: number;
+  status: string;
+  customer_name?: string;
+  phone_number?: string;
+  email?: string;
+  address_line?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  pickup_date?: string;
+  pickup_time?: string;
+  pickup_latitude?: number;
+  pickup_longitude?: number;
+  payment_method?: string;
+  agent_id?: number;
+  agent_name?: string;
+  agent_phone?: string;
+  accepted_at?: string;
+  created_at: string;
 }
 
 export default function AgentDashboard() {
   const navigate = useNavigate();
   const { user, isLoggedIn } = useAuth();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const queryClient = useQueryClient();
   const [selectedFilter, setSelectedFilter] = useState<
-    "all" | "pending" | "in-progress" | "completed"
+    "all" | "pending" | "accepted" | "completed"
   >("all");
 
   useEffect(() => {
@@ -48,41 +59,70 @@ export default function AgentDashboard() {
       navigate("/agent/login");
       return;
     }
-
-    // Load orders from localStorage
-    const savedOrders = JSON.parse(localStorage.getItem("agentOrders") || "[]");
-    setOrders(savedOrders);
   }, [isLoggedIn, user, navigate]);
 
-  const filteredOrders = orders.filter((order) =>
+  // Fetch agent's orders for stats and list
+  const {
+    data: myOrders = [],
+    isLoading: isMyOrdersLoading,
+    error: myOrdersError,
+  } = useQuery({
+    queryKey: ["agentMyOrders"],
+    queryFn: async () => {
+      const response = await api.get("/sell-phone/agent/orders");
+      return response.data as Order[];
+    },
+    enabled: !!user && user.role === "agent",
+    refetchInterval: 30000,
+  });
+
+  // Mutation for accepting orders (invalidate myOrders)
+  const acceptOrderMutation = useMutation({
+    mutationFn: (orderId: number) =>
+      api.post(`/sell-phone/orders/${orderId}/accept`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agentMyOrders"] });
+    },
+  });
+
+  const handleAcceptOrder = (orderId: number) => {
+    acceptOrderMutation.mutate(orderId);
+  };
+
+  // Filter myOrders for the list based on selectedFilter
+  const filteredOrders = myOrders.filter((order) =>
     selectedFilter === "all" ? true : order.status === selectedFilter
   );
 
+  // Compute stats from myOrders
   const stats = {
-    total: orders.length,
-    pending: orders.filter((o) => o.status === "pending").length,
-    completed: orders.filter((o) => o.status === "completed").length,
-    earnings: orders
+    total: myOrders.length,
+    pendingPickups: myOrders.filter((o) => o.status === "accepted").length, // accepted but pickup pending
+    completed: myOrders.filter((o) => o.status === "completed").length,
+    earnings: myOrders
       .filter((o) => o.status === "completed")
-      .reduce((sum, o) => sum + o.phone.price * 0.05, 0),
+      .reduce((sum, o) => sum + (o.quoted_price ?? 0) * 0.05, 0),
   };
 
-  const updateOrderStatus = (
-    orderId: string,
-    newStatus: "pending" | "in-progress" | "completed"
-  ) => {
-    const updatedOrders = orders.map((order) =>
-      order.id === orderId ? { ...order, status: newStatus } : order
-    );
-    setOrders(updatedOrders);
-    localStorage.setItem("agentOrders", JSON.stringify(updatedOrders));
-  };
+  // Fetch current user details from /me
+  const { data: currentUser, isLoading: isUserLoading } = useQuery({
+    queryKey: ["currentUser"],
+    queryFn: async () => {
+      const response = await api.get("/auth/me");
+      return response.data;
+    },
+    enabled: !!user && user.role === "agent",
+  });
+
+  // Loading/error combined
+  const isLoading = isMyOrdersLoading || isUserLoading;
+  const error = myOrdersError;
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
         return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "in-progress":
+      case "accepted":
         return "bg-blue-100 text-blue-700 border-blue-200";
       case "completed":
         return "bg-green-100 text-green-700 border-green-200";
@@ -90,6 +130,30 @@ export default function AgentDashboard() {
         return "bg-gray-100 text-gray-700 border-gray-200";
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading orders...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
+          <p className="text-red-600">
+            Failed to load orders. Please try again.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -102,7 +166,7 @@ export default function AgentDashboard() {
             <h1 className="text-3xl font-bold text-gray-900">
               Welcome back,{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-                {user?.name}
+                {currentUser?.full_name ?? "Agent"}
               </span>
             </h1>
             <p className="text-gray-500 mt-1">
@@ -122,7 +186,7 @@ export default function AgentDashboard() {
               },
               {
                 label: "Pending Pickups",
-                value: stats.pending,
+                value: stats.pendingPickups,
                 icon: Clock,
                 color: "from-yellow-500 to-orange-500",
                 bgColor: "bg-yellow-50",
@@ -181,7 +245,7 @@ export default function AgentDashboard() {
             {[
               { value: "all", label: "All Orders" },
               { value: "pending", label: "Pending" },
-              { value: "in-progress", label: "In Progress" },
+              { value: "accepted", label: "Accepted" },
               { value: "completed", label: "Completed" },
             ].map((filter) => (
               <button
@@ -202,7 +266,7 @@ export default function AgentDashboard() {
           <div className="space-y-4">
             {filteredOrders.length === 0 ? (
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
-                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-6">
                   <Package size={40} className="text-gray-400" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -227,7 +291,7 @@ export default function AgentDashboard() {
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-semibold text-gray-900">
-                            {order.phone.name}
+                            {order.phone_name}
                           </h3>
                           <span
                             className={`px-2 py-0.5 text-xs font-medium rounded-full border ${getStatusColor(
@@ -235,24 +299,33 @@ export default function AgentDashboard() {
                             )}`}
                           >
                             {order.status.charAt(0).toUpperCase() +
-                              order.status.slice(1).replace("-", " ")}
+                              order.status.slice(1)}
                           </span>
                         </div>
                         <p className="text-sm text-gray-500">
-                          {order.phone.variant} • {order.phone.condition}
+                          {order.variant ?? "-"}
                         </p>
                         <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-600">
                           <span className="flex items-center gap-1">
                             <Users size={14} />
-                            {order.customerName}
+                            {order.customer_name ?? "Unknown"}
                           </span>
                           <span className="flex items-center gap-1">
                             <MapPin size={14} />
-                            {order.address}
+                            {[
+                              order.address_line,
+                              order.city,
+                              order.state,
+                              order.pincode,
+                            ]
+                              .filter(Boolean)
+                              .join(", ")}
                           </span>
                           <span className="flex items-center gap-1">
                             <Calendar size={14} />
-                            {new Date(order.pickupDate).toLocaleDateString()}
+                            {order.pickup_date
+                              ? new Date(order.pickup_date).toLocaleDateString()
+                              : "TBD"}
                           </span>
                         </div>
                       </div>
@@ -260,9 +333,9 @@ export default function AgentDashboard() {
 
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <p className="text-sm text-gray-500">Offer Price</p>
+                        <p className="text-sm text-gray-500">Quoted Price</p>
                         <p className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-                          ₹{order.phone.price.toLocaleString()}
+                          ₹{order.quoted_price.toLocaleString()}
                         </p>
                       </div>
 
@@ -270,23 +343,13 @@ export default function AgentDashboard() {
                         {order.status === "pending" && (
                           <Button
                             size="sm"
-                            onClick={() =>
-                              updateOrderStatus(order.id, "in-progress")
-                            }
+                            onClick={() => handleAcceptOrder(order.id)}
+                            disabled={acceptOrderMutation.isLoading}
                             className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                           >
-                            Start Pickup
-                          </Button>
-                        )}
-                        {order.status === "in-progress" && (
-                          <Button
-                            size="sm"
-                            onClick={() =>
-                              updateOrderStatus(order.id, "completed")
-                            }
-                            className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-                          >
-                            Complete
+                            {acceptOrderMutation.isLoading
+                              ? "Accepting..."
+                              : "Accept Order"}
                           </Button>
                         )}
                         <Button

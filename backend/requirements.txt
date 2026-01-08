@@ -6,3 +6,8 @@ pydantic
 python-jose[cryptography]
 python-multipart
 bcrypt
+langchain==0.1.0
+langchain-mistralai==0.1.0
+alembic
+python-dotenv
+geopy
