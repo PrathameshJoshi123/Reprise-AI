@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosHeaders } from "axios";
 
 // Create axios instance with base URL
 const api = axios.create({
@@ -17,7 +17,7 @@ api.interceptors.request.use(
     // use the same storage key as AuthContext ("accessToken")
     const token = localStorage.getItem("accessToken");
     if (token) {
-      if (!config.headers) config.headers = {};
+      config.headers = config.headers || new AxiosHeaders();
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
