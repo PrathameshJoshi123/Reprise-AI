@@ -25,6 +25,7 @@ interface AuthContextType {
     role?: "user" | "agent" | "customer",
     name?: string
   ) => Promise<boolean>;
+  loginWithToken: (token: string) => Promise<boolean>;
   signup: (
     email: string,
     password: string,
@@ -141,6 +142,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginWithToken = async (accessToken: string): Promise<boolean> => {
+    try {
+      localStorage.setItem("accessToken", accessToken);
+      setToken(accessToken);
+      console.log("loginWithToken: token stored, calling /auth/me (axios)");
+
+      // Fetch user data with the token (axios). Skip global 401 redirect
+      // so this function can handle failures (and run fetch fallback) itself.
+      const userResponse = await api.get("/auth/me", {
+        headers: { "x-skip-auth-redirect": "1" },
+      });
+      console.log("loginWithToken: /auth/me response", userResponse?.data);
+      const mappedUser: User = {
+        id: String(userResponse.data.id),
+        name:
+          userResponse.data.full_name || userResponse.data.email.split("@")[0],
+        email: userResponse.data.email,
+        phone: userResponse.data.phone,
+        role: (userResponse.data.role as User["role"]) || "customer",
+      };
+      localStorage.setItem("currentUser", JSON.stringify(mappedUser));
+      setUser(mappedUser);
+      return true;
+    } catch (err) {
+      console.error("loginWithToken axios /auth/me error:", err);
+
+      // Fallback: try using fetch directly (bypasses axios interceptors)
+      try {
+        console.log("loginWithToken: trying fetch fallback to /auth/me");
+        const data = await fetchMe(accessToken);
+        console.log("loginWithToken: fetch fallback data", data);
+        const userResponseData = data;
+        const mappedUser: User = {
+          id: String(userResponseData.id),
+          name:
+            userResponseData.full_name || userResponseData.email.split("@")[0],
+          email: userResponseData.email,
+          phone: userResponseData.phone,
+          role: (userResponseData.role as User["role"]) || "customer",
+        };
+        localStorage.setItem("currentUser", JSON.stringify(mappedUser));
+        setUser(mappedUser);
+        return true;
+      } catch (err2) {
+        console.error("loginWithToken fetch fallback failed:", err2);
+        localStorage.removeItem("accessToken");
+        setToken(null);
+        return false;
+      }
+    }
+  };
+
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -151,7 +204,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, isLoggedIn: !!user, login, signup, logout }}
+      value={{
+        user,
+        token,
+        isLoggedIn: !!user,
+        login,
+        loginWithToken,
+        signup,
+        logout,
+      }}
     >
       {children}
     </AuthContext.Provider>
@@ -160,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
+  console.log("Context ", context);
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }

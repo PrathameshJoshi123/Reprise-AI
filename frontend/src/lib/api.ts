@@ -9,6 +9,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true, // Enable sending cookies with requests
 });
 
 // Request interceptor to add auth token
@@ -30,9 +31,21 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized, e.g., redirect to login
-      localStorage.removeItem("accessToken");
-      window.location.href = "/login";
+      // Allow callers to opt out of the global redirect by setting
+      // the request header `x-skip-auth-redirect`.
+      const headers = error.config?.headers as any;
+      const skipHeader =
+        headers &&
+        (headers["x-skip-auth-redirect"] ||
+          headers["X-Skip-Auth-Redirect"] ||
+          (typeof headers.get === "function" &&
+            (headers.get("x-skip-auth-redirect") ||
+              headers.get("X-Skip-Auth-Redirect"))));
+      if (!skipHeader) {
+        // Handle unauthorized globally (most requests)
+        localStorage.removeItem("accessToken");
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }
