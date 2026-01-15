@@ -6,6 +6,10 @@ from services.sell_phone.apis.routes import router as sell_phone_router
 from services.customer_side_prediction.apis import router as customer_side_prediction_router
 from services.admin.apis.routes import router as admin_router
 from shared.db.connections import Base, engine
+from starlette.middleware.sessions import SessionMiddleware
+from config import FRONTEND_URL
+
+
 import asyncio
 from dotenv import load_dotenv
 
@@ -19,12 +23,16 @@ if os.name == "nt":
         pass
 
 app = FastAPI(title="RepriseAI Backend", version="1.0.0")
-
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY", "supersecretkey"))
 # Configure CORS
+
+frontend_origins = [
+    FRONTEND_URL if FRONTEND_URL else os.getenv("FRONTEND_URL", "http://localhost:5173")
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=frontend_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
