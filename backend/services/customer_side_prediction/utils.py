@@ -6,7 +6,7 @@ from langchain_core.output_parsers import StrOutputParser
 def get_mistral_chain():
     # Initialize MistralAI model via LangChain
     llm = ChatMistralAI(
-        model="mistral-medium-latest",  # Use appropriate Mistral model
+        model="mistral-small-latest",  # Use appropriate Mistral model
         api_key=os.getenv("MISTRAL_API_KEY"),  # Set via env var
         temperature=0.1  # Low temperature for consistent pricing
     )
