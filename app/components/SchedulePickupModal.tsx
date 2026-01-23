@@ -68,44 +68,89 @@ export default function SchedulePickupModal({
 
           <View style={styles.section}>
             <Text style={styles.label}>Pickup Date</Text>
-            <TouchableOpacity
-              style={styles.inputButton}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text style={styles.inputText}>{date.toLocaleDateString()}</Text>
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={date}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker(Platform.OS === 'ios');
-                  if (selectedDate) setDate(selectedDate);
+            {/* Web-specific Date Picker */}
+            {Platform.OS === 'web' ? (
+              <input
+                type="date"
+                value={date.toISOString().split('T')[0]}
+                min={new Date().toISOString().split('T')[0]} // Min date: today
+                style={{
+                  padding: '10px',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '16px',
+                  width: '100%',
+                  marginTop: '8px',
                 }}
-                minimumDate={new Date()}
+                onChange={(e) => setDate(new Date(e.target.value))}
               />
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={styles.inputButton}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Text style={styles.inputText}>{date.toLocaleDateString()}</Text>
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={date}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, selectedDate) => {
+                      setShowDatePicker(Platform.OS === 'ios');
+                      if (selectedDate) setDate(selectedDate);
+                    }}
+                    minimumDate={new Date()}
+                  />
+                )}
+              </>
             )}
           </View>
 
           <View style={styles.section}>
             <Text style={styles.label}>Pickup Time</Text>
-            <TouchableOpacity
-              style={styles.inputButton}
-              onPress={() => setShowTimePicker(true)}
-            >
-              <Text style={styles.inputText}>{time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-            </TouchableOpacity>
-            {showTimePicker && (
-              <DateTimePicker
-                value={time}
-                mode="time"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(event, selectedTime) => {
-                  setShowTimePicker(Platform.OS === 'ios');
-                  if (selectedTime) setTime(selectedTime);
+            {Platform.OS === 'web' ? (
+              <input
+                type="time"
+                value={time.toTimeString().slice(0, 5)}
+                style={{
+                  padding: '10px',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '16px',
+                  width: '100%',
+                  marginTop: '8px',
+                }}
+                onChange={(e) => {
+                  const [hours, minutes] = e.target.value.split(':');
+                  const newTime = new Date();
+                  newTime.setHours(parseInt(hours), parseInt(minutes));
+                  setTime(newTime);
                 }}
               />
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={styles.inputButton}
+                  onPress={() => setShowTimePicker(true)}
+                >
+                  <Text style={styles.inputText}>
+                    {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </TouchableOpacity>
+                {showTimePicker && (
+                  <DateTimePicker
+                    value={time}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, selectedTime) => {
+                      setShowTimePicker(Platform.OS === 'ios');
+                      if (selectedTime) setTime(selectedTime);
+                    }}
+                  />
+                )}
+              </>
             )}
           </View>
 

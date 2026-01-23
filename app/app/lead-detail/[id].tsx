@@ -28,9 +28,35 @@ export default function LeadDetailScreen() {
 
   const fetchLeadDetail = async () => {
     try {
-      // In a real app, you'd have a dedicated endpoint
-      const response = await api.get<Order[]>('/sell-phone/partner/leads/available');
-      const foundLead = response.data.find((l) => l.id.toString() === id);
+      // Try marketplace first for available leads
+      const marketplaceRes = await api.get<Order[]>('/sell-phone/partner/leads/available');
+      let foundLead = marketplaceRes.data.find((l: any) => (l.id || l.order_id)?.toString() === id);
+
+      if (!foundLead) {
+        // Try locked deals
+        try {
+          const lockedRes = await api.get<Order[]>('/partner/locked-deals');
+          foundLead = lockedRes.data.find((l: any) => l.id?.toString() === id);
+        } catch (e) {
+          // Ignore if locked-deals fails
+        }
+      }
+
+      if (!foundLead) {
+        // Try partner orders for purchased leads
+        try {
+          const ordersRes = await api.get<Order[]>('/partner/orders');
+          foundLead = ordersRes.data.find((l: any) => l.id?.toString() === id);
+        } catch (e) {
+          // Ignore if orders fails
+        }
+      }
+
+      // Map order_id to id for marketplace leads
+      if (foundLead && !foundLead.id && (foundLead as any).order_id) {
+        foundLead = { ...foundLead, id: (foundLead as any).order_id };
+      }
+
       setLead(foundLead || null);
     } catch (error: any) {
       Alert.alert('Error', 'Failed to fetch lead details');
@@ -134,7 +160,7 @@ export default function LeadDetailScreen() {
         {/* Customer Info Card */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Customer Information</Text>
-          
+
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Name:</Text>
             <Text style={styles.infoValue}>{lead.customer_name}</Text>

@@ -1,7 +1,7 @@
-import { ScrollView, Text, TouchableOpacity, View, Alert, RefreshControl, ActivityIndicator } from "react-native";
+import { ScrollView, Text, TouchableOpacity, View, Alert, RefreshControl, ActivityIndicator, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect, useCallback } from "react";
 import api from "../../lib/api";
@@ -28,10 +28,19 @@ export default function PartnerDashboard() {
 
   const fetchStats = async () => {
     try {
-      const response = await api.get("/partner/orders");
-      const orders = response.data || [];
+      // Fetch both orders and locked deals
+      const [ordersResponse, lockedResponse] = await Promise.all([
+        api.get("/partner/orders"),
+        api.get("/partner/locked-deals"),
+      ]);
 
-      const locked = orders.filter((o: any) => o.status === "partner_locked").length;
+      const orders = ordersResponse.data || [];
+      const lockedDeals = lockedResponse.data || [];
+
+      // Locked deals come from separate endpoint
+      const locked = lockedDeals.length;
+
+      // Filter orders by status
       const purchased = orders.filter((o: any) => o.status === "lead_purchased").length;
       const inProgress = orders.filter(
         (o: any) =>
@@ -57,9 +66,14 @@ export default function PartnerDashboard() {
     }
   };
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Dashboard focused, refreshing data...');
+      fetchStats();
+      refreshUser();
+    }, [])
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -68,17 +82,25 @@ export default function PartnerDashboard() {
   }, []);
 
   const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          await logout();
-          router.replace("/");
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to logout?');
+      if (confirmed) {
+        await logout();
+        window.location.href = '/';
+      }
+    } else {
+      Alert.alert("Logout", "Are you sure you want to logout?", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: async () => {
+            await logout();
+            router.replace("/");
+          },
         },
-      },
-    ]);
+      ]);
+    }
   };
 
   if (loading) {
@@ -146,7 +168,7 @@ export default function PartnerDashboard() {
           </Text>
           <View className="space-y-3">
             {/* Locked Deals */}
-            <TouchableOpacity 
+            <TouchableOpacity
               className="bg-white rounded-xl p-4 shadow-sm border border-purple-100"
               onPress={() => router.push("/(tabs)/dashboard?tab=locked")}
             >
@@ -169,7 +191,7 @@ export default function PartnerDashboard() {
             </TouchableOpacity>
 
             {/* Purchased */}
-            <TouchableOpacity 
+            <TouchableOpacity
               className="bg-white rounded-xl p-4 shadow-sm border border-blue-100"
               onPress={() => router.push("/(tabs)/dashboard?tab=purchased")}
             >
@@ -192,7 +214,7 @@ export default function PartnerDashboard() {
             </TouchableOpacity>
 
             {/* In Progress */}
-            <TouchableOpacity 
+            <TouchableOpacity
               className="bg-white rounded-xl p-4 shadow-sm border border-amber-100"
               onPress={() => router.push("/(tabs)/dashboard?tab=in_progress")}
             >
@@ -215,7 +237,7 @@ export default function PartnerDashboard() {
             </TouchableOpacity>
 
             {/* Completed */}
-            <TouchableOpacity 
+            <TouchableOpacity
               className="bg-white rounded-xl p-4 shadow-sm border border-green-100"
               onPress={() => router.push("/(tabs)/dashboard?tab=completed")}
             >

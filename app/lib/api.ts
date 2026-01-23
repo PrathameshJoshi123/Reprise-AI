@@ -1,6 +1,5 @@
 /**
  * API Client Configuration
- * Base URL: http://localhost:8000
  * Authentication: JWT Bearer tokens
  * Reference: SPEC Section - Authentication & Authorization
  */
@@ -8,8 +7,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-
-const API_BASE_URL = 'http://localhost:8000';
+import { API_BASE_URL } from '../config';
 const TOKEN_KEY = 'token';
 const USER_TYPE_KEY = 'userType';
 

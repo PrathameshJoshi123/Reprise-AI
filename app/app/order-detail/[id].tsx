@@ -29,8 +29,10 @@ export default function OrderDetailScreen() {
 
   const fetchOrderDetail = async () => {
     try {
-      const response = await api.get<Order>(`/sell-phone/partner/orders/${id}`);
-      setOrder(response.data);
+      // Fetch partner orders and find the specific one
+      const response = await api.get<Order[]>('/partner/orders');
+      const foundOrder = response.data.find((o) => o.id.toString() === id);
+      setOrder(foundOrder || null);
     } catch (error: any) {
       Alert.alert('Error', 'Failed to fetch order details');
     } finally {
@@ -39,8 +41,9 @@ export default function OrderDetailScreen() {
   };
 
   const handleAssignSuccess = () => {
-    fetchOrderDetail(); // Refresh order to show new assignment
     setShowAssignModal(false);
+    // Navigate to dashboard - it will auto-refresh due to useFocusEffect
+    router.replace('/(tabs)/dashboard?tab=in_progress');
   };
 
   if (loading) {
@@ -59,7 +62,7 @@ export default function OrderDetailScreen() {
           <Text style={styles.errorTitle}>Order Not Found</Text>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.replace('/(tabs)/dashboard')}
           >
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
@@ -74,7 +77,7 @@ export default function OrderDetailScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backIcon}>
+        <TouchableOpacity onPress={() => router.replace('/(tabs)/dashboard')} style={styles.backIcon}>
           <Text style={styles.backIconText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Order #{order.id}</Text>
@@ -278,7 +281,7 @@ export default function OrderDetailScreen() {
         {/* Add some bottom padding */}
         <View style={{ height: 20 }} />
       </ScrollView>
-      
+
       {/* Assign Agent Modal */}
       {order && (
         <AssignAgentModal

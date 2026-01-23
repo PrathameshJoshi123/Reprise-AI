@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -63,27 +64,46 @@ export default function DashboardScreen() {
     fetchData();
   }, [fetchData]);
 
-  const handlePurchase = async (orderId: number) => {
-    try {
-      await api.post(`/partner/leads/${orderId}/purchase`);
-      fetchData(); // refresh data
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to purchase lead');
-    }
+  const handlePurchase = (orderId: number) => {
+    console.log('Purchase lead clicked for order:', orderId);
+    // Navigate to the lead purchase confirmation page like the website does
+    router.push(`/lead-purchase/${orderId}`);
   };
 
   const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
+    console.log('Logout initiated, Platform:', Platform.OS);
+    try {
+      if (Platform.OS === 'web') {
+        const confirmed = window.confirm('Are you sure you want to logout?');
+        console.log('Logout confirmed:', confirmed);
+        if (confirmed) {
           await logout();
-          router.replace('/');
-        },
-      },
-    ]);
+          console.log('Logout successful, redirecting to /');
+          // Use window.location.href for a hard redirect on web to ensure state is cleared
+          window.location.href = '/';
+        }
+      } else {
+        Alert.alert('Logout', 'Are you sure you want to logout?', [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Logout',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await logout();
+                router.replace('/');
+              } catch (e) {
+                console.error('Logout failed:', e);
+                Alert.alert('Error', 'Failed to logout');
+              }
+            },
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'An error occurred during logout');
+    }
   };
 
   const onRefresh = useCallback(() => {
@@ -304,7 +324,7 @@ function OrderCard({ order, activeTab, onPurchase, router }: { order: Order; act
           </TouchableOpacity>
         )}
         {activeTab === 'purchased' && (
-          <TouchableOpacity style={styles.actionButtonPrimary} onPress={() => router.push(`/order-detail?orderId=${order.id}`)}>
+          <TouchableOpacity style={styles.actionButtonPrimary} onPress={() => router.push(`/order-detail/${order.id}`)}>
             <Text style={styles.actionButtonTextPrimary}>Assign to Agent</Text>
           </TouchableOpacity>
         )}

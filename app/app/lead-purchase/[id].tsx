@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -28,67 +29,133 @@ export default function LeadPurchaseScreen() {
   }, [id]);
 
   const fetchLeadDetail = async () => {
+    console.log('Fetching lead detail for ID:', id);
     try {
-      // Fetch from locked leads
-      const response = await api.get<Order[]>('/sell-phone/partner/orders/locked');
-      const foundLead = response.data.find((l) => l.id.toString() === id);
-      setLead(foundLead || null);
+      // Fetch from locked deals (correct endpoint)
+      const response = await api.get<Order[]>('/partner/locked-deals');
+      console.log('Locked deals response:', response.data);
+
+      // Check multiple possible ID fields
+      const foundLead = response.data.find((l: any) =>
+        l.id?.toString() === id ||
+        l.order_id?.toString() === id
+      );
+
+      console.log('Found lead:', foundLead);
+
+      // Normalize the lead object
+      if (foundLead) {
+        setLead({
+          ...foundLead,
+          id: foundLead.id || foundLead.order_id,
+        } as Order);
+      } else {
+        setLead(null);
+      }
     } catch (error: any) {
+      console.error('Error fetching lead:', error.response?.data || error.message);
       Alert.alert('Error', 'Failed to fetch lead details');
     } finally {
       setLoading(false);
     }
   };
 
+  // Re-lock the lead when lock expires
+  const handleReLock = async () => {
+    if (!lead) return;
+    console.log('Re-locking lead:', lead.id);
+    setPurchasing(true);
+    try {
+      await api.post(`/sell-phone/partner/leads/${lead.id}/lock`);
+      console.log('Lead re-locked successfully');
+      Alert.alert('Success', 'Lead locked for 15 minutes. You can now purchase it.');
+      // Refresh lead data
+      fetchLeadDetail();
+    } catch (error: any) {
+      console.error('Re-lock error:', error.response?.data || error.message);
+      Alert.alert('Error', error.response?.data?.detail || 'Failed to lock lead. It may have been purchased by another partner.');
+      router.replace('/(tabs)/marketplace');
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
   const handlePurchase = async () => {
-    if (!lead || !user) return;
+    console.log('handlePurchase called');
+    if (!lead || !user) {
+      console.log('No lead or user', { lead, user });
+      return;
+    }
 
     const userCredits = user.credit_balance || 0;
     const leadPrice = lead.ai_estimated_price || lead.final_quoted_price;
+    console.log('Credits check:', { userCredits, leadPrice });
 
     // Check if partner has enough credits
     if (userCredits < leadPrice) {
       Alert.alert(
         'Insufficient Credits',
-        `You need ${formatPrice(leadPrice)} but only have ${formatPrice(
-          userCredits
-        )}. Please buy credits first.`,
+        `You need ${formatPrice(leadPrice)} but only have ${formatPrice(userCredits)}. Please buy credits first.`,
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Buy Credits', onPress: () => router.push('/(tabs)/dashboard') },
+          { text: 'Buy Credits', onPress: () => router.push('/(tabs)/wallet') },
         ]
       );
       return;
     }
 
-    Alert.alert(
-      'Confirm Purchase',
-      `Are you sure you want to purchase this lead for ${formatPrice(leadPrice)}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: async () => {
-            setPurchasing(true);
-            try {
-              await api.post(`/sell-phone/partner/leads/${lead.id}/purchase`);
-              await refreshUser(); // Refresh to update credit balance
-              
-              Alert.alert('Success', 'Lead purchased successfully!', [
-                {
-                  text: 'View Dashboard',
-                  onPress: () => router.replace('/(tabs)/dashboard'),
-                },
-              ]);
-            } catch (error: any) {
-              Alert.alert('Error', error.response?.data?.detail || 'Failed to purchase lead');
-            } finally {
-              setPurchasing(false);
-            }
-          },
-        },
-      ]
-    );
+    // Execute purchase directly
+    console.log('Starting purchase for lead:', lead.id);
+    setPurchasing(true);
+    try {
+      // Attempt purchase (lead should already be locked from locked-deals)
+      const response = await api.post(`/sell-phone/partner/leads/${lead.id}/purchase`);
+      console.log('Purchase response:', response.data);
+
+      await refreshUser(); // Refresh to update credit balance
+      console.log('User refreshed after purchase');
+
+      if (Platform.OS === 'web') {
+        window.alert('Lead purchased successfully!');
+      } else {
+        Alert.alert('Success', 'Lead purchased successfully!');
+      }
+      router.replace('/(tabs)/dashboard');
+    } catch (error: any) {
+      console.error('Purchase error:', error.response?.data || error.message);
+      const errorDetail = error.response?.data?.detail || 'Failed to purchase lead';
+
+      // Check if error is due to expired lock
+      if (errorDetail.includes('active lock') || errorDetail.includes('expired')) {
+        if (Platform.OS === 'web') {
+          const shouldRelock = window.confirm(
+            'Your lock on this lead has expired. Go to Marketplace to re-lock it?'
+          );
+          if (shouldRelock) {
+            router.replace('/(tabs)/marketplace');
+          } else {
+            router.replace('/(tabs)/dashboard');
+          }
+        } else {
+          Alert.alert(
+            'Lock Expired',
+            'Your lock on this lead has expired. Go to Marketplace to re-lock it?',
+            [
+              { text: 'Cancel', onPress: () => router.replace('/(tabs)/dashboard'), style: 'cancel' },
+              { text: 'Go to Marketplace', onPress: () => router.replace('/(tabs)/marketplace') }
+            ]
+          );
+        }
+      } else {
+        if (Platform.OS === 'web') {
+          window.alert(errorDetail);
+        } else {
+          Alert.alert('Purchase Failed', errorDetail);
+        }
+      }
+    } finally {
+      setPurchasing(false);
+    }
   };
 
   if (loading) {
@@ -284,8 +351,11 @@ export default function LeadPurchaseScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => router.back()}
-          disabled={purchasing}
+          onPress={() => {
+            console.log('Cancel pressed - navigating to dashboard');
+            router.replace('/(tabs)/dashboard');
+          }}
+          activeOpacity={0.7}
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>

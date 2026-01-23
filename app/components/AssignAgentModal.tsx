@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import api from '../lib/api';
 import { Agent } from '../types';
@@ -56,17 +57,28 @@ export default function AssignAgentModal({
       // Use query parameter format as per backend API
       await api.post(`/partner/orders/${orderId}/assign?agent_id=${selectedAgent.id}`);
 
-      Alert.alert('Success', `Order assigned to ${selectedAgent.full_name || selectedAgent.name}`, [
-        {
-          text: 'OK',
-          onPress: () => {
-            onSuccess();
-            onClose();
+      if (Platform.OS === 'web') {
+        window.alert(`Order assigned to ${selectedAgent.full_name || selectedAgent.name}`);
+        onSuccess();
+        onClose();
+      } else {
+        Alert.alert('Success', `Order assigned to ${selectedAgent.full_name || selectedAgent.name}`, [
+          {
+            text: 'OK',
+            onPress: () => {
+              onSuccess();
+              onClose();
+            },
           },
-        },
-      ]);
+        ]);
+      }
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to assign agent');
+      const errorMsg = error.response?.data?.detail || 'Failed to assign agent';
+      if (Platform.OS === 'web') {
+        window.alert(errorMsg);
+      } else {
+        Alert.alert('Error', errorMsg);
+      }
     } finally {
       setAssigning(false);
     }

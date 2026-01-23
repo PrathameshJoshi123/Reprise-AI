@@ -8,6 +8,7 @@ import {
   TextInput,
   StyleSheet,
   Alert,
+  Platform,
 } from 'react-native';
 import api from '../lib/api';
 
@@ -72,7 +73,7 @@ export default function CompletePickupModal({
     try {
       // Format condition as a summary string
       const actualCondition = `Physical: ${formData.physical_condition}, Screen: ${formData.screen_condition}, Battery: ${formData.battery_health}, Issues: ${formData.functional_issues || 'None'}`;
-      
+
       // Format notes with all collected details
       const pickupNotes = `Accessories: ${formData.accessories_included || 'Not specified'}. Original Box: ${formData.original_box ? 'Yes' : 'No'}. Charger: ${formData.charger_included ? 'Yes' : 'No'}. Warranty: ${formData.warranty_valid ? 'Valid' : 'N/A'}. Invoice: ${formData.purchase_invoice ? 'Yes' : 'No'}. IMEI Verified: ${formData.imei_verified ? 'Yes' : 'No'}. Cloud Locked: ${formData.icloud_locked ? 'Yes' : 'No'}. ${formData.notes || ''}`;
 
@@ -84,17 +85,27 @@ export default function CompletePickupModal({
         payment_method: formData.payment_method,
       });
 
-      Alert.alert('Success', 'Pickup completed successfully!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            onSuccess();
-            onClose();
+      if (Platform.OS === 'web') {
+        window.alert('Pickup completed successfully!');
+        onSuccess();
+        onClose();
+      } else {
+        Alert.alert('Success', 'Pickup completed successfully!', [
+          {
+            text: 'OK',
+            onPress: () => {
+              onSuccess();
+              onClose();
+            },
           },
-        },
-      ]);
+        ]);
+      }
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to complete pickup');
+      if (Platform.OS === 'web') {
+        window.alert(error.response?.data?.detail || 'Failed to complete pickup');
+      } else {
+        Alert.alert('Error', error.response?.data?.detail || 'Failed to complete pickup');
+      }
     } finally {
       setSubmitting(false);
     }

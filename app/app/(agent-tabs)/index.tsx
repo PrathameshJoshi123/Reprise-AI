@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -54,17 +55,25 @@ export default function AgentDashboardScreen() {
   }, []);
 
   const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          await logout();
-          router.replace('/');
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to logout?');
+      if (confirmed) {
+        await logout();
+        window.location.href = '/';
+      }
+    } else {
+      Alert.alert('Logout', 'Are you sure you want to logout?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/');
+          },
         },
-      },
-    ]);
+      ]);
+    }
   };
 
   const handleAccept = async (orderId: number) => {
@@ -73,6 +82,8 @@ export default function AgentDashboardScreen() {
       Alert.alert('Success', 'Order accepted successfully');
       fetchOrders();
     } catch (error: any) {
+      console.error('Accept Order Error:', error);
+      console.error('Response Data:', error.response?.data);
       Alert.alert('Error', error.response?.data?.detail || 'Failed to accept order');
     }
   };
@@ -283,7 +294,7 @@ function AgentOrderCard({
           </>
         )}
         {order.status === 'accepted_by_agent' && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.scheduleButton}
             onPress={() => onSchedule(order.id)}
           >
@@ -291,7 +302,7 @@ function AgentOrderCard({
           </TouchableOpacity>
         )}
         {order.status === 'pickup_scheduled' && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.completeButton}
             onPress={() => onComplete(order.id)}
           >
