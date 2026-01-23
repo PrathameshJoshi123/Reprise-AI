@@ -1,296 +1,134 @@
-import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
-import {
-  Image,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "../../context/AuthContext";
 import "../../global.css";
-import {
-  getDeviceCategories,
-  getPopularDevices,
-  searchProducts,
-} from "../../services/deviceApi";
 
-interface Product {
-  id: number;
-  title: string;
-  description: string;
-  category: string;
-  price: number;
-  discountPercentage: number;
-  rating: number;
-  stock: number;
-  brand: string;
-  thumbnail: string;
-  images: string[];
-}
+export default function HomeScreen() {
+  const { user } = useAuth();
 
-const categories = getDeviceCategories().map((name) => ({
-  name: name.charAt(0).toUpperCase() + name.slice(1).replace("-", " "),
-  icon:
-    name === "laptops"
-      ? "laptop-outline"
-      : name === "smartphones"
-        ? "phone-portrait-outline"
-        : "tablet-portrait-outline",
-  color:
-    name === "laptops"
-      ? "bg-blue-500"
-      : name === "smartphones"
-        ? "bg-green-500"
-        : "bg-purple-500",
-}));
+  const quickMetrics = [
+    { label: "Today's Claims", value: "12", subtext: "Claims Processed" },
+    { label: "Active Agents", value: "8", subtext: "Team Members" },
+    { label: "Completed Orders", value: "145", subtext: "This Month" },
+  ];
 
-const Home = () => {
-  const [newProducts, setNewProducts] = useState<Product[]>([]);
-  const [searchSuggestions, setSearchSuggestions] = useState<Product[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [likedProducts, setLikedProducts] = useState<Set<number>>(new Set());
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const products = await getPopularDevices();
-      setNewProducts(products.slice(0, 6));
-      setSearchSuggestions(products.slice(0, 6)); // Initial suggestions
-    };
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    const debounceTimer = setTimeout(async () => {
-      if (searchQuery.trim()) {
-        const results = await searchProducts(searchQuery);
-        setSearchSuggestions(results);
-      } else {
-        setSearchSuggestions(newProducts); // Reset to initial suggestions
-      }
-    }, 500); // 500ms debounce
-
-    return () => clearTimeout(debounceTimer);
-  }, [searchQuery, newProducts]);
-
-  const handleSearchFocus = () => {
-    setIsSearchFocused(true);
-  };
-
-  const handleSearchBlur = () => {
-    setIsSearchFocused(false);
-  };
-
-  const toggleLike = (productId: number) => {
-    setLikedProducts((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(productId)) {
-        newSet.delete(productId);
-      } else {
-        newSet.add(productId);
-      }
-      return newSet;
-    });
-  };
-
-  const navigateToProduct = (productId: number) => {
-    router.push(`/product/${productId}/page`);
-  };
+  const highPriorityLeads = [
+    { id: 1, device: "iPhone 15 Pro", distance: "2.3 km", value: "₹82,000" },
+    {
+      id: 2,
+      device: "Samsung Galaxy S24",
+      distance: "4.1 km",
+      value: "₹65,000",
+    },
+    { id: 3, device: "MacBook Pro M3", distance: "5.8 km", value: "₹1,45,000" },
+  ];
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-gray-50">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Hero Section */}
-        <View className="bg-orange-50 px-6 pt-4 pb-8">
-          <Image
-            source={{
-              uri: "https://img.freepik.com/free-vector/online-shopping-concept-illustration_114360-1084.jpg",
-            }}
-            className="w-full h-48 rounded-2xl mb-4"
-            resizeMode="cover"
-          />
-
-          {/* Search Bar */}
-          <View className="flex-row items-center bg-white rounded-full px-4 py-3 shadow-sm">
-            <Ionicons name="search-outline" size={20} color="#9CA3AF" />
-            <TextInput
-              placeholder="Find secondhand treasures..."
-              placeholderTextColor="#9CA3AF"
-              className="flex-1 ml-3 text-gray-800 text-base"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              onFocus={handleSearchFocus}
-              onBlur={handleSearchBlur}
-            />
-            <TouchableOpacity>
-              <Ionicons name="options-outline" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
+        {/* Header */}
+        <View className="flex-row justify-between items-center px-6 pt-4 pb-6 bg-white">
+          <View>
+            <Text className="text-slate-500 text-sm">Welcome back,</Text>
+            <Text className="text-2xl font-bold text-slate-900 mt-1">
+              {user?.email?.split("@")[0] || "Partner"}
+            </Text>
           </View>
-
-          {/* Hardware Test Button */}
-          <LinearGradient
-            colors={["#2563EB", "#9333EA"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            className="mt-4 rounded-full"
-          >
-            <TouchableOpacity
-              onPress={() => router.push("/diagnostic/start")}
-              className="px-6 py-4 flex-row items-center justify-center"
-            >
-              <Ionicons name="hardware-chip-outline" size={24} color="white" />
-              <Text className="text-white font-bold text-base ml-2">
-                Run Hardware Test
-              </Text>
-            </TouchableOpacity>
-          </LinearGradient>
+          <TouchableOpacity className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center">
+            <Text className="text-lg">🔔</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Search Suggestions Overlay */}
-        {isSearchFocused && (
-          <View className="px-6 py-4 bg-white border-t border-gray-200">
-            <Text className="text-lg font-bold text-gray-800 mb-4">
-              {searchQuery.trim() ? "Search Results" : "Suggestions"}
+        {/* Credit Widget */}
+        <View className="px-6 py-4">
+          <View className="bg-teal-600 rounded-2xl p-6 shadow-sm">
+            <Text className="text-teal-100 text-sm font-medium mb-1">
+              AVAILABLE BALANCE
             </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View className="flex-row">
-                {searchSuggestions.slice(0, 10).map((product) => (
-                  <TouchableOpacity
-                    key={product.id}
-                    className="bg-white rounded-2xl mr-4 shadow-sm overflow-hidden"
-                    style={{ width: 150 }}
-                    onPress={() => navigateToProduct(product.id)}
-                  >
-                    <Image
-                      source={{ uri: product.thumbnail }}
-                      className="w-full h-24 bg-gray-100"
-                      resizeMode="cover"
-                    />
-                    <View className="p-2">
-                      <Text
-                        className="text-sm font-semibold text-gray-800 mb-1"
-                        numberOfLines={1}
-                      >
-                        {product.title}
-                      </Text>
-                      <Text className="text-orange-500 font-bold text-sm">
-                        ${product.price.toFixed(2)}
+            <Text className="text-white text-4xl font-bold mb-1">
+              2,450
+              <Text className="text-xl text-teal-100"> CR</Text>
+            </Text>
+            <Text className="text-teal-100 text-xs mb-4">
+              Use credits to unlock qualified leads
+            </Text>
+            <TouchableOpacity
+              className="bg-white rounded-xl py-3 px-6 self-start"
+              activeOpacity={0.8}
+            >
+              <Text className="text-teal-600 font-bold">💳 Recharge</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Quick Metrics */}
+        <View className="px-6 py-2">
+          <View className="flex-row justify-between">
+            {quickMetrics.map((metric, index) => (
+              <View
+                key={index}
+                className="bg-white rounded-xl p-4 flex-1 mx-1 shadow-sm"
+              >
+                <Text className="text-slate-500 text-xs mb-2">
+                  {metric.label}
+                </Text>
+                <Text className="text-slate-900 text-2xl font-bold mb-1">
+                  {metric.value}
+                </Text>
+                <Text className="text-slate-400 text-xs">{metric.subtext}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* High Priority Leads */}
+        <View className="px-6 py-4">
+          <View className="flex-row justify-between items-center mb-3">
+            <Text className="text-lg font-bold text-slate-900">
+              High-Priority Leads
+            </Text>
+            <TouchableOpacity>
+              <Text className="text-teal-600 font-semibold text-sm">
+                View All
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View className="bg-white rounded-2xl overflow-hidden shadow-sm">
+            {highPriorityLeads.map((lead, index) => (
+              <View key={lead.id}>
+                <View className="p-4 flex-row justify-between items-center">
+                  <View className="flex-1">
+                    <View className="flex-row items-center mb-1">
+                      <Text className="w-2 h-2 bg-green-500 rounded-full mr-2" />
+                      <Text className="text-slate-900 font-semibold">
+                        {lead.device}
                       </Text>
                     </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Explore by Category */}
-        {!isSearchFocused && (
-          <View className="px-6 py-6">
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-lg font-bold text-gray-800">
-                Explore by Category
-              </Text>
-              <TouchableOpacity>
-                <Text className="text-orange-500 font-medium">See all</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View className="flex-row justify-between">
-              {categories.map((category, index) => (
-                <TouchableOpacity
-                  key={index}
-                  className="items-center"
-                  style={{ width: "22%" }}
-                >
-                  <View
-                    className={`${category.color} w-16 h-16 rounded-2xl items-center justify-center mb-2`}
+                    <Text className="text-slate-500 text-sm ml-4">
+                      📍 {lead.distance} away • {lead.value}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    className="bg-teal-600 rounded-lg px-4 py-2"
+                    activeOpacity={0.8}
                   >
-                    <Ionicons
-                      name={category.icon as any}
-                      size={28}
-                      color="white"
-                    />
-                  </View>
-                  <Text className="text-xs text-gray-600 text-center">
-                    {category.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* New This Week */}
-        {!isSearchFocused && (
-          <View className="px-6 py-4 pb-8">
-            <Text className="text-lg font-bold text-gray-800 mb-4">
-              New This Week
-            </Text>
-
-            <View className="flex-row flex-wrap justify-between">
-              {newProducts.map((product) => (
-                <TouchableOpacity
-                  key={product.id}
-                  className="bg-white rounded-2xl mb-4 shadow-sm overflow-hidden"
-                  style={{ width: "48%" }}
-                  onPress={() => navigateToProduct(product.id)}
-                >
-                  <View className="relative">
-                    <Image
-                      source={{ uri: product.thumbnail }}
-                      className="w-full h-40 bg-gray-100"
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity
-                      onPress={() => toggleLike(product.id)}
-                      className="absolute top-2 right-2 bg-white w-8 h-8 rounded-full items-center justify-center"
-                    >
-                      <Ionicons
-                        name={
-                          likedProducts.has(product.id)
-                            ? "heart"
-                            : "heart-outline"
-                        }
-                        size={18}
-                        color={
-                          likedProducts.has(product.id) ? "#EF4444" : "#9CA3AF"
-                        }
-                      />
-                    </TouchableOpacity>
-                  </View>
-
-                  <View className="p-3">
-                    <Text
-                      className="text-sm font-semibold text-gray-800 mb-1"
-                      numberOfLines={1}
-                    >
-                      {product.title}
+                    <Text className="text-white font-semibold text-sm">
+                      Claim
                     </Text>
-                    <Text className="text-orange-500 font-bold text-base">
-                      ${product.price.toFixed(2)}
-                    </Text>
-                    {product.stock > 0 && (
-                      <View className="flex-row items-center mt-1">
-                        <View className="w-2 h-2 rounded-full bg-green-500 mr-1" />
-                        <Text className="text-xs text-gray-500">
-                          {product.stock} in stock
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
+                  </TouchableOpacity>
+                </View>
+                {index < highPriorityLeads.length - 1 && (
+                  <View className="h-px bg-gray-100 ml-4" />
+                )}
+              </View>
+            ))}
           </View>
-        )}
+        </View>
+
+        {/* Bottom Spacing */}
+        <View className="h-8" />
       </ScrollView>
     </SafeAreaView>
   );
-};
-
-export default Home;
+}
