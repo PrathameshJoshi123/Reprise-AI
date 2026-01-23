@@ -75,7 +75,7 @@ export default function PartnerLogin() {
           formData.phone,
           formData.company_name,
           formData.business_address,
-          formData.gst_number || undefined,
+          formData.gst_number,
           formData.pan_number,
           pincodes,
         );

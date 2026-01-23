@@ -29,6 +29,7 @@ interface Lead {
   is_locked?: boolean;
   locked_by_me?: boolean;
   created_at: string;
+  status?: string;
 }
 
 export default function Marketplace() {
