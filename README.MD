@@ -140,7 +140,7 @@ RepriseAi/
 
 3. Start the Expo development server:
    ```
-   npx expo start
+   npm start
    ```
 
 ## Usage
