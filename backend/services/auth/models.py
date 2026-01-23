@@ -14,6 +14,10 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    # OAuth fields
+    google_id = Column(String, unique=True, nullable=True, index=True)
+    oauth_provider = Column(String, nullable=True)  # 'google', etc.
+
     # New: store optional geolocation for user (agent)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)

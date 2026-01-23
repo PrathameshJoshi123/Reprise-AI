@@ -1,16 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from services.auth import models, schemas, utils
-from shared.db.connections import get_db
+from shared.db.connections import Base, engine
 
 router = APIRouter()
 
-@router.post("/signup", response_model=schemas.UserRegistrationResponse, tags=["auth"])
-def signup(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
-    """
-    Customer registration with pincode serviceability check.
-    Validates if partners service the customer's pincode.
-    """
+# ensure tables exist
+Base.metadata.create_all(bind=engine)
+
+@router.post("/signup", response_model=schemas.UserOut, tags=["auth"])
+def signup(user_in: schemas.UserCreate, db: Session = Depends(utils.get_db)):
     existing = db.query(models.User).filter(models.User.email == user_in.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -178,32 +177,3 @@ def delete_user(user_id: int, current_user: models.User = Depends(utils.get_curr
     db.delete(user)
     db.commit()
     return None
-
-@router.post("/google", response_model=schemas.Token, tags=["auth"])
-def google_login(payload: schemas.GoogleLogin, db: Session = Depends(get_db)):
-    # must receive auth_code
-    if not getattr(payload, "auth_code", None):
-        raise HTTPException(status_code=400, detail="auth_code is required")
-
-    try:
-        id_token = utils.exchange_auth_code_for_id_token(payload.auth_code, getattr(payload, "code_verifier", None))
-        
-    except HTTPException as e:
-        # bubble up Google's exchange error with logging
-        print("Token exchange failed:", e.detail)
-        raise
-    try:
-        user = utils.create_or_get_user_from_google(id_token, db)
-    except HTTPException as e:
-        # verification or user creation failed — log and return informative error
-        print("create_or_get_user_from_google failed:", e.detail)
-        raise
-    if not user:
-        print("create_or_get_user_from_google returned no user for id_token")
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Could not authenticate with Google")
-
-    # create app JWT
-    token_data = {"user_id": user.id}
-    access_token = utils.create_access_token(data=token_data)
-    
-    return {"access_token": access_token, "token_type": "bearer"}

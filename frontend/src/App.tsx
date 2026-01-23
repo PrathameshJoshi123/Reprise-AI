@@ -60,6 +60,11 @@ const App = () => (
             <Route path="/agent/register" element={<AgentLogin />} /> */}
 
               {/* Lazy loaded pages */}
+<<<<<<< HEAD
+=======
+              <Route path="/login" element={<Login />} />
+              <Route path="/oauth/callback" element={<OAuthCallback />} />
+>>>>>>> d896479b23bbfe8b04959d87b0b20f036aef845a
               <Route path="/brands" element={<Brands />} />
               <Route path="/brands/:brandId" element={<Brands />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
