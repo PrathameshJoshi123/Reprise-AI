@@ -23,7 +23,7 @@ interface AuthContextType {
     identifier: string,
     password: string,
     role?: "user" | "agent" | "customer",
-    name?: string
+    name?: string,
   ) => Promise<boolean>;
   signup: (
     email: string,
@@ -33,7 +33,7 @@ interface AuthContextType {
     phone?: string,
     address?: string,
     latitude?: number | null,
-    longitude?: number | null
+    longitude?: number | null,
   ) => Promise<boolean>;
   logout: () => void;
 }
@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     identifier: string,
     password: string,
     role?: "user" | "agent" | "customer",
-    name?: string
+    name?: string,
   ): Promise<boolean> => {
     try {
       const response = await api.post("/auth/login", {
@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     phone?: string,
     address?: string,
     latitude?: number | null,
-    longitude?: number | null
+    longitude?: number | null,
   ): Promise<boolean> => {
     try {
       const payload = {
@@ -128,15 +128,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         latitude,
         longitude,
       };
-      const res = await fetch(`${API_URL}/auth/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) return false;
+      const res = await api.post("/auth/signup", payload);
+      if (res.status !== 201 && res.status !== 200) return false;
       // auto-login after signup
       return await login(phone || email, password, role, name);
-    } catch {
+    } catch (error: any) {
+      console.error("Signup error:", error.response?.data || error);
       return false;
     }
   };

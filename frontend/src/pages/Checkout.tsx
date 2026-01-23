@@ -75,8 +75,6 @@ export default function Checkout() {
   const [originalHad, setOriginalHad] = useState({
     phone: false,
     address: false,
-    latitude: false,
-    longitude: false,
   });
 
   // Pre-fill fields if user is logged in
@@ -120,8 +118,6 @@ export default function Checkout() {
         setOriginalHad({
           phone: !!u.phone,
           address: !!u.address,
-          latitude: u.latitude !== null && u.latitude !== undefined,
-          longitude: u.longitude !== null && u.longitude !== undefined,
         });
       } catch (e) {
         // ignore
@@ -135,74 +131,11 @@ export default function Checkout() {
     window.scrollTo(0, 0);
   };
 
-  // resolve pickup coordinates: prefer browser geolocation, fallback to Nominatim geocode
-  async function resolvePickupCoords(): Promise<{
-    lat: number | null;
-    lon: number | null;
-  }> {
-    // try browser geolocation first
-    const tryGeolocation = () =>
-      new Promise<{ lat: number; lon: number }>((resolve, reject) => {
-        if (!("geolocation" in navigator)) return reject("no-geolocation");
-        const timer = setTimeout(() => reject("timeout"), 6000);
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            clearTimeout(timer);
-            resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-          },
-          (err) => {
-            clearTimeout(timer);
-            reject(err);
-          },
-          {
-            maximumAge: 1000 * 60 * 5,
-            timeout: 6000,
-            enableHighAccuracy: false,
-          },
-        );
-      });
-
-    try {
-      const p = await tryGeolocation();
-      return { lat: p.lat, lon: p.lon };
-    } catch (_err) {
-      // fallback to geocoding the provided address
-    }
-
-    // compose address from controlled fields
-    const parts = [
-      addressLine || "",
-      cityVal || "",
-      stateVal || "",
-      pincodeVal || "",
-    ]
-      .map((p) => p.trim())
-      .filter(Boolean);
-    if (parts.length === 0) return { lat: null, lon: null };
-    const q = encodeURIComponent(parts.join(", "));
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`,
-      );
-      if (!res.ok) return { lat: null, lon: null };
-      const json = await res.json();
-      if (Array.isArray(json) && json.length > 0) {
-        const item = json[0];
-        return { lat: parseFloat(item.lat), lon: parseFloat(item.lon) };
-      }
-    } catch (e) {
-      // ignore geocode errors
-    }
-    return { lat: null, lon: null };
-  }
+  // (No pickup coordinates collected anymore)
 
   const handleSubmitPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
-    // resolve coords before building payload
-    const coords = await resolvePickupCoords();
-
     const token = localStorage.getItem("accessToken");
 
     // If user logged in, and some important fields were missing originally, persist them now.
@@ -211,15 +144,10 @@ export default function Checkout() {
       if (!originalHad.phone && phone) updatePayload.phone = phone;
       if (!originalHad.address && addressLine)
         updatePayload.address = addressLine;
-      if (!originalHad.latitude && coords.lat != null)
-        updatePayload.latitude = coords.lat;
-      if (!originalHad.longitude && coords.lon != null)
-        updatePayload.longitude = coords.lon;
 
       if (Object.keys(updatePayload).length > 0) {
         try {
           await api.patch("/auth/me", updatePayload);
-          // ignore response details; proceed to create order
         } catch (err) {
           console.error("Failed to update profile during checkout", err);
         }
@@ -228,9 +156,18 @@ export default function Checkout() {
 
     const payload: any = {
       phone_name: phoneData.name,
+      brand: phoneData.brand || phoneData.name.split(" ")[0],
+      model: phoneData.model || phoneData.name.split(" ").slice(1).join(" "),
+      ram_gb:
+        phoneData.ram_gb ||
+        parseFloat(phoneData.variant?.match(/\d+/)?.[0] || "0"),
+      storage_gb:
+        phoneData.storage_gb ||
+        parseFloat(phoneData.variant?.match(/\d+/)?.[0] || "0"),
       variant: phoneData.variant,
       condition: phoneData.condition,
       quoted_price: phoneData.price,
+      customer_condition_answers: phoneData.conditionAnswers || {},
       customer_name: `${firstName} ${lastName}`.trim(),
       phone_number: phone,
       email,
@@ -241,22 +178,13 @@ export default function Checkout() {
       pickup_date: pickupDateVal || null,
       pickup_time: pickupTimeVal || null,
       payment_method: paymentMethod,
-      pickup_latitude: coords.lat,
-      pickup_longitude: coords.lon,
+      // coordinates removed — not collected
     };
 
     try {
       const res = await api.post("/sell-phone/orders", payload);
       const orderResp = res.data;
       setCreatedOrder(orderResp);
-      // keep local copy for agent dashboard/backwards compatibility
-      const existingOrders = JSON.parse(
-        localStorage.getItem("agentOrders") || "[]",
-      );
-      localStorage.setItem(
-        "agentOrders",
-        JSON.stringify([...existingOrders, orderResp]),
-      );
       setIsSubmitting(false);
       setStep(3);
       window.scrollTo(0, 0);
@@ -622,23 +550,6 @@ export default function Checkout() {
                               Fastest
                             </div>
                           </div>
-
-                          {paymentMethod === "upi" && (
-                            <div className="mt-4 pl-8 animate-in slide-in-from-top-2 duration-200">
-                              <Label
-                                htmlFor="upi-id"
-                                className="text-sm font-medium"
-                              >
-                                UPI ID
-                              </Label>
-                              <Input
-                                id="upi-id"
-                                placeholder="yourname@paytm"
-                                className="mt-1.5 h-11"
-                                required={paymentMethod === "upi"}
-                              />
-                            </div>
-                          )}
                         </div>
 
                         <div
@@ -666,120 +577,33 @@ export default function Checkout() {
                               </div>
                             </Label>
                           </div>
-
-                          {paymentMethod === "bank" && (
-                            <div className="mt-4 pl-8 space-y-3 animate-in slide-in-from-top-2 duration-200">
-                              <div>
-                                <Label
-                                  htmlFor="account-number"
-                                  className="text-sm font-medium"
-                                >
-                                  Account Number
-                                </Label>
-                                <Input
-                                  id="account-number"
-                                  className="mt-1.5 h-11"
-                                  required={paymentMethod === "bank"}
-                                />
-                              </div>
-                              <div>
-                                <Label
-                                  htmlFor="ifsc-code"
-                                  className="text-sm font-medium"
-                                >
-                                  IFSC Code
-                                </Label>
-                                <Input
-                                  id="ifsc-code"
-                                  className="mt-1.5 h-11"
-                                  required={paymentMethod === "bank"}
-                                />
-                              </div>
-                              <div>
-                                <Label
-                                  htmlFor="account-name"
-                                  className="text-sm font-medium"
-                                >
-                                  Account Holder Name
-                                </Label>
-                                <Input
-                                  id="account-name"
-                                  className="mt-1.5 h-11"
-                                  required={paymentMethod === "bank"}
-                                />
-                              </div>
-                            </div>
-                          )}
                         </div>
 
                         <div
                           className={`border-2 rounded-xl p-4 transition-all cursor-pointer ${
-                            paymentMethod === "wallet"
+                            paymentMethod === "cash"
                               ? "border-blue-500 bg-blue-50/50 shadow-md"
                               : "border-gray-200 hover:border-gray-300"
                           }`}
                         >
                           <div className="flex items-center">
                             <RadioGroupItem
-                              value="wallet"
-                              id="wallet"
+                              value="cash"
+                              id="cash"
                               className="text-blue-600"
                             />
                             <Label
-                              htmlFor="wallet"
+                              htmlFor="cash"
                               className="flex-1 ml-3 cursor-pointer"
                             >
                               <div className="font-semibold text-gray-900">
-                                E-Wallet
+                                Cash
                               </div>
                               <div className="text-sm text-gray-500">
-                                Transfer to PayTM, PhonePe, or Amazon Pay
+                                Receive payment in cash upon pickup
                               </div>
                             </Label>
                           </div>
-
-                          {paymentMethod === "wallet" && (
-                            <div className="mt-4 pl-8 space-y-3 animate-in slide-in-from-top-2 duration-200">
-                              <div>
-                                <Label
-                                  htmlFor="wallet-type"
-                                  className="text-sm font-medium"
-                                >
-                                  Select Wallet
-                                </Label>
-                                <Select>
-                                  <SelectTrigger
-                                    id="wallet-type"
-                                    className="mt-1.5 h-11"
-                                  >
-                                    <SelectValue placeholder="Choose wallet" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="paytm">PayTM</SelectItem>
-                                    <SelectItem value="phonepe">
-                                      PhonePe
-                                    </SelectItem>
-                                    <SelectItem value="amazon">
-                                      Amazon Pay
-                                    </SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div>
-                                <Label
-                                  htmlFor="wallet-number"
-                                  className="text-sm font-medium"
-                                >
-                                  Mobile Number
-                                </Label>
-                                <Input
-                                  id="wallet-number"
-                                  className="mt-1.5 h-11"
-                                  required={paymentMethod === "wallet"}
-                                />
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </RadioGroup>
 
@@ -885,7 +709,7 @@ export default function Checkout() {
                         <Button
                           variant="outline"
                           className="flex-1 h-11 border-2"
-                          onClick={() => setShowOrderModal(true)}
+                          onClick={() => navigate("/my-orders")}
                           disabled={!createdOrder}
                         >
                           View Order Details

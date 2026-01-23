@@ -1,35 +1,154 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import PartnerLogin from "./pages/PartnerLogin";
+import PartnerDashboard from "./pages/PartnerDashboard";
+import Marketplace from "./pages/Marketplace";
+import LeadDetail from "./pages/LeadDetail";
+import LeadPurchaseConfirmation from "./pages/LeadPurchaseConfirmation";
+import AgentsManagement from "./pages/AgentsManagement";
+import AgentLogin from "./pages/AgentLogin";
+import AgentDashboard from "./pages/AgentDashboard";
+import Home from "./pages/Home";
 
-function App() {
-  const [count, setCount] = useState(0)
+function ProtectedRoute({
+  children,
+  allowedType,
+}: {
+  children: React.ReactNode;
+  allowedType: "partner" | "agent";
+}) {
+  const { user, userType, loading } = useAuth();
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-xl">Loading...</div>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    );
+  }
+
+  if (!user || userType !== allowedType) {
+    return (
+      <Navigate
+        to={allowedType === "partner" ? "/partner/login" : "/agent/login"}
+        replace
+      />
+    );
+  }
+
+  return <>{children}</>;
 }
 
-export default App
+function AppRoutes() {
+  const { user, userType, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50">
+        <div className="text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50">
+        <div className="text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/" element={<Home />} />
+      <Route
+        path="/partner/login"
+        element={
+          user && userType === "partner" ? (
+            <Navigate to="/partner/dashboard" replace />
+          ) : (
+            <PartnerLogin />
+          )
+        }
+      />
+      <Route
+        path="/agent/login"
+        element={
+          user && userType === "agent" ? (
+            <Navigate to="/agent/dashboard" replace />
+          ) : (
+            <AgentLogin />
+          )
+        }
+      />
+
+      {/* Partner Routes */}
+      <Route
+        path="/partner/dashboard"
+        element={
+          <ProtectedRoute allowedType="partner">
+            <PartnerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/partner/marketplace"
+        element={
+          <ProtectedRoute allowedType="partner">
+            <Marketplace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/partner/lead/:id"
+        element={
+          <ProtectedRoute allowedType="partner">
+            <LeadDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/partner/lead/:id/purchase"
+        element={
+          <ProtectedRoute allowedType="partner">
+            <LeadPurchaseConfirmation />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/partner/agents"
+        element={
+          <ProtectedRoute allowedType="partner">
+            <AgentsManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Agent Routes */}
+      <Route
+        path="/agent/dashboard"
+        element={
+          <ProtectedRoute allowedType="agent">
+            <AgentDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Catch all */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
+
+export default App;

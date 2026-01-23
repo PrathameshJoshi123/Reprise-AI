@@ -36,8 +36,6 @@ interface Order {
   pincode?: string;
   pickup_date?: string;
   pickup_time?: string;
-  pickup_latitude?: number;
-  pickup_longitude?: number;
   payment_method?: string;
   agent_id?: number;
   agent_name?: string;
@@ -107,7 +105,7 @@ export default function AgentDashboard() {
 
   // Filter myOrders for the list based on selectedFilter, and combine with nearbyOrders for "all"
   let filteredOrders = myOrders.filter((order) =>
-    selectedFilter === "all" ? true : order.status === selectedFilter
+    selectedFilter === "all" ? true : order.status === selectedFilter,
   );
   if (selectedFilter === "all") {
     filteredOrders = [...filteredOrders, ...nearbyOrders];
@@ -243,10 +241,10 @@ export default function AgentDashboard() {
                         color: stat.color.includes("blue")
                           ? "#3b82f6"
                           : stat.color.includes("yellow")
-                          ? "#f59e0b"
-                          : stat.color.includes("green")
-                          ? "#10b981"
-                          : "#a855f7",
+                            ? "#f59e0b"
+                            : stat.color.includes("green")
+                              ? "#10b981"
+                              : "#a855f7",
                       }}
                     />
                   </div>
@@ -317,7 +315,7 @@ export default function AgentDashboard() {
                           </h3>
                           <span
                             className={`px-2 py-0.5 text-xs font-medium rounded-full border ${getStatusColor(
-                              order.status
+                              order.status,
                             )}`}
                           >
                             {order.status.charAt(0).toUpperCase() +

@@ -11,7 +11,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Phone, Mail, Lock, Smartphone } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Phone,
+  Mail,
+  Lock,
+  Smartphone,
+  MapPin,
+  AlertTriangle,
+} from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import api from "@/lib/api";
@@ -23,6 +31,13 @@ export default function CustomerLogin() {
   const [identifier, setIdentifier] = useState(""); // email or phone
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [pincode, setPincode] = useState("");
+  const [address, setAddress] = useState("");
+  const [pincodeError, setPincodeError] = useState("");
+  const [pincodeChecking, setPincodeChecking] = useState(false);
+  const [pincodeValid, setPincodeValid] = useState(false);
+  const [serviceableInfo, setServiceableInfo] = useState<any>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { login, signup } = useAuth();
@@ -49,6 +64,51 @@ export default function CustomerLogin() {
       setGoogleReady(Boolean((window as any).google?.accounts?.oauth2));
     }
   }, []);
+
+  // Check pincode serviceability
+  const checkPincode = async (pin: string) => {
+    if (!pin || pin.length !== 6) {
+      setPincodeError("");
+      setPincodeValid(false);
+      setServiceableInfo(null);
+      return;
+    }
+
+    setPincodeChecking(true);
+    setPincodeError("");
+
+    try {
+      const response = await api.get(`/auth/check-pincode/${pin}`);
+      const data = response.data;
+
+      setServiceableInfo(data);
+      setPincodeValid(data.serviceable);
+
+      if (!data.serviceable) {
+        setPincodeError(
+          data.message ||
+            "Sorry, we don't service this pincode yet. You can still signup, but order processing may be delayed.",
+        );
+      }
+    } catch (error) {
+      console.error("Pincode check failed:", error);
+      setPincodeError("Unable to verify pincode. Please try again.");
+      setPincodeValid(false);
+    } finally {
+      setPincodeChecking(false);
+    }
+  };
+
+  // Debounced pincode check
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (pincode && pincode.length === 6 && !isLogin) {
+        checkPincode(pincode);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [pincode, isLogin]);
 
   // PKCE helpers - REMOVE sha256 and code_verifier generation
   const base64UrlEncode = (arrayBuffer: ArrayBuffer) => {
@@ -159,33 +219,108 @@ export default function CustomerLogin() {
             </CardHeader>
             <CardContent className="space-y-4">
               {!isLogin && (
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input
-                    id="name"
-                    placeholder="John Doe"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                  />
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name *</Label>
+                    <Input
+                      id="name"
+                      placeholder="John Doe"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number *</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="phone"
+                        placeholder="+91 98765 43210"
+                        className="pl-10"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="pincode">Pincode *</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="pincode"
+                        placeholder="560001"
+                        maxLength={6}
+                        className="pl-10"
+                        value={pincode}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          setPincode(val);
+                        }}
+                        required
+                      />
+                    </div>
+                    {pincodeChecking && (
+                      <p className="text-sm text-blue-600">
+                        Checking pincode...
+                      </p>
+                    )}
+                    {pincodeValid && serviceableInfo && (
+                      <Alert className="bg-green-50 border-green-200">
+                        <AlertDescription className="text-green-800 text-sm">
+                          ✓ Great! {serviceableInfo.partner_count} partner(s)
+                          service your area
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {pincodeError && (
+                      <Alert className="bg-amber-50 border-amber-200">
+                        <AlertTriangle className="h-4 w-4 text-amber-600" />
+                        <AlertDescription className="text-amber-800 text-sm">
+                          {pincodeError}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address (Optional)</Label>
+                    <Input
+                      id="address"
+                      placeholder="123 Main Street, City"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                    />
+                  </div>
+                </>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email or Phone</Label>
+                <Label htmlFor="email">
+                  {isLogin ? "Email or Phone" : "Email *"}
+                </Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="email"
-                    placeholder="your@email.com or +91 98765 43210"
+                    placeholder={
+                      isLogin
+                        ? "your@email.com or +91 98765 43210"
+                        : "your@email.com"
+                    }
                     className="pl-10"
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
+                    required
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Password *</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
@@ -195,6 +330,7 @@ export default function CustomerLogin() {
                     className="pl-10"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    required
                   />
                 </div>
               </div>
@@ -213,6 +349,10 @@ export default function CustomerLogin() {
             <CardFooter className="flex flex-col gap-4">
               <Button
                 className="w-full bg-primary text-primary-foreground hover:brightness-95"
+                disabled={
+                  !isLogin &&
+                  (pincodeChecking || (!pincodeValid && pincode.length === 6))
+                }
                 onClick={async () => {
                   try {
                     if (isLogin) {
@@ -229,18 +369,55 @@ export default function CustomerLogin() {
                         } else {
                           navigate("/");
                         }
+                      } else {
+                        alert("Login failed. Please check your credentials.");
                       }
                     } else {
-                      const signupEmail =
-                        identifier && identifier.includes("@")
-                          ? identifier
-                          : `${identifier}@phone.local`;
+                      // Validate required fields
+                      if (
+                        !fullName ||
+                        !phone ||
+                        !pincode ||
+                        !identifier ||
+                        !password
+                      ) {
+                        alert("Please fill in all required fields");
+                        return;
+                      }
+
+                      if (pincode.length !== 6) {
+                        alert("Please enter a valid 6-digit pincode");
+                        return;
+                      }
+
+                      // Check pincode one final time
+                      if (!pincodeValid && !serviceableInfo) {
+                        await checkPincode(pincode);
+                      }
+
+                      // BLOCK signup if pincode not serviceable
+                      if (!pincodeValid && serviceableInfo) {
+                        alert(
+                          "Sorry, we don't service your pincode yet. Please try a different pincode.",
+                        );
+                        return;
+                      }
+
+                      const signupEmail = identifier.includes("@")
+                        ? identifier
+                        : `${phone}@phone.local`;
+
                       const ok = await signup(
                         signupEmail,
                         password,
                         "customer",
-                        fullName || signupEmail.split("@")[0],
+                        fullName,
+                        phone,
+                        address || undefined,
+                        null,
+                        null,
                       );
+
                       if (ok) {
                         const stateRedirect = (location.state as any)
                           ?.redirectTo;
@@ -253,14 +430,23 @@ export default function CustomerLogin() {
                         } else {
                           navigate("/");
                         }
+                      } else {
+                        alert(
+                          "Signup failed. Email or phone may already be registered.",
+                        );
                       }
                     }
                   } catch (err) {
                     console.error(err);
+                    alert("An error occurred. Please try again.");
                   }
                 }}
               >
-                {isLogin ? "Login" : "Create Account"}
+                {pincodeChecking
+                  ? "Checking..."
+                  : isLogin
+                    ? "Login"
+                    : "Create Account"}
               </Button>
 
               <div className="text-center text-sm">
@@ -312,9 +498,13 @@ export default function CustomerLogin() {
                   </svg>
                   Google
                 </Button>
-                <Button variant="outline">
+                <Button
+                  variant="outline"
+                  disabled
+                  title="OTP login coming soon"
+                >
                   <Phone className="mr-2 h-4 w-4" />
-                  OTP
+                  OTP (Soon)
                 </Button>
               </div>
             </CardFooter>

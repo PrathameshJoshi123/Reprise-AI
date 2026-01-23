@@ -764,8 +764,25 @@ export default function PhoneDetail() {
 
                     <Button
                       onClick={() => {
+                        const parseRam = (ram: string) => {
+                          const match = ram.match(/^(\d+)gb$/i);
+                          return match ? parseInt(match[1], 10) : 0;
+                        };
+                        const parseStorage = (storage: string) => {
+                          const match = storage.match(/^(\d+)gb$/i);
+                          return match
+                            ? parseInt(match[1], 10)
+                            : storage === "1tb"
+                              ? 1024
+                              : 0;
+                        };
+
                         const saleData = {
                           name: phone.name,
+                          brand: phoneData.Brand,
+                          model: phoneData.Model,
+                          ram_gb: parseRam(selectedRam),
+                          storage_gb: parseStorage(selectedStorage),
                           variant:
                             `${selectedStorage}`.replace(/gb$/i, "") + "GB",
                           condition:
@@ -773,6 +790,12 @@ export default function PhoneDetail() {
                               (c) => c.id === selectedScreenCondition,
                             )?.name || selectedScreenCondition,
                           price: predictionData?.predicted_price || 0,
+                          conditionAnswers: {
+                            screen_condition: selectedScreenCondition,
+                            device_turns_on: deviceTurnsOn,
+                            has_original_box: hasOriginalBox,
+                            has_original_bill: hasOriginalBill,
+                          },
                         };
                         // Persist selected sale details so checkout (or post-login flow) can pick it up
                         localStorage.setItem(

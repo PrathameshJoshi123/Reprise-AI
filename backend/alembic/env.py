@@ -18,10 +18,21 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from shared.db.connections import Base
+from shared.db.connections import Base  
 
+# Import all models so SQLAlchemy knows about them
 from services.auth.models import User  # noqa: F401
-from services.sell_phone.schema.models import PhoneList  # noqa: F401
+
+# Partner & Agent first (foreign keys)
+from services.partner.schema.models import Partner, Agent, PartnerServiceablePincode  # noqa: F401
+
+# Admin models
+from services.admin.schema.models import AdminCreditConfiguration, Admin, PartnerCreditTransaction, PartnerVerificationHistory  # noqa: F401
+
+# Sell phone models last (depends on Partner and Agent)
+from services.sell_phone.schema.models import PhoneList, LeadLock, Order, OrderStatusHistory  # noqa: F401
+
+
 
 target_metadata = Base.metadata
 

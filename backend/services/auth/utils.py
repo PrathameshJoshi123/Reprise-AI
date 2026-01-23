@@ -52,6 +52,66 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user
 
+def get_current_partner(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """
+    Dependency to get the currently authenticated partner from JWT token.
+    Expects token payload to have 'partner_id' field.
+    """
+    from services.partner.schema.models import Partner
+    
+    payload = decode_access_token(token)
+    if not payload or "partner_id" not in payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid partner authentication credentials"
+        )
+    
+    partner = db.query(Partner).filter(Partner.id == int(payload["partner_id"])).first()
+    if not partner:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Partner not found"
+        )
+    
+    # Check if partner is verified and active
+    if partner.verification_status != "approved":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Partner account not approved (status: {partner.verification_status})"
+        )
+    
+    return partner
+
+def get_current_agent(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """
+    Dependency to get the currently authenticated agent from JWT token.
+    Expects token payload to have 'agent_id' field.
+    """
+    from services.partner.schema.models import Agent
+    
+    payload = decode_access_token(token)
+    if not payload or "agent_id" not in payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid agent authentication credentials"
+        )
+    
+    agent = db.query(Agent).filter(Agent.id == int(payload["agent_id"])).first()
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Agent not found"
+        )
+    
+    # Check if agent is active
+    if not agent.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Agent account is deactivated"
+        )
+    
+    return agent
+
 import os
 import secrets
 from google.oauth2 import id_token as google_id_token
@@ -138,3 +198,50 @@ def exchange_auth_code_for_id_token(auth_code: str, code_verifier: str | None = 
         raise HTTPException(status_code=400, detail="No id_token returned by Google")
 
     return id_token
+
+
+def check_pincode_serviceability(pincode: str, db: Session) -> dict:
+    """
+    Check if a pincode is serviced by any partner.
+    Returns dict with serviceability info.
+    
+    Args:
+        pincode: 6-digit Indian pincode
+        db: Database session
+        
+    Returns:
+        {
+            "serviceable": bool,
+            "partner_count": int,
+            "message": str (optional warning)
+        }
+    """
+    from services.partner.schema.models import PartnerServiceablePincode
+    
+    if not pincode or len(pincode.strip()) != 6:
+        return {
+            "serviceable": False,
+            "partner_count": 0,
+            "message": "Invalid pincode format"
+        }
+    
+    pincode = pincode.strip()
+    
+    # Count active partners servicing this pincode
+    partner_count = db.query(PartnerServiceablePincode).filter(
+        PartnerServiceablePincode.pincode == pincode,
+        PartnerServiceablePincode.is_active == True
+    ).count()
+    
+    if partner_count > 0:
+        return {
+            "serviceable": True,
+            "partner_count": partner_count,
+            "message": None
+        }
+    else:
+        return {
+            "serviceable": False,
+            "partner_count": 0,
+            "message": "Currently, no partners service your pincode. You can still create orders, and we'll notify you when service becomes available in your area."
+        }

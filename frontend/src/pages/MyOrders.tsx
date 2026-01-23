@@ -5,6 +5,7 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import {
   Smartphone,
@@ -14,8 +15,13 @@ import {
   Clock,
   AlertCircle,
   User,
+  Phone as PhoneIcon,
+  Mail,
+  Package,
+  IndianRupee,
 } from "lucide-react";
 import api from "@/lib/api";
+import { Link } from "react-router-dom";
 
 const fetchOrders = async () => {
   const res = await api.get("/sell-phone/my-orders");
@@ -35,33 +41,75 @@ export default function MyOrders() {
   });
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "accepted":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "completed":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "cancelled":
-        return "bg-red-100 text-red-800 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
+    const statusMap: Record<string, string> = {
+      // Customer-facing statuses
+      lead_created: "bg-gray-100 text-gray-800 border-gray-200",
+      available_for_partners: "bg-blue-100 text-blue-800 border-blue-200",
+      lead_locked: "bg-purple-100 text-purple-800 border-purple-200",
+      lead_purchased: "bg-indigo-100 text-indigo-800 border-indigo-200",
+      assigned_to_agent: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      accepted_by_agent: "bg-cyan-100 text-cyan-800 border-cyan-200",
+      pickup_scheduled: "bg-orange-100 text-orange-800 border-orange-200",
+      pickup_completed: "bg-green-100 text-green-800 border-green-200",
+      pickup_completed_declined: "bg-red-100 text-red-800 border-red-200",
+      payment_processed: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      cancelled: "bg-red-100 text-red-800 border-red-200",
+      // Legacy statuses (for backward compatibility)
+      pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      accepted: "bg-blue-100 text-blue-800 border-blue-200",
+      completed: "bg-green-100 text-green-800 border-green-200",
+    };
+    return (
+      statusMap[status] || "bg-yellow-100 text-yellow-800 border-yellow-200"
+    );
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "pending":
-        return <Clock size={16} />;
-      case "accepted":
-        return <CheckCircle size={16} />;
-      case "completed":
-        return <CheckCircle size={16} />;
-      case "cancelled":
-        return <AlertCircle size={16} />;
-      default:
-        return <Clock size={16} />;
+    const completedStatuses = ["pickup_completed", "payment_processed"];
+    const inProgressStatuses = [
+      "assigned_to_agent",
+      "accepted_by_agent",
+      "pickup_scheduled",
+    ];
+    const errorStatuses = ["cancelled", "pickup_completed_declined"];
+
+    if (completedStatuses.includes(status)) {
+      return <CheckCircle size={16} />;
+    } else if (errorStatuses.includes(status)) {
+      return <AlertCircle size={16} />;
+    } else if (inProgressStatuses.includes(status)) {
+      return <Clock size={16} />;
     }
+    return <Package size={16} />;
+  };
+
+  const formatStatus = (status: string) => {
+    // Customer-friendly status labels
+    const statusLabels: Record<string, string> = {
+      lead_created: "Order Created",
+      available_for_partners: "Finding Partner",
+      lead_locked: "Partner Reviewing",
+      lead_purchased: "Partner Assigned",
+      assigned_to_agent: "Agent Assigned",
+      accepted_by_agent: "Agent Accepted",
+      pickup_scheduled: "Pickup Scheduled",
+      pickup_completed: "Pickup Completed",
+      pickup_completed_declined: "Offer Declined",
+      payment_processed: "Payment Complete",
+      cancelled: "Cancelled",
+      // Legacy
+      pending: "Pending",
+      accepted: "Accepted",
+      completed: "Completed",
+    };
+
+    return (
+      statusLabels[status] ||
+      status
+        .split("_")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ")
+    );
   };
 
   if (isLoading) {
@@ -120,80 +168,189 @@ export default function MyOrders() {
             </div>
 
             {orders?.length ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {orders.map((order: any) => (
                   <Card
                     key={order.id}
                     className="bg-white/80 backdrop-blur-sm shadow-xl border-0 hover:shadow-2xl transition-all duration-300"
                   >
                     <CardHeader className="pb-4">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                          <Smartphone size={20} className="text-blue-600" />
-                          {order.phone_name}
-                        </CardTitle>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-2">
+                            <Smartphone size={22} className="text-blue-600" />
+                            {order.phone_name ||
+                              `${order.brand} ${order.model}`}
+                          </CardTitle>
+                          <p className="text-sm text-gray-500">
+                            Order #{order.id} •{" "}
+                            {format(new Date(order.created_at), "PPp")}
+                          </p>
+                        </div>
                         <Badge
-                          className={`flex items-center gap-1 ${getStatusColor(
+                          className={`flex items-center gap-1.5 px-3 py-1 ${getStatusColor(
                             order.status,
                           )}`}
                         >
                           {getStatusIcon(order.status)}
-                          {order.status}
+                          {formatStatus(order.status)}
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <User size={16} className="text-gray-500" />
-                          <span className="text-gray-600">
-                            {order.customer_name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <MapPin size={16} className="text-gray-500" />
-                          <span className="text-gray-600">{order.city}</span>
+                      {/* Phone Details */}
+                      <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-gray-500">RAM:</span>
+                            <span className="ml-2 font-medium">
+                              {order.ram_gb}GB
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Storage:</span>
+                            <span className="ml-2 font-medium">
+                              {order.storage_gb}GB
+                            </span>
+                          </div>
+                          {order.condition && (
+                            <div className="col-span-2">
+                              <span className="text-gray-500">Condition:</span>
+                              <span className="ml-2 font-medium capitalize">
+                                {order.condition}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <Calendar size={16} className="text-gray-500" />
-                        <span className="text-sm text-gray-600">
-                          {order.pickup_date
-                            ? format(new Date(order.pickup_date), "PPP")
-                            : "Date not set"}
-                        </span>
-                        {order.pickup_time && (
-                          <span className="ml-3 text-sm text-gray-500">
-                            • {order.pickup_time}
-                          </span>
+                      {/* Pricing */}
+                      <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+                        <div>
+                          <p className="text-sm text-gray-600">Quoted Price</p>
+                          <p className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center">
+                            <IndianRupee size={20} />
+                            {(
+                              order.final_quoted_price ||
+                              order.quoted_price ||
+                              0
+                            ).toLocaleString()}
+                          </p>
+                        </div>
+                        {order.ai_estimated_price && (
+                          <div className="text-right">
+                            <p className="text-xs text-gray-500">AI Estimate</p>
+                            <p className="text-sm font-semibold text-gray-700 flex items-center justify-end">
+                              <IndianRupee size={14} />
+                              {order.ai_estimated_price.toLocaleString()}
+                            </p>
+                          </div>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <User size={16} className="text-gray-500" />
-                        <span className="text-sm text-gray-600">
-                          Agent: {order.agent_name || "Not Assigned"}
-                          {order.agent_phone ? ` (${order.agent_phone})` : ""}
-                        </span>
-                      </div>
+                      <Separator />
 
-                      <div className="pt-2 border-t">
-                        <div className="flex justify-between items-center">
-                          <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-                            ₹{order.quoted_price.toLocaleString()}
-                          </span>
-                          {user?.role === "agent" &&
-                            order.status === "pending" && (
-                              <Button
-                                size="sm"
-                                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-                              >
-                                Accept
-                              </Button>
-                            )}
+                      {/* Pickup Details */}
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm text-gray-700 flex items-center gap-2">
+                          <MapPin size={16} className="text-blue-600" />
+                          Pickup Information
+                        </h4>
+                        <div className="space-y-1.5 text-sm pl-6">
+                          <p className="text-gray-600">
+                            {order.pickup_address_line ||
+                              order.address_line ||
+                              order.customer_name}
+                          </p>
+                          <p className="text-gray-600">
+                            {order.pickup_city || order.city},{" "}
+                            {order.pickup_state || order.state} -{" "}
+                            {order.pickup_pincode || order.pincode}
+                          </p>
+                          {(order.pickup_date || order.pickup_time) && (
+                            <div className="flex items-center gap-2 text-gray-700 font-medium mt-2">
+                              <Calendar size={14} className="text-orange-600" />
+                              {order.pickup_date &&
+                                format(new Date(order.pickup_date), "PP")}
+                              {order.pickup_time && (
+                                <span>• {order.pickup_time}</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
+
+                      {/* Agent Details */}
+                      {order.agent_id && (
+                        <>
+                          <Separator />
+                          <div className="space-y-2 bg-green-50 rounded-lg p-3">
+                            <h4 className="font-semibold text-sm text-gray-700 flex items-center gap-2">
+                              <User size={16} className="text-green-600" />
+                              Assigned Agent
+                            </h4>
+                            <div className="space-y-1.5 text-sm pl-6">
+                              {order.agent_name && (
+                                <p className="font-medium text-gray-900">
+                                  {order.agent_name}
+                                </p>
+                              )}
+                              {order.agent_phone && (
+                                <div className="flex items-center gap-2 text-gray-700">
+                                  <PhoneIcon
+                                    size={14}
+                                    className="text-green-600"
+                                  />
+                                  <a
+                                    href={`tel:${order.agent_phone}`}
+                                    className="hover:underline"
+                                  >
+                                    {order.agent_phone}
+                                  </a>
+                                </div>
+                              )}
+                              {order.agent_email && (
+                                <div className="flex items-center gap-2 text-gray-700">
+                                  <Mail size={14} className="text-green-600" />
+                                  <a
+                                    href={`mailto:${order.agent_email}`}
+                                    className="hover:underline text-xs"
+                                  >
+                                    {order.agent_email}
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Payment Info */}
+                      {order.status === "payment_processed" &&
+                        order.payment_amount && (
+                          <>
+                            <Separator />
+                            <div className="bg-emerald-50 rounded-lg p-3">
+                              <h4 className="font-semibold text-sm text-gray-700 mb-2">
+                                Payment Processed
+                              </h4>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-600">
+                                  Amount Paid:
+                                </span>
+                                <span className="text-lg font-bold text-emerald-700 flex items-center">
+                                  <IndianRupee size={16} />
+                                  {order.payment_amount.toLocaleString()}
+                                </span>
+                              </div>
+                              {order.payment_method && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  via {order.payment_method}
+                                </p>
+                              )}
+                            </div>
+                          </>
+                        )}
                     </CardContent>
                   </Card>
                 ))}
@@ -205,11 +362,15 @@ export default function MyOrders() {
                   No Orders Found
                 </h3>
                 <p className="text-gray-600 mb-6">
-                  You haven't placed any orders yet.
+                  You haven't placed any orders yet. Start by selling your
+                  phone!
                 </p>
-                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                  Start Selling
-                </Button>
+                <Link to="/sell-phone">
+                  <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                    <Smartphone className="mr-2" size={18} />
+                    Start Selling
+                  </Button>
+                </Link>
               </div>
             )}
           </div>

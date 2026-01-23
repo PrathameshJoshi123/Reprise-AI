@@ -5,11 +5,16 @@ from shared.db.connections import get_db
 
 router = APIRouter()
 
-@router.post("/signup", response_model=schemas.UserOut, tags=["auth"])
+@router.post("/signup", response_model=schemas.UserRegistrationResponse, tags=["auth"])
 def signup(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
+    """
+    Customer registration with pincode serviceability check.
+    Validates if partners service the customer's pincode.
+    """
     existing = db.query(models.User).filter(models.User.email == user_in.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
+    
     hashed = utils.get_password_hash(user_in.password)
     user = models.User(
         email=user_in.email,
@@ -19,13 +24,21 @@ def signup(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
         hashed_password=hashed,
         latitude=getattr(user_in, "latitude", None),
         longitude=getattr(user_in, "longitude", None),
-        # New: set pincode from input
         pincode=user_in.pincode,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    
+    # Check pincode serviceability using utility function
+    serviceability_info = utils.check_pincode_serviceability(user_in.pincode or "", db)
+    
+    return {
+        "user": user,
+        "serviceable": serviceability_info["serviceable"],
+        "serviceable_partners_count": serviceability_info["partner_count"],
+        "warning": serviceability_info.get("message")
+    }
 
 @router.post("/login", response_model=schemas.Token, tags=["auth"])
 def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
@@ -40,6 +53,23 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect credentials")
     token = utils.create_access_token(data={"user_id": user.id})
     return {"access_token": token, "token_type": "bearer"}
+
+
+@router.get("/check-pincode/{pincode}", tags=["auth"])
+def check_pincode_serviceability(pincode: str, db: Session = Depends(get_db)):
+    """
+    Public endpoint to check if a pincode is serviceable.
+    Useful for frontend to show availability before registration.
+    """
+    serviceability_info = utils.check_pincode_serviceability(pincode, db)
+    
+    return {
+        "pincode": pincode,
+        "serviceable": serviceability_info["serviceable"],
+        "partner_count": serviceability_info["partner_count"],
+        "message": serviceability_info.get("message")
+    }
+
 
 @router.get("/me", response_model=schemas.FullNameOut, tags=["auth"])
 def read_me(current_user: models.User = Depends(utils.get_current_user)):
@@ -62,11 +92,16 @@ def update_current_user(
     """
     Update current user's profile fields. Only allowed fields are updated.
     Intended usage: save missing phone/address/coords during checkout.
+    If pincode is updated, logs serviceability info (non-blocking).
     """
     # refresh user from this session
     user = db.query(models.User).filter(models.User.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # Track if pincode changed for serviceability check
+    pincode_changed = False
+    new_pincode = None
 
     # Only update non-null fields supplied in payload. Do NOT allow role/is_active changes here.
     if payload.full_name is not None:
@@ -79,13 +114,22 @@ def update_current_user(
         user.latitude = payload.latitude
     if payload.longitude is not None:
         user.longitude = payload.longitude
-    # New: update pincode if provided
     if payload.pincode is not None:
+        if user.pincode != payload.pincode:
+            pincode_changed = True
+            new_pincode = payload.pincode
         user.pincode = payload.pincode
 
     db.add(user)
     db.commit()
     db.refresh(user)
+    
+    # Log serviceability info if pincode changed (non-blocking, just for info)
+    if pincode_changed and new_pincode:
+        serviceability_info = utils.check_pincode_serviceability(new_pincode, db)
+        # Log for monitoring (in production, use proper logging framework)
+        print(f"User {user.id} updated pincode to {new_pincode}. Serviceable: {serviceability_info['serviceable']}, Partners: {serviceability_info['partner_count']}")
+    
     return user
 
 @router.get("/users", response_model=list[schemas.UserOut], tags=["auth"])

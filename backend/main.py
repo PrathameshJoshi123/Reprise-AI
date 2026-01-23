@@ -5,6 +5,8 @@ from services.auth.apis import router as auth_router
 from services.sell_phone.apis.routes import router as sell_phone_router
 from services.customer_side_prediction.apis import router as customer_side_prediction_router
 from services.admin.apis.routes import router as admin_router
+from services.partner.apis.routes import router as partner_router
+from services.partner.apis.agent_routes import router as agent_router
 # from services.mobile_price_prediction.detection_api import router as detection_router
 from shared.db.connections import Base, engine
 import asyncio
@@ -39,6 +41,8 @@ app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(sell_phone_router)
 app.include_router(customer_side_prediction_router)
 app.include_router(admin_router)
+app.include_router(partner_router)
+app.include_router(agent_router)
 # app.include_router(detection_router)
 
 # Register service routes here (e.g., from services.valuation.apis import router; app.include_router(router))
