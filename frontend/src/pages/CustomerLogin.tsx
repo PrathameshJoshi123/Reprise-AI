@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,9 +14,121 @@ import {
 import { Phone, Mail, Lock, Smartphone } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 export default function CustomerLogin() {
   const [isLogin, setIsLogin] = useState(true);
+  const [googleReady, setGoogleReady] = useState(false);
+  const [identifier, setIdentifier] = useState(""); // email or phone
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login, signup } = useAuth();
+
+  useEffect(() => {
+    console.log("Loading Google script...");
+    const id = "google-identity";
+    if (!document.getElementById(id)) {
+      const s = document.createElement("script");
+      s.id = id;
+      s.src = "https://accounts.google.com/gsi/client";
+      s.async = true;
+      s.onload = () => {
+        console.log("Google script loaded successfully");
+        setGoogleReady(true);
+      };
+      s.onerror = () => {
+        console.error("Failed to load Google Identity script");
+        setGoogleReady(false);
+      };
+      document.head.appendChild(s);
+    } else {
+      console.log("Google script already present");
+      setGoogleReady(Boolean((window as any).google?.accounts?.oauth2));
+    }
+  }, []);
+
+  // PKCE helpers - REMOVE sha256 and code_verifier generation
+  const base64UrlEncode = (arrayBuffer: ArrayBuffer) => {
+    const bytes = new Uint8Array(arrayBuffer);
+    let str = "";
+    for (const charCode of bytes) str += String.fromCharCode(charCode);
+    return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  };
+
+  // remove generateCodeVerifier and sha256; only keep state generator
+  const generateState = () => {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return base64UrlEncode(array.buffer);
+  };
+
+  const onGoogleLogin = async () => {
+    console.log("Google login clicked, googleReady:", googleReady);
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    console.log("VITE_GOOGLE_CLIENT_ID:", clientId);
+    if (!clientId) {
+      console.error("VITE_GOOGLE_CLIENT_ID not set");
+      return;
+    }
+    if (!(window as any).google?.accounts?.oauth2?.initCodeClient) {
+      console.error("Google initCodeClient not available");
+      return;
+    }
+    // generate state only (CSRF protection)
+    const state = generateState();
+    sessionStorage.setItem("google_oauth_state", state);
+
+    // init Google's Code client and request code (popup) with state
+    // @ts-ignore
+    const client = (window as any).google.accounts.oauth2.initCodeClient({
+      client_id: clientId,
+      scope: "openid email profile",
+      ux_mode: "popup",
+      state, // pass state through to callback
+      callback: async (resp: any) => {
+        console.log("Google callback received:", resp);
+        // enforce state matches
+        const receivedState = resp?.state;
+        const storedState = sessionStorage.getItem("google_oauth_state");
+        if (!receivedState || !storedState || receivedState !== storedState) {
+          console.error("Invalid or missing OAuth state - possible CSRF");
+          return;
+        }
+        const auth_code = resp?.code;
+        if (!auth_code) {
+          console.error("No auth_code in response");
+          return;
+        }
+        try {
+          // send only auth_code to backend; GIS popup flow manages PKCE internally
+          const res = await api.post("/auth/google", { auth_code });
+          console.log("Backend response:", res.data);
+          const token = res.data?.access_token;
+          if (token) {
+            localStorage.setItem("accessToken", token);
+            // handle post-login redirect if present
+            const stateRedirect = (location.state as any)?.redirectTo;
+            const savedRedirect = localStorage.getItem("postLoginRedirect");
+            const target = stateRedirect || savedRedirect;
+            if (target) {
+              localStorage.removeItem("postLoginRedirect");
+              navigate(target);
+            } else {
+              navigate("/");
+            }
+          }
+        } catch (err) {
+          console.error("Google login failed:", err);
+        } finally {
+          sessionStorage.removeItem("google_oauth_state");
+        }
+      },
+    });
+    client.requestCode();
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -49,7 +161,12 @@ export default function CustomerLogin() {
               {!isLogin && (
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" placeholder="John Doe" />
+                  <Input
+                    id="name"
+                    placeholder="John Doe"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
                 </div>
               )}
 
@@ -61,6 +178,8 @@ export default function CustomerLogin() {
                     id="email"
                     placeholder="your@email.com or +91 98765 43210"
                     className="pl-10"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
                   />
                 </div>
               </div>
@@ -74,6 +193,8 @@ export default function CustomerLogin() {
                     type="password"
                     placeholder="••••••••"
                     className="pl-10"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
               </div>
@@ -90,7 +211,55 @@ export default function CustomerLogin() {
               )}
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <Button className="w-full bg-primary text-primary-foreground hover:brightness-95">
+              <Button
+                className="w-full bg-primary text-primary-foreground hover:brightness-95"
+                onClick={async () => {
+                  try {
+                    if (isLogin) {
+                      const ok = await login(identifier, password, "customer");
+                      if (ok) {
+                        const stateRedirect = (location.state as any)
+                          ?.redirectTo;
+                        const savedRedirect =
+                          localStorage.getItem("postLoginRedirect");
+                        const target = stateRedirect || savedRedirect;
+                        if (target) {
+                          localStorage.removeItem("postLoginRedirect");
+                          navigate(target);
+                        } else {
+                          navigate("/");
+                        }
+                      }
+                    } else {
+                      const signupEmail =
+                        identifier && identifier.includes("@")
+                          ? identifier
+                          : `${identifier}@phone.local`;
+                      const ok = await signup(
+                        signupEmail,
+                        password,
+                        "customer",
+                        fullName || signupEmail.split("@")[0],
+                      );
+                      if (ok) {
+                        const stateRedirect = (location.state as any)
+                          ?.redirectTo;
+                        const savedRedirect =
+                          localStorage.getItem("postLoginRedirect");
+                        const target = stateRedirect || savedRedirect;
+                        if (target) {
+                          localStorage.removeItem("postLoginRedirect");
+                          navigate(target);
+                        } else {
+                          navigate("/");
+                        }
+                      }
+                    }
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }}
+              >
                 {isLogin ? "Login" : "Create Account"}
               </Button>
 
@@ -118,8 +287,12 @@ export default function CustomerLogin() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <Button variant="outline">
-                  <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                <Button variant="outline" onClick={onGoogleLogin}>
+                  <svg
+                    className="mr-2 h-4 w-4"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
                     <path
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                       fill="#4285F4"
@@ -146,16 +319,6 @@ export default function CustomerLogin() {
               </div>
             </CardFooter>
           </Card>
-
-          <div className="mt-6 text-center text-sm text-gray-600">
-            Are you an agent?{" "}
-            <Link
-              to="/agent/login"
-              className="text-primary hover:underline font-medium"
-            >
-              Login here
-            </Link>
-          </div>
         </div>
       </div>
 

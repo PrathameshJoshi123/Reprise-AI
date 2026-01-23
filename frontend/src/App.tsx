@@ -11,7 +11,6 @@ import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Lazy load less critical pages
-const Login = lazy(() => import("./pages/Login"));
 const Brands = lazy(() => import("./pages/Brands"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const AboutUs = lazy(() => import("./pages/AboutUs"));
@@ -53,15 +52,14 @@ const App = () => (
               />
               <Route path="/sell/:phoneId" element={<PhoneDetail />} />
 
-              {/* Customer routes */}
-              {/* <Route path="/customer/login" element={<CustomerLogin />} /> */}
+              {/* Customer/login: use CustomerLogin at /login */}
+              <Route path="/login" element={<CustomerLogin />} />
 
               {/* Agent routes */}
               {/* <Route path="/agent/login" element={<AgentLogin />} />
             <Route path="/agent/register" element={<AgentLogin />} /> */}
 
               {/* Lazy loaded pages */}
-              <Route path="/login" element={<Login />} />
               <Route path="/brands" element={<Brands />} />
               <Route path="/brands/:brandId" element={<Brands />} />
               <Route path="/how-it-works" element={<HowItWorks />} />

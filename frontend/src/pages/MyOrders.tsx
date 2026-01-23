@@ -15,16 +15,11 @@ import {
   AlertCircle,
   User,
 } from "lucide-react";
+import api from "@/lib/api";
 
-const fetchOrders = async (token: string) => {
-  const API_URL = (
-    import.meta.env.VITE_API_URL || "http://localhost:8000"
-  ).replace(/\/$/, "");
-  const response = await fetch(`${API_URL}/sell-phone/my-orders`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!response.ok) throw new Error("Failed to fetch orders");
-  return response.json();
+const fetchOrders = async () => {
+  const res = await api.get("/sell-phone/my-orders");
+  return res.data;
 };
 
 export default function MyOrders() {
@@ -34,9 +29,9 @@ export default function MyOrders() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["orders"],
-    queryFn: () => fetchOrders(token!),
-    enabled: !!token,
+    queryKey: ["orders", token || localStorage.getItem("accessToken")],
+    queryFn: fetchOrders,
+    enabled: !!(token || localStorage.getItem("accessToken")),
   });
 
   const getStatusColor = (status: string) => {
@@ -139,7 +134,7 @@ export default function MyOrders() {
                         </CardTitle>
                         <Badge
                           className={`flex items-center gap-1 ${getStatusColor(
-                            order.status
+                            order.status,
                           )}`}
                         >
                           {getStatusIcon(order.status)}

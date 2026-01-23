@@ -32,6 +32,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import api from "@/lib/api";
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -66,6 +67,17 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState("upi");
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState<any>(null);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+
+  // store fetched full user and track which fields were originally present
+  const [fetchedUser, setFetchedUser] = useState<any>(null);
+  const [originalHad, setOriginalHad] = useState({
+    phone: false,
+    address: false,
+    latitude: false,
+    longitude: false,
+  });
 
   // Pre-fill fields if user is logged in
   useEffect(() => {
@@ -75,12 +87,46 @@ export default function Checkout() {
       setLastName(nameParts.slice(1).join(" ") || "");
       setPhone(user.phone || "");
       setEmail(user.email || "");
-      // optional: if user has address fields in user object, set here
-      // setAddressLine(user.address_line || "");
-      // setCityVal(user.city || "");
-      // setStateVal(user.state || "");
-      // setPincodeVal(user.pincode || "");
     }
+
+    // fetch full user details to prefill address and coords if present
+    (async () => {
+      const token = localStorage.getItem("accessToken");
+      if (!token) return;
+      try {
+        const API_URL = (
+          import.meta.env.VITE_API_URL || "http://localhost:8000"
+        ).replace(/\/$/, "");
+        const res = await fetch(`${API_URL}/auth/me/details`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const u = await res.json();
+        setFetchedUser(u);
+
+        // Prefill name from full_name if available (handles Google /server data)
+        if (u.full_name) {
+          const parts = (u.full_name || "").split(" ");
+          setFirstName(parts[0] || "");
+          setLastName(parts.slice(1).join(" ") || "");
+        }
+
+        // Prefill common contact/address fields
+        if (u.phone) setPhone(u.phone);
+        if (u.email) setEmail(u.email);
+        if (u.address) setAddressLine(u.address);
+
+        // record which fields already existed to only persist missing ones later
+        setOriginalHad({
+          phone: !!u.phone,
+          address: !!u.address,
+          latitude: u.latitude !== null && u.latitude !== undefined,
+          longitude: u.longitude !== null && u.longitude !== undefined,
+        });
+      } catch (e) {
+        // ignore
+      }
+    })();
   }, [user]);
 
   const handleSubmitAddress = (e: React.FormEvent) => {
@@ -112,7 +158,7 @@ export default function Checkout() {
             maximumAge: 1000 * 60 * 5,
             timeout: 6000,
             enableHighAccuracy: false,
-          }
+          },
         );
       });
 
@@ -136,7 +182,7 @@ export default function Checkout() {
     const q = encodeURIComponent(parts.join(", "));
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`,
       );
       if (!res.ok) return { lat: null, lon: null };
       const json = await res.json();
@@ -158,6 +204,28 @@ export default function Checkout() {
     const coords = await resolvePickupCoords();
 
     const token = localStorage.getItem("accessToken");
+
+    // If user logged in, and some important fields were missing originally, persist them now.
+    if (token && fetchedUser) {
+      const updatePayload: any = {};
+      if (!originalHad.phone && phone) updatePayload.phone = phone;
+      if (!originalHad.address && addressLine)
+        updatePayload.address = addressLine;
+      if (!originalHad.latitude && coords.lat != null)
+        updatePayload.latitude = coords.lat;
+      if (!originalHad.longitude && coords.lon != null)
+        updatePayload.longitude = coords.lon;
+
+      if (Object.keys(updatePayload).length > 0) {
+        try {
+          await api.patch("/auth/me", updatePayload);
+          // ignore response details; proceed to create order
+        } catch (err) {
+          console.error("Failed to update profile during checkout", err);
+        }
+      }
+    }
+
     const payload: any = {
       phone_name: phoneData.name,
       variant: phoneData.variant,
@@ -173,35 +241,21 @@ export default function Checkout() {
       pickup_date: pickupDateVal || null,
       pickup_time: pickupTimeVal || null,
       payment_method: paymentMethod,
-      // include coords (null if not resolved)
       pickup_latitude: coords.lat,
       pickup_longitude: coords.lon,
     };
 
     try {
-      const API_URL = (
-        import.meta.env.VITE_API_URL || "http://localhost:8000"
-      ).replace(/\/$/, "");
-      const res = await fetch(`${API_URL}/sell-phone/orders`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt || "Failed to create order");
-      }
-      const orderResp = await res.json();
+      const res = await api.post("/sell-phone/orders", payload);
+      const orderResp = res.data;
+      setCreatedOrder(orderResp);
       // keep local copy for agent dashboard/backwards compatibility
       const existingOrders = JSON.parse(
-        localStorage.getItem("agentOrders") || "[]"
+        localStorage.getItem("agentOrders") || "[]",
       );
       localStorage.setItem(
         "agentOrders",
-        JSON.stringify([...existingOrders, orderResp])
+        JSON.stringify([...existingOrders, orderResp]),
       );
       setIsSubmitting(false);
       setStep(3);
@@ -250,8 +304,8 @@ export default function Checkout() {
                         step > index + 1
                           ? "bg-gradient-to-r from-green-400 to-emerald-500 text-white scale-100"
                           : step === index + 1
-                          ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white scale-110 ring-4 ring-blue-200"
-                          : "bg-white text-gray-400 border-2 border-gray-200"
+                            ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white scale-110 ring-4 ring-blue-200"
+                            : "bg-white text-gray-400 border-2 border-gray-200"
                       }`}
                     >
                       {step > index + 1 ? (
@@ -782,7 +836,9 @@ export default function Checkout() {
                       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 mb-6 text-center border border-blue-100">
                         <p className="text-sm text-gray-600">Order Reference</p>
                         <p className="text-2xl font-bold text-blue-600 mt-1">
-                          MOB-78945612
+                          {createdOrder
+                            ? `ORD-${createdOrder.id}`
+                            : "MOB-78945612"}
                         </p>
                       </div>
 
@@ -829,6 +885,8 @@ export default function Checkout() {
                         <Button
                           variant="outline"
                           className="flex-1 h-11 border-2"
+                          onClick={() => setShowOrderModal(true)}
+                          disabled={!createdOrder}
                         >
                           View Order Details
                         </Button>
@@ -957,6 +1015,73 @@ export default function Checkout() {
       </main>
 
       <Footer />
+
+      {/* Order details modal */}
+      {showOrderModal && createdOrder && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          aria-modal="true"
+        >
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowOrderModal(false)}
+          />
+          <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 p-6 z-10">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-lg font-semibold">Order Details</h3>
+              <button
+                onClick={() => setShowOrderModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                Close
+              </button>
+            </div>
+            <div className="space-y-2 text-sm text-gray-700">
+              <p>
+                <strong>Reference:</strong> ORD-{createdOrder.id}
+              </p>
+              <p>
+                <strong>Phone:</strong> {createdOrder.phone_name}{" "}
+                {createdOrder.variant ?? ""}
+              </p>
+              <p>
+                <strong>Quoted Price:</strong> ₹
+                {(createdOrder.quoted_price ?? 0).toLocaleString()}
+              </p>
+              <p>
+                <strong>Customer:</strong> {createdOrder.customer_name}
+              </p>
+              <p>
+                <strong>Phone:</strong> {createdOrder.phone_number}
+              </p>
+              <p>
+                <strong>Email:</strong> {createdOrder.email}
+              </p>
+              <p>
+                <strong>Address:</strong> {createdOrder.address_line ?? "—"}
+                {createdOrder.city ? `, ${createdOrder.city}` : ""}
+                {createdOrder.state ? `, ${createdOrder.state}` : ""}
+                {createdOrder.pincode ? ` - ${createdOrder.pincode}` : ""}
+              </p>
+              <p>
+                <strong>Pickup:</strong>{" "}
+                {createdOrder.pickup_date
+                  ? new Date(createdOrder.pickup_date).toLocaleString()
+                  : "Not scheduled"}
+                {createdOrder.pickup_time
+                  ? ` (${createdOrder.pickup_time})`
+                  : ""}
+              </p>
+              <p>
+                <strong>Status:</strong> {createdOrder.status ?? "pending"}
+              </p>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button onClick={() => setShowOrderModal(false)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

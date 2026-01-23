@@ -1,5 +1,5 @@
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 
 interface Props {
@@ -9,12 +9,36 @@ interface Props {
 
 export default function ProtectedRoute({ children }: Props) {
   const { isLoggedIn, user } = useAuth();
+  const location = useLocation();
 
-  // allow only logged-in customers
-  if (isLoggedIn && user?.role === "customer") {
+  // allow public access to the sell listing/detail/quote flows
+  if (
+    location.pathname.startsWith("/sell") ||
+    location.pathname.startsWith("/sell-phone")
+  ) {
     return children;
   }
 
-  // otherwise redirect to login
-  return <Navigate to="/login" replace />;
+  // if an access token exists in localStorage, permit rendering and let backend validate
+  const hasToken = Boolean(localStorage.getItem("accessToken"));
+  if (hasToken) {
+    return children;
+  }
+
+  // If user is logged in but trying to access checkout without an estimated price,
+  // redirect them back to the sell flow.
+  if (isLoggedIn && user?.role === "customer") {
+    if (location.pathname.startsWith("/checkout")) {
+      const phoneData = localStorage.getItem("phoneData");
+      if (!phoneData) {
+        return <Navigate to="/sell-phone" replace />;
+      }
+    }
+    return children;
+  }
+
+  // otherwise redirect to login and include the intended target so Login can resume
+  return (
+    <Navigate to="/login" replace state={{ redirectTo: location.pathname }} />
+  );
 }

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
+import { useAuth } from "@/context/AuthContext";
 
 const STEPS = [
   { id: 1, name: "RAM", icon: HardDrive },
@@ -29,6 +30,7 @@ const STEPS = [
 export default function PhoneDetail() {
   const { phoneId } = useParams<{ phoneId: string }>();
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
 
   // Form state
@@ -69,7 +71,7 @@ export default function PhoneDetail() {
         import.meta.env.VITE_API_URL || "http://localhost:8000"
       ).replace(/\/$/, "");
       const response = await fetch(
-        `${API_URL}/sell-phone/phones/${phoneId}/variants`
+        `${API_URL}/sell-phone/phones/${phoneId}/variants`,
       );
       if (!response.ok) throw new Error("Failed to fetch variants");
       return response.json();
@@ -98,8 +100,8 @@ export default function PhoneDetail() {
       ).replace(/\/$/, "");
       const response = await fetch(
         `${API_URL}/sell-phone/phones/${phoneId}/price?ram_gb=${parseRam(
-          selectedRam
-        )}&storage_gb=${parseStorage(selectedStorage)}`
+          selectedRam,
+        )}&storage_gb=${parseStorage(selectedStorage)}`,
       );
       if (!response.ok) throw new Error("Failed to fetch variant price");
       return response.json();
@@ -141,7 +143,7 @@ export default function PhoneDetail() {
             phone_details: getPhoneDetailsForAPI(),
             base_price: basePrice,
           }),
-        }
+        },
       );
       if (!response.ok) throw new Error("Failed to fetch prediction");
       return response.json();
@@ -381,9 +383,8 @@ export default function PhoneDetail() {
                         alt={phone.name}
                         className="w-20 h-20 object-contain"
                         onError={(e) => {
-                          (
-                            e.target as HTMLImageElement
-                          ).src = `https://placehold.co/100x100?text=${phone.name}`;
+                          (e.target as HTMLImageElement).src =
+                            `https://placehold.co/100x100?text=${phone.name}`;
                         }}
                       />
                       <div>
@@ -763,20 +764,31 @@ export default function PhoneDetail() {
 
                     <Button
                       onClick={() => {
-                        const phoneData = {
+                        const saleData = {
                           name: phone.name,
-                          variant: `${selectedStorage}GB`, // e.g., "256GB"
+                          variant:
+                            `${selectedStorage}`.replace(/gb$/i, "") + "GB",
                           condition:
                             phone.screenConditions.find(
-                              (c) => c.id === selectedScreenCondition
+                              (c) => c.id === selectedScreenCondition,
                             )?.name || selectedScreenCondition,
                           price: predictionData?.predicted_price || 0,
                         };
+                        // Persist selected sale details so checkout (or post-login flow) can pick it up
                         localStorage.setItem(
                           "phoneData",
-                          JSON.stringify(phoneData)
+                          JSON.stringify(saleData),
                         );
-                        navigate("/checkout");
+                        // mark that this login should resume the sale flow
+                        localStorage.setItem("postLoginRedirect", "/checkout");
+                        if (isLoggedIn) {
+                          navigate("/checkout");
+                        } else {
+                          // Redirect to login (Login page will remain responsible for auth)
+                          navigate("/login", {
+                            state: { redirectTo: "/checkout" },
+                          });
+                        }
                       }}
                       className="w-full h-14 text-lg rounded-2xl"
                     >

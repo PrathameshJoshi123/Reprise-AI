@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -11,11 +11,27 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import api from "@/lib/api";
 
 export function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const { user, isLoggedIn, logout } = useAuth();
+  const [fetchedUser, setFetchedUser] = useState<any>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  // token / fetched-user quick check used across the header
+  const hasToken = Boolean(localStorage.getItem("accessToken"));
+  const authPresent = isLoggedIn || hasToken || Boolean(fetchedUser);
+
+  // Only show "My Orders" when the user is authenticated (via AuthContext)
+  // or a valid token + fetched user indicates a customer role.
+  const effectiveRole = user?.role || fetchedUser?.role;
+  const isAuthenticated = isLoggedIn || (hasToken && Boolean(fetchedUser));
+  const showMyOrders =
+    isAuthenticated &&
+    effectiveRole === "customer" &&
+    !location.pathname.startsWith("/sell") &&
+    !location.pathname.startsWith("/sell-phone");
 
   // Add scroll event listener properly with useEffect
   useEffect(() => {
@@ -31,10 +47,43 @@ export function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // fetch current user from backend if token is present but AuthContext user is empty
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+    if (isLoggedIn && user) return; // AuthContext already has user
+    let mounted = true;
+    // fetch detailed profile (includes role) so header can decide protected links
+    api
+      .get("/auth/me/details")
+      .then((res) => {
+        if (!mounted) return;
+        setFetchedUser(res.data);
+      })
+      .catch((err) => {
+        // if unauthorized, clear token so other logic handles redirect/login
+        if (err?.response?.status === 401) {
+          localStorage.removeItem("accessToken");
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [isLoggedIn, user]);
+
   const handleLogout = () => {
     logout();
+    localStorage.removeItem("accessToken");
+    setFetchedUser(null);
     navigate("/");
   };
+
+  // user may have 'name' or backend returns 'full_name'
+  const displayName =
+    (user as any)?.full_name ||
+    user?.name ||
+    (fetchedUser && (fetchedUser.full_name || fetchedUser.email)) ||
+    "";
 
   return (
     <header
@@ -56,7 +105,7 @@ export function Header() {
               {/* Sell Phone: only visible to customers.
 								Unauthenticated users see a CTA that navigates to /login.
 								Agents do not see this link. */}
-              {isLoggedIn ? (
+              {authPresent ? (
                 user?.role === "customer" ? (
                   <Link
                     to="/sell-phone"
@@ -67,7 +116,7 @@ export function Header() {
                 ) : null
               ) : (
                 <Link
-                  to="/login"
+                  to="/sell-phone"
                   className="text-sm font-medium hover:text-primary transition-colors"
                 >
                   Sell Phone
@@ -92,7 +141,7 @@ export function Header() {
               >
                 Contact
               </Link>
-              {isLoggedIn && user?.role === "customer" && (
+              {showMyOrders && (
                 <Link
                   to="/my-orders"
                   className="text-sm font-medium hover:text-primary transition-colors"
@@ -104,8 +153,8 @@ export function Header() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Conditional rendering based on login state */}
-            {isLoggedIn ? (
+            {/* Conditional rendering based on login/token presence */}
+            {authPresent ? (
               <>
                 {/* Show Dashboard link for agents */}
                 {user?.role === "agent" && (
@@ -123,7 +172,7 @@ export function Header() {
                     <User size={14} className="text-white" />
                   </div>
                   <span className="text-sm font-medium text-gray-700">
-                    {user?.name}
+                    {displayName || "User"}
                   </span>
                 </div>
 
@@ -157,22 +206,12 @@ export function Header() {
 							Customers will navigate to actual /sell-phone route via nav link above.
 							Agents won't see Sell Now as a separate CTA. */}
                 {!isLoggedIn && (
-                  <Link to="/login">
+                  <Link to="/sell-phone">
                     <Button className="bg-primary text-primary-foreground hover:brightness-95 hidden md:inline-flex">
                       Sell Now
                     </Button>
                   </Link>
                 )}
-
-                {/* Become Agent button */}
-                <Link to="/login">
-                  <Button
-                    variant="outline"
-                    className="border-primary text-primary hover:bg-primary/10 hidden lg:inline-flex"
-                  >
-                    Become Agent
-                  </Button>
-                </Link>
               </>
             )}
 
@@ -186,7 +225,7 @@ export function Header() {
               <SheetContent side="right">
                 <div className="grid gap-6 py-6">
                   {/* Sell Phone in mobile: same visibility rules as desktop */}
-                  {isLoggedIn ? (
+                  {authPresent ? (
                     user?.role === "customer" ? (
                       <Link
                         to="/sell-phone"
@@ -197,7 +236,7 @@ export function Header() {
                     ) : null
                   ) : (
                     <Link
-                      to="/login"
+                      to="/sell-phone"
                       className="text-base font-medium hover:text-blue-600 transition-colors"
                     >
                       Sell Phone
@@ -222,7 +261,7 @@ export function Header() {
                   >
                     Contact
                   </Link>
-                  {isLoggedIn && user?.role === "customer" && (
+                  {showMyOrders && (
                     <Link
                       to="/my-orders"
                       className="text-base font-medium hover:text-blue-600 transition-colors"
@@ -241,7 +280,7 @@ export function Header() {
                           </div>
                           <div>
                             <p className="font-medium text-gray-900">
-                              {user?.name}
+                              {displayName || "User"}
                             </p>
                             <p className="text-xs text-gray-500 capitalize">
                               {user?.role}
@@ -273,39 +312,9 @@ export function Header() {
                         </Button>
                       </div>
                     ) : (
-                      <>
-                        <div className="text-sm font-semibold mb-3 text-gray-500">
-                          Login
-                        </div>
-                        <div className="grid gap-3">
-                          <Link to="/login">
-                            <Button
-                              variant="outline"
-                              className="w-full justify-start"
-                            >
-                              <User size={16} className="mr-2" />
-                              Customer Login
-                            </Button>
-                          </Link>
-                          <Link to="/login">
-                            <Button
-                              variant="outline"
-                              className="w-full justify-start"
-                            >
-                              <Users size={16} className="mr-2" />
-                              Agent Login
-                            </Button>
-                          </Link>
-                        </div>
-
-                        <div className="border-t pt-6 mt-3">
-                          <Link to="/login">
-                            <Button className="w-full bg-purple-600 hover:bg-purple-700">
-                              Become an Agent
-                            </Button>
-                          </Link>
-                        </div>
-                      </>
+                      <div className="text-sm font-semibold mb-3 text-gray-500">
+                        Login
+                      </div>
                     )}
                   </div>
                 </div>
