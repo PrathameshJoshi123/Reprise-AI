@@ -1,128 +1,273 @@
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, Text, TouchableOpacity, View, Alert, RefreshControl, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useState, useEffect, useCallback } from "react";
+import api from "../../lib/api";
 import "../../global.css";
 
-export default function HomeScreen() {
-  const { user } = useAuth();
+interface OrderStats {
+  locked: number;
+  purchased: number;
+  in_progress: number;
+  completed: number;
+}
 
-  const quickMetrics = [
-    { label: "Today's Claims", value: "12", subtext: "Claims Processed" },
-    { label: "Active Agents", value: "8", subtext: "Team Members" },
-    { label: "Completed Orders", value: "145", subtext: "This Month" },
-  ];
+export default function PartnerDashboard() {
+  const { user, logout, refreshUser } = useAuth();
+  const router = useRouter();
+  const [stats, setStats] = useState<OrderStats>({
+    locked: 0,
+    purchased: 0,
+    in_progress: 0,
+    completed: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const highPriorityLeads = [
-    { id: 1, device: "iPhone 15 Pro", distance: "2.3 km", value: "₹82,000" },
-    {
-      id: 2,
-      device: "Samsung Galaxy S24",
-      distance: "4.1 km",
-      value: "₹65,000",
-    },
-    { id: 3, device: "MacBook Pro M3", distance: "5.8 km", value: "₹1,45,000" },
-  ];
+  const fetchStats = async () => {
+    try {
+      const response = await api.get("/partner/orders");
+      const orders = response.data || [];
+
+      const locked = orders.filter((o: any) => o.status === "partner_locked").length;
+      const purchased = orders.filter((o: any) => o.status === "lead_purchased").length;
+      const inProgress = orders.filter(
+        (o: any) =>
+          o.status === "assigned_to_agent" ||
+          o.status === "accepted_by_agent" ||
+          o.status === "pickup_scheduled"
+      ).length;
+      const completed = orders.filter(
+        (o: any) =>
+          o.status === "pickup_completed" ||
+          o.status === "payment_processed" ||
+          o.status === "completed"
+      ).length;
+
+      setStats({ locked, purchased, in_progress: inProgress, completed });
+    } catch (error: any) {
+      if (error.response?.status !== 401) {
+        Alert.alert("Error", "Failed to fetch dashboard stats");
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchStats();
+    refreshUser();
+  }, []);
+
+  const handleLogout = async () => {
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          await logout();
+          router.replace("/");
+        },
+      },
+    ]);
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-50 justify-center items-center">
+        <ActivityIndicator size="large" color="#0d9488" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View className="flex-row justify-between items-center px-6 pt-4 pb-6 bg-white">
-          <View>
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#0d9488"]} />
+        }
+      >
+        {/* Header with Logout */}
+        <View className="flex-row justify-between items-center px-6 pt-4 pb-6 bg-white border-b border-gray-200">
+          <View className="flex-1">
             <Text className="text-slate-500 text-sm">Welcome back,</Text>
             <Text className="text-2xl font-bold text-slate-900 mt-1">
-              {user?.email?.split("@")[0] || "Partner"}
+              {user?.name || user?.email?.split("@")[0] || "Partner"}
             </Text>
           </View>
-          <TouchableOpacity className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center">
-            <Text className="text-lg">🔔</Text>
+          <TouchableOpacity
+            onPress={handleLogout}
+            className="flex-row items-center bg-red-50 px-4 py-2 rounded-lg"
+            activeOpacity={0.7}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#dc2626" />
+            <Text className="text-red-600 font-semibold ml-2">Logout</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Credit Widget */}
+        {/* Credit Balance Widget */}
         <View className="px-6 py-4">
           <View className="bg-teal-600 rounded-2xl p-6 shadow-sm">
             <Text className="text-teal-100 text-sm font-medium mb-1">
-              AVAILABLE BALANCE
+              AVAILABLE CREDITS
             </Text>
             <Text className="text-white text-4xl font-bold mb-1">
-              2,450
+              {(user as any)?.credit_balance || 0}
               <Text className="text-xl text-teal-100"> CR</Text>
             </Text>
             <Text className="text-teal-100 text-xs mb-4">
-              Use credits to unlock qualified leads
+              Use credits to purchase leads from marketplace
             </Text>
             <TouchableOpacity
               className="bg-white rounded-xl py-3 px-6 self-start"
               activeOpacity={0.8}
+              onPress={() => router.push("/(tabs)/wallet")}
             >
-              <Text className="text-teal-600 font-bold">💳 Recharge</Text>
+              <Text className="text-teal-600 font-bold">💳 Buy Credits</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Quick Metrics */}
+        {/* Dashboard Stats */}
         <View className="px-6 py-2">
-          <View className="flex-row justify-between">
-            {quickMetrics.map((metric, index) => (
-              <View
-                key={index}
-                className="bg-white rounded-xl p-4 flex-1 mx-1 shadow-sm"
-              >
-                <Text className="text-slate-500 text-xs mb-2">
-                  {metric.label}
-                </Text>
-                <Text className="text-slate-900 text-2xl font-bold mb-1">
-                  {metric.value}
-                </Text>
-                <Text className="text-slate-400 text-xs">{metric.subtext}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* High Priority Leads */}
-        <View className="px-6 py-4">
-          <View className="flex-row justify-between items-center mb-3">
-            <Text className="text-lg font-bold text-slate-900">
-              High-Priority Leads
-            </Text>
-            <TouchableOpacity>
-              <Text className="text-teal-600 font-semibold text-sm">
-                View All
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View className="bg-white rounded-2xl overflow-hidden shadow-sm">
-            {highPriorityLeads.map((lead, index) => (
-              <View key={lead.id}>
-                <View className="p-4 flex-row justify-between items-center">
-                  <View className="flex-1">
-                    <View className="flex-row items-center mb-1">
-                      <Text className="w-2 h-2 bg-green-500 rounded-full mr-2" />
-                      <Text className="text-slate-900 font-semibold">
-                        {lead.device}
-                      </Text>
-                    </View>
-                    <Text className="text-slate-500 text-sm ml-4">
-                      📍 {lead.distance} away • {lead.value}
+          <Text className="text-lg font-bold text-slate-900 mb-3">
+            Dashboard Overview
+          </Text>
+          <View className="space-y-3">
+            {/* Locked Deals */}
+            <TouchableOpacity 
+              className="bg-white rounded-xl p-4 shadow-sm border border-purple-100"
+              onPress={() => router.push("/(tabs)/dashboard?tab=locked")}
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center flex-1">
+                  <View className="w-12 h-12 bg-purple-100 rounded-full items-center justify-center mr-3">
+                    <Ionicons name="lock-closed" size={24} color="#9333ea" />
+                  </View>
+                  <View>
+                    <Text className="text-slate-500 text-sm font-medium">
+                      Locked Deals
+                    </Text>
+                    <Text className="text-slate-900 text-2xl font-bold">
+                      {stats.locked}
                     </Text>
                   </View>
-                  <TouchableOpacity
-                    className="bg-teal-600 rounded-lg px-4 py-2"
-                    activeOpacity={0.8}
-                  >
-                    <Text className="text-white font-semibold text-sm">
-                      Claim
-                    </Text>
-                  </TouchableOpacity>
                 </View>
-                {index < highPriorityLeads.length - 1 && (
-                  <View className="h-px bg-gray-100 ml-4" />
-                )}
+                <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
               </View>
-            ))}
+            </TouchableOpacity>
+
+            {/* Purchased */}
+            <TouchableOpacity 
+              className="bg-white rounded-xl p-4 shadow-sm border border-blue-100"
+              onPress={() => router.push("/(tabs)/dashboard?tab=purchased")}
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center flex-1">
+                  <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center mr-3">
+                    <Ionicons name="cart" size={24} color="#2563eb" />
+                  </View>
+                  <View>
+                    <Text className="text-slate-500 text-sm font-medium">
+                      Purchased
+                    </Text>
+                    <Text className="text-slate-900 text-2xl font-bold">
+                      {stats.purchased}
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+              </View>
+            </TouchableOpacity>
+
+            {/* In Progress */}
+            <TouchableOpacity 
+              className="bg-white rounded-xl p-4 shadow-sm border border-amber-100"
+              onPress={() => router.push("/(tabs)/dashboard?tab=in_progress")}
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center flex-1">
+                  <View className="w-12 h-12 bg-amber-100 rounded-full items-center justify-center mr-3">
+                    <Ionicons name="time" size={24} color="#f59e0b" />
+                  </View>
+                  <View>
+                    <Text className="text-slate-500 text-sm font-medium">
+                      In Progress
+                    </Text>
+                    <Text className="text-slate-900 text-2xl font-bold">
+                      {stats.in_progress}
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+              </View>
+            </TouchableOpacity>
+
+            {/* Completed */}
+            <TouchableOpacity 
+              className="bg-white rounded-xl p-4 shadow-sm border border-green-100"
+              onPress={() => router.push("/(tabs)/dashboard?tab=completed")}
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center flex-1">
+                  <View className="w-12 h-12 bg-green-100 rounded-full items-center justify-center mr-3">
+                    <Ionicons name="checkmark-circle" size={24} color="#16a34a" />
+                  </View>
+                  <View>
+                    <Text className="text-slate-500 text-sm font-medium">
+                      Completed
+                    </Text>
+                    <Text className="text-slate-900 text-2xl font-bold">
+                      {stats.completed}
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View className="px-6 py-4 mb-6">
+          <Text className="text-lg font-bold text-slate-900 mb-3">
+            Quick Actions
+          </Text>
+          <View className="flex-row justify-between">
+            <TouchableOpacity
+              className="bg-white rounded-xl p-4 flex-1 mr-2 shadow-sm items-center"
+              onPress={() => router.push("/(tabs)/marketplace")}
+            >
+              <View className="w-12 h-12 bg-teal-100 rounded-full items-center justify-center mb-2">
+                <Ionicons name="storefront" size={24} color="#0d9488" />
+              </View>
+              <Text className="text-slate-900 font-semibold text-sm text-center">
+                Browse Leads
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="bg-white rounded-xl p-4 flex-1 ml-2 shadow-sm items-center"
+              onPress={() => router.push("/(tabs)/agents")}
+            >
+              <View className="w-12 h-12 bg-indigo-100 rounded-full items-center justify-center mb-2">
+                <Ionicons name="people" size={24} color="#4f46e5" />
+              </View>
+              <Text className="text-slate-900 font-semibold text-sm text-center">
+                Manage Agents
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 

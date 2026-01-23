@@ -8,7 +8,7 @@ load_dotenv()  # loads .env from project root
 
 # Use DATABASE_URL env var (Postgres URI), fall back to local sqlite for dev
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./repriseai.db")
-
+print(f"Using database URL: {DATABASE_URL}")
 # If using sqlite, keep check_same_thread; otherwise no special connect_args
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 

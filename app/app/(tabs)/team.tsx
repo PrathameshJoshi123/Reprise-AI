@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FlatList,
   Linking,
@@ -7,122 +7,125 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import api from "../../lib/api";
 import "../../global.css";
 
-type AgentStatus = "online" | "offline" | "on_job";
-
 interface Agent {
-  id: string;
-  name: string;
+  id: number;
+  full_name: string;
+  email: string;
   phone: string;
-  status: AgentStatus;
-  phonesCollected: number;
-  pincode: string;
-  avatar: string;
-  lastActive?: string;
+  employee_id?: string;
+  is_active: boolean;
+  created_at: string;
 }
 
 const Team = () => {
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showPerformance, setShowPerformance] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
   const [newAgent, setNewAgent] = useState({
-    name: "",
+    full_name: "",
+    email: "",
     phone: "",
-    pincode: "",
+    password: "",
+    employee_id: "",
   });
 
-  const agentsData: Agent[] = [
-    {
-      id: "1",
-      name: "Sarah Jenkins",
-      phone: "+91 98765 43210",
-      status: "online",
-      phonesCollected: 8,
-      pincode: "560061",
-      avatar: "👩",
-    },
-    {
-      id: "2",
-      name: "Michael Ross",
-      phone: "+91 98765 43211",
-      status: "on_job",
-      phonesCollected: 5,
-      pincode: "560034",
-      avatar: "👨",
-    },
-    {
-      id: "3",
-      name: "David Kim",
-      phone: "+91 98765 43212",
-      status: "online",
-      phonesCollected: 12,
-      pincode: "560001",
-      avatar: "👨",
-    },
-    {
-      id: "4",
-      name: "Emily Chen",
-      phone: "+91 98765 43213",
-      status: "offline",
-      phonesCollected: 3,
-      pincode: "560078",
-      avatar: "👩",
-      lastActive: "2h ago",
-    },
-    {
-      id: "5",
-      name: "James Wilson",
-      phone: "+91 98765 43214",
-      status: "on_job",
-      phonesCollected: 6,
-      pincode: "560017",
-      avatar: "👨",
-    },
-  ];
+  useEffect(() => {
+    fetchAgents();
+  }, []);
 
-  const getStatusInfo = (status: AgentStatus) => {
-    switch (status) {
-      case "online":
-        return {
-          label: "Online",
-          color: "bg-green-500",
-          dotColor: "bg-green-500",
-        };
-      case "offline":
-        return {
-          label: "Offline",
-          color: "bg-gray-400",
-          dotColor: "bg-gray-400",
-        };
-      case "on_job":
-        return {
-          label: "On Job",
-          color: "bg-blue-500",
-          dotColor: "bg-blue-500",
-        };
+  const fetchAgents = async () => {
+    try {
+      const response = await api.get("/partner/agents");
+      setAgents(response.data || []);
+    } catch (error: any) {
+      if (error.response?.status !== 401) {
+        Alert.alert("Error", "Failed to fetch agents");
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchAgents();
+  };
+
+  const handleAddAgent = async () => {
+    if (!newAgent.full_name || !newAgent.email || !newAgent.phone || !newAgent.password) {
+      Alert.alert("Error", "Please fill all required fields");
+      return;
+    }
+
+    setFormLoading(true);
+    try {
+      await api.post("/partner/agents", {
+        full_name: newAgent.full_name,
+        email: newAgent.email,
+        phone: newAgent.phone,
+        password: newAgent.password,
+        employee_id: newAgent.employee_id || undefined,
+      });
+      setNewAgent({
+        full_name: "",
+        email: "",
+        phone: "",
+        password: "",
+        employee_id: "",
+      });
+      setModalVisible(false);
+      Alert.alert("Success", "Agent added successfully!");
+      await fetchAgents();
+    } catch (error: any) {
+      Alert.alert("Error", error.response?.data?.detail || "Failed to add agent");
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleToggleStatus = async (agentId: number, currentStatus: boolean) => {
+    const action = currentStatus ? "deactivate" : "activate";
+    Alert.alert(
+      `${action.charAt(0).toUpperCase() + action.slice(1)} Agent`,
+      `Are you sure you want to ${action} this agent?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: action.charAt(0).toUpperCase() + action.slice(1),
+          style: currentStatus ? "destructive" : "default",
+          onPress: async () => {
+            try {
+              await api.patch(`/partner/agents/${agentId}`, { is_active: !currentStatus });
+              await fetchAgents();
+              Alert.alert("Success", `Agent ${action}d successfully`);
+            } catch (error: any) {
+              Alert.alert("Error", error.response?.data?.detail || `Failed to ${action} agent`);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleCallAgent = (phone: string) => {
     Linking.openURL(`tel:${phone}`);
   };
 
-  const handleAddAgent = () => {
-    // Add agent logic here
-    console.log("Adding agent:", newAgent);
-    setModalVisible(false);
-    setNewAgent({ name: "", phone: "", pincode: "" });
-  };
-
-  const totalPhones = agentsData.reduce(
-    (sum, agent) => sum + agent.phonesCollected,
-    0,
-  );
-
   const renderAgentCard = ({ item }: { item: Agent }) => {
-    const statusInfo = getStatusInfo(item.status);
+    const statusColor = item.is_active ? "bg-green-500" : "bg-gray-400";
+    const statusLabel = item.is_active ? "Active" : "Inactive";
 
     return (
       <View className="bg-white rounded-2xl p-4 mb-3 shadow-sm">
@@ -130,76 +133,52 @@ const Team = () => {
           {/* Avatar */}
           <View className="relative mr-4">
             <View className="w-14 h-14 bg-teal-100 rounded-full items-center justify-center">
-              <Text className="text-2xl">{item.avatar}</Text>
+              <Text className="text-2xl">
+                {item.full_name.charAt(0).toUpperCase()}
+              </Text>
             </View>
             <View
-              className={`absolute bottom-0 right-0 w-4 h-4 ${statusInfo.dotColor} border-2 border-white rounded-full`}
+              className={`absolute bottom-0 right-0 w-4 h-4 ${statusColor} border-2 border-white rounded-full`}
             />
           </View>
 
           {/* Agent Info */}
           <View className="flex-1">
             <Text className="text-slate-900 font-bold text-base mb-1">
-              {item.name}
+              {item.full_name}
             </Text>
             <TouchableOpacity onPress={() => handleCallAgent(item.phone)}>
               <Text className="text-slate-500 text-sm mb-1">
                 📞 {item.phone}
               </Text>
             </TouchableOpacity>
-            <View className="flex-row items-center">
-              <View className={`${statusInfo.color} px-2 py-1 rounded-full`}>
-                <Text className="text-white text-xs font-bold">
-                  {statusInfo.label}
-                </Text>
-              </View>
-              {item.status === "offline" && item.lastActive && (
-                <Text className="text-slate-400 text-xs ml-2">
-                  • {item.lastActive}
-                </Text>
-              )}
-            </View>
+            <Text className="text-slate-400 text-xs mb-1">
+              ✉️ {item.email}
+            </Text>
+            {item.employee_id && (
+              <Text className="text-slate-400 text-xs">
+                🆔 {item.employee_id}
+              </Text>
+            )}
           </View>
 
-          {/* Metrics */}
+          {/* Status Badge */}
           <View className="items-end">
-            <View className="bg-teal-50 px-3 py-2 rounded-lg">
-              <Text className="text-teal-600 font-bold text-xl">
-                {item.phonesCollected}
+            <View className={`${statusColor} px-2 py-1 rounded-full mb-2`}>
+              <Text className="text-white text-xs font-bold">
+                {statusLabel}
               </Text>
-              <Text className="text-teal-600 text-xs">Today</Text>
             </View>
-            <Text className="text-slate-400 text-xs mt-1">
-              📍 {item.pincode}
-            </Text>
+            <TouchableOpacity
+              onPress={() => handleToggleStatus(item.id, item.is_active)}
+              className={`px-3 py-2 rounded-lg ${item.is_active ? "bg-red-50" : "bg-green-50"}`}
+            >
+              <Text className={`text-xs font-semibold ${item.is_active ? "text-red-600" : "text-green-600"}`}>
+                {item.is_active ? "Deactivate" : "Activate"}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
-
-        {/* Performance View (optional) */}
-        {showPerformance && (
-          <View className="mt-3 pt-3 border-t border-gray-100">
-            <View className="flex-row justify-between">
-              <View className="flex-1 items-center">
-                <Text className="text-slate-500 text-xs mb-1">This Week</Text>
-                <Text className="text-slate-900 font-bold text-lg">
-                  {item.phonesCollected * 5}
-                </Text>
-              </View>
-              <View className="flex-1 items-center">
-                <Text className="text-slate-500 text-xs mb-1">This Month</Text>
-                <Text className="text-slate-900 font-bold text-lg">
-                  {item.phonesCollected * 20}
-                </Text>
-              </View>
-              <View className="flex-1 items-center">
-                <Text className="text-slate-500 text-xs mb-1">Total Value</Text>
-                <Text className="text-slate-900 font-bold text-lg">
-                  ₹{(item.phonesCollected * 65).toFixed(0)}k
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
       </View>
     );
   };
@@ -214,43 +193,46 @@ const Team = () => {
               Agent Network
             </Text>
             <Text className="text-slate-500 text-sm mt-1">
-              {agentsData.length} Active Agents • {totalPhones} Phones Today
+              {agents.length} {agents.length === 1 ? "Agent" : "Agents"} •{" "}
+              {agents.filter((a) => a.is_active).length} Active
             </Text>
           </View>
-          <TouchableOpacity className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center">
-            <Text className="text-lg">⚙️</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Performance Toggle */}
-        <View className="flex-row items-center justify-between bg-gray-50 rounded-xl p-3">
-          <Text className="text-slate-700 font-semibold">
-            Show Performance Metrics
-          </Text>
-          <TouchableOpacity
-            onPress={() => setShowPerformance(!showPerformance)}
-            className={`w-12 h-7 rounded-full justify-center ${
-              showPerformance ? "bg-teal-600" : "bg-gray-300"
-            }`}
-            activeOpacity={0.8}
-          >
-            <View
-              className={`w-5 h-5 bg-white rounded-full shadow-sm ${
-                showPerformance ? "ml-6" : "ml-1"
-              }`}
-            />
-          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Agent List */}
-      <FlatList
-        data={agentsData}
-        renderItem={renderAgentCard}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 24 }}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#0d9488" />
+        </View>
+      ) : (
+        <>
+          {/* Agent List */}
+          <FlatList
+            data={agents}
+            renderItem={renderAgentCard}
+            keyExtractor={(item) => item.id.toString()}
+            contentContainerStyle={{ padding: 24 }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={["#0d9488"]}
+              />
+            }
+            ListEmptyComponent={
+              <View className="bg-white rounded-2xl p-6 items-center">
+                <Text className="text-slate-500 text-center mb-4">
+                  No agents yet
+                </Text>
+                <Text className="text-slate-400 text-center text-sm">
+                  Add your first agent to start managing your team
+                </Text>
+              </View>
+            }
+          />
+        </>
+      )}
 
       {/* Floating Action Button */}
       <TouchableOpacity
@@ -296,16 +278,35 @@ const Team = () => {
             {/* Form Fields */}
             <View className="mb-4">
               <Text className="text-slate-700 font-semibold mb-2">
-                Agent Name <Text className="text-red-500">*</Text>
+                Full Name <Text className="text-red-500">*</Text>
               </Text>
               <View className="bg-gray-50 rounded-xl px-4 py-4 border border-gray-200">
                 <TextInput
                   className="text-slate-900"
                   placeholder="e.g. Sarah Connor"
                   placeholderTextColor="#94a3b8"
-                  value={newAgent.name}
+                  value={newAgent.full_name}
                   onChangeText={(text) =>
-                    setNewAgent({ ...newAgent, name: text })
+                    setNewAgent({ ...newAgent, full_name: text })
+                  }
+                />
+              </View>
+            </View>
+
+            <View className="mb-4">
+              <Text className="text-slate-700 font-semibold mb-2">
+                Email <Text className="text-red-500">*</Text>
+              </Text>
+              <View className="bg-gray-50 rounded-xl px-4 py-4 border border-gray-200">
+                <TextInput
+                  className="text-slate-900"
+                  placeholder="agent@example.com"
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={newAgent.email}
+                  onChangeText={(text) =>
+                    setNewAgent({ ...newAgent, email: text })
                   }
                 />
               </View>
@@ -329,26 +330,39 @@ const Team = () => {
               </View>
             </View>
 
-            <View className="mb-6">
+            <View className="mb-4">
               <Text className="text-slate-700 font-semibold mb-2">
-                Operating Pincode <Text className="text-red-500">*</Text>
+                Password <Text className="text-red-500">*</Text>
               </Text>
               <View className="bg-gray-50 rounded-xl px-4 py-4 border border-gray-200">
                 <TextInput
                   className="text-slate-900"
-                  placeholder="110001"
+                  placeholder="Min 6 characters"
                   placeholderTextColor="#94a3b8"
-                  keyboardType="numeric"
-                  maxLength={6}
-                  value={newAgent.pincode}
+                  secureTextEntry
+                  value={newAgent.password}
                   onChangeText={(text) =>
-                    setNewAgent({ ...newAgent, pincode: text })
+                    setNewAgent({ ...newAgent, password: text })
                   }
                 />
               </View>
-              <Text className="text-slate-400 text-xs mt-1">
-                📍 Used to calculate resale logistics credits
+            </View>
+
+            <View className="mb-6">
+              <Text className="text-slate-700 font-semibold mb-2">
+                Employee ID
               </Text>
+              <View className="bg-gray-50 rounded-xl px-4 py-4 border border-gray-200">
+                <TextInput
+                  className="text-slate-900"
+                  placeholder="Optional"
+                  placeholderTextColor="#94a3b8"
+                  value={newAgent.employee_id}
+                  onChangeText={(text) =>
+                    setNewAgent({ ...newAgent, employee_id: text })
+                  }
+                />
+              </View>
             </View>
 
             {/* Action Buttons */}
@@ -357,19 +371,25 @@ const Team = () => {
                 className="flex-1 bg-gray-200 rounded-xl py-4"
                 onPress={() => setModalVisible(false)}
                 activeOpacity={0.8}
+                disabled={formLoading}
               >
                 <Text className="text-slate-700 font-bold text-center">
                   Cancel
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                className="flex-1 bg-teal-600 rounded-xl py-4"
+                className={`flex-1 rounded-xl py-4 ${formLoading ? "bg-gray-400" : "bg-teal-600"}`}
                 onPress={handleAddAgent}
                 activeOpacity={0.8}
+                disabled={formLoading}
               >
-                <Text className="text-white font-bold text-center">
-                  Save Agent →
-                </Text>
+                {formLoading ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text className="text-white font-bold text-center">
+                    Save Agent →
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from services.auth import models, schemas, utils
-from shared.db.connections import Base, engine
+from shared.db.connections import Base, engine, get_db
 
 router = APIRouter()
 
@@ -44,6 +44,7 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(
         (models.User.phone == payload.identifier) | (models.User.email == payload.identifier)
     ).first()
+    print(user)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect credentials")
     if not user.is_active:

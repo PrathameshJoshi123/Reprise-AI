@@ -1,75 +1,134 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useContext, useEffect, useState } from "react";
+/**
+ * Authentication Context
+ * Manages user authentication state, login/logout, and token management
+ * Reference: SPEC Section - Authentication & Authorization
+ */
 
-interface User {
-  id: string;
-  email: string;
-  name?: string;
-}
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import api, { tokenManager } from '../lib/api';
+import type { User, Partner, Agent, PartnerAuthResponse, AgentAuthResponse } from '../types';
 
 interface AuthContextType {
   user: User | null;
+  userType: 'partner' | 'agent' | null;
+  loading: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
   isAuthenticated: boolean;
+  login: (email: string, password: string, type: 'partner' | 'agent') => Promise<void>;
+  signup: (
+    full_name: string,
+    email: string,
+    password: string,
+    phone: string,
+    company_name: string,
+    business_address: string,
+    gst_number: string,
+    pan_number: string,
+    serviceable_pincodes: string[]
+  ) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [userType, setUserType] = useState<'partner' | 'agent' | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Check for stored auth token on mount
+  // Check for stored token on mount
   useEffect(() => {
-    checkAuthStatus();
+    checkStoredAuth();
   }, []);
 
-  const checkAuthStatus = async () => {
+  const checkStoredAuth = async () => {
     try {
-      const token = await AsyncStorage.getItem("authToken");
-      const userData = await AsyncStorage.getItem("userData");
+      const [token, storedType] = await Promise.all([
+        tokenManager.getToken(),
+        tokenManager.getUserType(),
+      ]);
 
-      if (token && userData) {
-        setUser(JSON.parse(userData));
+      if (token && storedType) {
+        setUserType(storedType);
+        await fetchUser(storedType);
       }
     } catch (error) {
-      console.error("Error checking auth status:", error);
+      console.error('Failed to check stored auth:', error);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const fetchUser = async (type: 'partner' | 'agent') => {
     try {
-      // TODO: Replace with actual API call
-      // For now, using mock authentication
-      const mockUser = {
-        id: "1",
-        email: email,
-        name: "Partner User",
-      };
-
-      // Store auth token and user data
-      await AsyncStorage.setItem("authToken", "mock-token-123");
-      await AsyncStorage.setItem("userData", JSON.stringify(mockUser));
-
-      setUser(mockUser);
+      const endpoint = type === 'partner' ? '/partner/me' : '/agent/me';
+      const response = await api.get(endpoint);
+      const data = response.data;
+      
+      // Normalize name field from backend (full_name) to name
+      const name = data.full_name ?? data.fullName ?? data.name ?? data.email;
+      setUser({ ...data, type, name });
+      setUserType(type);
     } catch (error) {
-      console.error("Login error:", error);
+      console.error('Failed to fetch user:', error);
+      await tokenManager.clearAuth();
       throw error;
     }
+  };
+
+  const login = async (email: string, password: string, type: 'partner' | 'agent') => {
+    const endpoint = type === 'partner' ? '/partner/login' : '/agent/login';
+    const response = await api.post(endpoint, { email, password });
+
+    const token = response.data.access_token;
+    await tokenManager.setToken(token);
+    await tokenManager.setUserType(type);
+    
+    setUserType(type);
+    await fetchUser(type);
+  };
+
+  const signup = async (
+    full_name: string,
+    email: string,
+    password: string,
+    phone: string,
+    company_name: string,
+    business_address: string,
+    gst_number: string,
+    pan_number: string,
+    serviceable_pincodes: string[]
+  ) => {
+    const response = await api.post<PartnerAuthResponse>('/partner/signup', {
+      full_name,
+      email,
+      password,
+      phone,
+      company_name,
+      business_address,
+      gst_number: gst_number || null,
+      pan_number,
+      serviceable_pincodes,
+    });
+
+    const token = response.data.access_token;
+    await tokenManager.setToken(token);
+    await tokenManager.setUserType('partner');
+    
+    setUserType('partner');
+    await fetchUser('partner');
   };
 
   const logout = async () => {
-    try {
-      await AsyncStorage.removeItem("authToken");
-      await AsyncStorage.removeItem("userData");
-      setUser(null);
-    } catch (error) {
-      console.error("Logout error:", error);
-      throw error;
+    await tokenManager.clearAuth();
+    setUser(null);
+    setUserType(null);
+  };
+
+  const refreshUser = async () => {
+    if (userType) {
+      await fetchUser(userType);
     }
   };
 
@@ -77,21 +136,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        isLoading,
-        login,
-        logout,
+        userType,
+        loading,
+        isLoading: loading,
         isAuthenticated: !!user,
+        login,
+        signup,
+        logout,
+        refreshUser,
       }}
     >
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
   }
   return context;
-}
+
+};
+
+export default AuthProvider;
+

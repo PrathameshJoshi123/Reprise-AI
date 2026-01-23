@@ -25,46 +25,61 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: "Dashboard",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="leads"
+        name="wallet"
         options={{
-          title: "Leads",
+          title: "Buy Credits",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="magnet" size={size} color={color} />
+            <Ionicons name="wallet" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="orders"
+        name="marketplace"
         options={{
-          title: "Orders",
+          title: "Marketplace",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="briefcase" size={size} color={color} />
+            <Ionicons name="storefront" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="team"
+        name="agents"
         options={{
-          title: "Team",
+          title: "Agent Management",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="wallet"
+        name="dashboard"
         options={{
-          title: "Wallet",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="wallet" size={size} color={color} />
-          ),
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="leads"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="orders"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="team"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

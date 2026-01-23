@@ -1,27 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from 'react';
 import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  StyleSheet,
+  RefreshControl,
+  ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import "../../global.css";
-
-interface Lead {
-  id: string;
-  device: string;
-  specs: string;
-  location: string;
-  timeAgo: string;
-  price: number;
-  distance: number;
-  badge?: "HOT LEAD" | "NEW" | "HIGH VALUE";
-  image: string;
-}
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import api from '../../lib/api';
+import { Order } from '../../types';
+import { formatPrice } from '../../utils/formatting';
+import EmptyState from '../../components/EmptyState';
 
 const Leads = () => {
   const [selectedFilter, setSelectedFilter] = useState("All");
