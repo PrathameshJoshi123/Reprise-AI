@@ -143,14 +143,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem("accessToken", accessToken);
       setToken(accessToken);
-      console.log("loginWithToken: token stored, calling /auth/me (axios)");
 
-      // Fetch user data with the token (axios). Skip global 401 redirect
-      // so this function can handle failures (and run fetch fallback) itself.
-      const userResponse = await api.get("/auth/me", {
+      // Fetch full user details (includes role) with the token (axios).
+      // Skip global 401 redirect so this function can handle failures itself.
+      const userResponse = await api.get("/auth/me/details", {
         headers: { "x-skip-auth-redirect": "1" },
       });
-      console.log("loginWithToken: /auth/me response", userResponse?.data);
+
       const mappedUser: User = {
         id: String(userResponse.data.id),
         name:
@@ -167,10 +166,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Fallback: try using fetch directly (bypasses axios interceptors)
       try {
-        console.log("loginWithToken: trying fetch fallback to /auth/me");
-        const data = await fetchMe(accessToken);
-        console.log("loginWithToken: fetch fallback data", data);
-        const userResponseData = data;
+        // fetch fallback: use /auth/me/details to get role as well
+        const fallbackRes = await fetch(`${API_URL}/auth/me/details`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const userResponseData = await fallbackRes.json();
+
         const mappedUser: User = {
           id: String(userResponseData.id),
           name:
@@ -191,12 +192,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshCurrentUser = async (): Promise<boolean> => {
+    try {
+      const res = await api.get("/auth/me/details", {
+        headers: { "x-skip-auth-redirect": "1" },
+      });
+      const data = res.data;
+      const mappedUser: User = {
+        id: String(data.id),
+        name: data.full_name || data.email.split("@")[0],
+        email: data.email,
+        phone: data.phone,
+        role: (data.role as User["role"]) || "customer",
+      };
+      localStorage.setItem("currentUser", JSON.stringify(mappedUser));
+      setUser(mappedUser);
+      return true;
+    } catch (err) {
+      console.error("refreshCurrentUser failed", err);
+      return false;
+    }
+  };
+
   const logout = () => {
     setUser(null);
     setToken(null);
     localStorage.removeItem("currentUser");
     localStorage.removeItem("accessToken");
-    console.log("User logged out");
   };
 
   return (
@@ -207,6 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoggedIn: !!user,
         login,
         loginWithToken,
+        refreshCurrentUser,
         signup,
         logout,
       }}
@@ -218,7 +241,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  console.log("Context ", context);
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }

@@ -60,7 +60,6 @@ interface Agent {
 export default function PartnerDashboard() {
   const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
-  const [liveLeads, setLiveLeads] = useState<Lead[]>([]);
   const [lockedDeals, setLockedDeals] = useState<Lead[]>([]);
   const [purchasedOrders, setPurchasedOrders] = useState<Lead[]>([]);
   const [acceptedLeads, setAcceptedLeads] = useState<Lead[]>([]);
@@ -96,14 +95,6 @@ export default function PartnerDashboard() {
       const orders: Lead[] = response.data;
 
       // Filter orders by status
-      setLiveLeads(
-        orders.filter(
-          (order) =>
-            order.status === "lead_created" ||
-            order.status === "partner_locked",
-        ),
-      );
-
       // Purchased but not yet assigned
       setPurchasedOrders(
         orders.filter((order) => order.status === "lead_purchased"),
@@ -344,7 +335,7 @@ export default function PartnerDashboard() {
         {/* Main Content */}
         <div className="container mx-auto px-4 py-8">
           <Tabs defaultValue="locked" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-8">
+            <TabsList className="grid w-full grid-cols-4 mb-8">
               <TabsTrigger value="locked">
                 Locked Deals ({lockedDeals.length})
               </TabsTrigger>
@@ -356,9 +347,6 @@ export default function PartnerDashboard() {
               </TabsTrigger>
               <TabsTrigger value="completed">
                 Completed ({completedOrders.length})
-              </TabsTrigger>
-              <TabsTrigger value="live">
-                Marketplace ({liveLeads.length})
               </TabsTrigger>
             </TabsList>
 
@@ -643,29 +631,6 @@ export default function PartnerDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {completedOrders.map((lead) => (
                     <LeadCard key={lead.id} lead={lead} />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="live">
-              {loading ? (
-                <div className="text-center py-12">Loading...</div>
-              ) : liveLeads.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <p className="text-gray-500 mb-4">
-                      No marketplace leads available
-                    </p>
-                    <Button onClick={() => navigate("/partner/marketplace")}>
-                      Go to Marketplace
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {liveLeads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} showLockButton />
                   ))}
                 </div>
               )}

@@ -38,12 +38,16 @@ export default function CustomerLogin() {
   const [pincodeChecking, setPincodeChecking] = useState(false);
   const [pincodeValid, setPincodeValid] = useState(false);
   const [serviceableInfo, setServiceableInfo] = useState<any>(null);
+  const [showGooglePincodeModal, setShowGooglePincodeModal] = useState(false);
+  const [showGoogleProfileModal, setShowGoogleProfileModal] = useState(false);
+  const [googleProfilePhone, setGoogleProfilePhone] = useState("");
+  const [googleProfileAddress, setGoogleProfileAddress] = useState("");
+  const [googleProcessing, setGoogleProcessing] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, signup } = useAuth();
+  const { login, signup, loginWithToken } = useAuth();
 
   useEffect(() => {
-    console.log("Loading Google script...");
     const id = "google-identity";
     if (!document.getElementById(id)) {
       const s = document.createElement("script");
@@ -51,7 +55,6 @@ export default function CustomerLogin() {
       s.src = "https://accounts.google.com/gsi/client";
       s.async = true;
       s.onload = () => {
-        console.log("Google script loaded successfully");
         setGoogleReady(true);
       };
       s.onerror = () => {
@@ -60,7 +63,6 @@ export default function CustomerLogin() {
       };
       document.head.appendChild(s);
     } else {
-      console.log("Google script already present");
       setGoogleReady(Boolean((window as any).google?.accounts?.oauth2));
     }
   }, []);
@@ -126,9 +128,7 @@ export default function CustomerLogin() {
   };
 
   const onGoogleLogin = async () => {
-    console.log("Google login clicked, googleReady:", googleReady);
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    console.log("VITE_GOOGLE_CLIENT_ID:", clientId);
     if (!clientId) {
       console.error("VITE_GOOGLE_CLIENT_ID not set");
       return;
@@ -140,54 +140,123 @@ export default function CustomerLogin() {
     // generate state only (CSRF protection)
     const state = generateState();
     sessionStorage.setItem("google_oauth_state", state);
-
-    // init Google's Code client and request code (popup) with state
-    // @ts-ignore
-    const client = (window as any).google.accounts.oauth2.initCodeClient({
-      client_id: clientId,
-      scope: "openid email profile",
-      ux_mode: "popup",
-      state, // pass state through to callback
-      callback: async (resp: any) => {
-        console.log("Google callback received:", resp);
-        // enforce state matches
-        const receivedState = resp?.state;
-        const storedState = sessionStorage.getItem("google_oauth_state");
-        if (!receivedState || !storedState || receivedState !== storedState) {
-          console.error("Invalid or missing OAuth state - possible CSRF");
-          return;
-        }
-        const auth_code = resp?.code;
-        if (!auth_code) {
-          console.error("No auth_code in response");
-          return;
-        }
-        try {
-          // send only auth_code to backend; GIS popup flow manages PKCE internally
-          const res = await api.post("/auth/google", { auth_code });
-          console.log("Backend response:", res.data);
-          const token = res.data?.access_token;
-          if (token) {
-            localStorage.setItem("accessToken", token);
-            // handle post-login redirect if present
-            const stateRedirect = (location.state as any)?.redirectTo;
-            const savedRedirect = localStorage.getItem("postLoginRedirect");
-            const target = stateRedirect || savedRedirect;
-            if (target) {
-              localStorage.removeItem("postLoginRedirect");
-              navigate(target);
-            } else {
-              navigate("/");
-            }
+    // helper to start google code client with optional pincode (used for signup flow)
+    const startGoogleWithPincode = (pincodeForFlow?: string) => {
+      setGoogleProcessing(true);
+      // @ts-ignore
+      const client = (window as any).google.accounts.oauth2.initCodeClient({
+        client_id: clientId,
+        scope: "openid email profile",
+        ux_mode: "popup",
+        state, // pass state through to callback
+        callback: async (resp: any) => {
+          // enforce state matches
+          const receivedState = resp?.state;
+          const storedState = sessionStorage.getItem("google_oauth_state");
+          if (!receivedState || !storedState || receivedState !== storedState) {
+            console.error("Invalid or missing OAuth state - possible CSRF");
+            setGoogleProcessing(false);
+            return;
           }
-        } catch (err) {
-          console.error("Google login failed:", err);
-        } finally {
-          sessionStorage.removeItem("google_oauth_state");
-        }
-      },
-    });
-    client.requestCode();
+          const auth_code = resp?.code;
+          if (!auth_code) {
+            console.error("No auth_code in response");
+            setGoogleProcessing(false);
+            return;
+          }
+          try {
+            // include pincode and signup flag when in signup flow
+            const payload: any = { auth_code };
+            if (!isLogin) {
+              payload.signup = true;
+              if (pincodeForFlow) payload.pincode = pincodeForFlow;
+            }
+
+            const res = await api.post("/auth/google", payload);
+            const token = res.data?.access_token;
+            const needs_profile = !!res.data?.needs_profile;
+
+            if (token) {
+              localStorage.setItem("accessToken", token);
+              // initialize AuthContext with the token so currentUser is set (includes role)
+              try {
+                await loginWithToken(token);
+              } catch (err) {
+                console.error("loginWithToken failed:", err);
+              }
+            }
+
+            if (needs_profile) {
+              // show profile modal to capture phone/address
+              setShowGoogleProfileModal(true);
+            } else {
+              // handle post-login redirect
+              const stateRedirect = (location.state as any)?.redirectTo;
+              const savedRedirect = localStorage.getItem("postLoginRedirect");
+              const target = stateRedirect || savedRedirect;
+              if (target) {
+                localStorage.removeItem("postLoginRedirect");
+                navigate(target);
+              } else {
+                navigate("/");
+              }
+            }
+          } catch (err) {
+            console.error("Google login failed:", err);
+            alert("Google authentication failed. Please try again.");
+          } finally {
+            sessionStorage.removeItem("google_oauth_state");
+            setGoogleProcessing(false);
+          }
+        },
+      });
+      client.requestCode();
+    };
+
+    // If this is signup flow, require pincode serviceability first.
+    if (!isLogin) {
+      if (!pincode || pincode.length !== 6 || !pincodeValid) {
+        // prompt for pincode using a small modal
+        setShowGooglePincodeModal(true);
+        return;
+      }
+      // pincode is present & valid — start oauth including pincode
+      startGoogleWithPincode(pincode);
+      return;
+    }
+
+    // Normal login flow (no signup)
+    startGoogleWithPincode();
+  };
+
+  // submit profile collected after Google signup
+  const submitGoogleProfile = async () => {
+    if (!googleProfilePhone && !googleProfileAddress) {
+      alert("Please provide phone or address to continue.");
+      return;
+    }
+    try {
+      setGoogleProcessing(true);
+      await api.patch("/auth/me", {
+        phone: googleProfilePhone || undefined,
+        address: googleProfileAddress || undefined,
+      });
+      setShowGoogleProfileModal(false);
+      const stateRedirect = (location.state as any)?.redirectTo;
+      const savedRedirect = localStorage.getItem("postLoginRedirect");
+      const target = stateRedirect || savedRedirect;
+      if (target) {
+        localStorage.removeItem("postLoginRedirect");
+        navigate(target);
+      } else {
+        navigate("/");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save profile. Please try again.");
+    } finally {
+      setGoogleProcessing(false);
+    }
   };
 
   return (
@@ -504,6 +573,87 @@ export default function CustomerLogin() {
           </Card>
         </div>
       </div>
+
+      {/* Google pincode modal (simple) */}
+      {showGooglePincodeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h3 className="text-lg font-semibold mb-2">Enter Pincode</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              We need your pincode to verify serviceability before signup.
+            </p>
+            <input
+              className="w-full border px-3 py-2 mb-3"
+              placeholder="560001"
+              maxLength={6}
+              value={pincode}
+              onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setShowGooglePincodeModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  await checkPincode(pincode);
+                  if (pincodeValid) {
+                    setShowGooglePincodeModal(false);
+                    // start oauth now that pincode is valid
+                    // small timeout to allow modal to close visually
+                    setTimeout(() => {
+                      // reuse onGoogleLogin to start oauth — but we need a helper; call directly
+                      // init auth flow by simulating click: call onGoogleLogin again which will now see pincodeValid
+                      onGoogleLogin();
+                    }, 150);
+                  }
+                }}
+              >
+                Verify & Continue
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Google profile modal */}
+      {showGoogleProfileModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h3 className="text-lg font-semibold mb-2">
+              Complete your profile
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              We need a phone or address to complete your account.
+            </p>
+            <input
+              className="w-full border px-3 py-2 mb-3"
+              placeholder="Phone"
+              value={googleProfilePhone}
+              onChange={(e) => setGoogleProfilePhone(e.target.value)}
+            />
+            <input
+              className="w-full border px-3 py-2 mb-3"
+              placeholder="Address"
+              value={googleProfileAddress}
+              onChange={(e) => setGoogleProfileAddress(e.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setShowGoogleProfileModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={submitGoogleProfile} disabled={googleProcessing}>
+                {googleProcessing ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

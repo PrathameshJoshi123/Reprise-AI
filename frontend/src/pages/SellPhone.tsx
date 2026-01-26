@@ -4,7 +4,7 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// Tabs removed per request — showing phone grid directly
 import {
   Carousel,
   CarouselContent,
@@ -12,13 +12,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import {
-  Search,
-  ArrowRight,
-  Heart,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { Search, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import Autoplay from "embla-carousel-autoplay";
 import { useQuery } from "@tanstack/react-query";
@@ -87,7 +81,7 @@ export default function SellPhone() {
         import.meta.env.VITE_API_URL || "http://localhost:8000"
       ).replace(/\/$/, "");
       const response = await fetch(
-        `${API_URL}/sell-phone/phones?${params.toString()}`
+        `${API_URL}/sell-phone/phones?${params.toString()}`,
       );
       if (!response.ok) throw new Error("Failed to fetch phones");
       return response.json();
@@ -127,11 +121,10 @@ export default function SellPhone() {
                         alt={`Slide ${index + 1}`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          (
-                            e.target as HTMLImageElement
-                          ).src = `https://placehold.co/1200x400/3b82f6/ffffff?text=Slide+${
-                            index + 1
-                          }`;
+                          (e.target as HTMLImageElement).src =
+                            `https://placehold.co/1200x400/3b82f6/ffffff?text=Slide+${
+                              index + 1
+                            }`;
                         }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
@@ -176,159 +169,94 @@ export default function SellPhone() {
               </div>
             </form>
 
-            <Tabs defaultValue="popular">
-              <TabsList className="mx-auto">
-                <TabsTrigger value="popular">Popular Phones</TabsTrigger>
-                <TabsTrigger value="brands">Browse by Brand</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="popular" className="mt-6">
-                {isLoading && <p>Loading phones...</p>}
-                {error && <p>Error loading phones: {error.message}</p>}
-                {!isLoading && !error && (
-                  <>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-                      {filteredPhones.map((phone) => (
-                        <div key={phone.id} className="group">
-                          <Card className="overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border-0 rounded-3xl bg-gradient-to-br from-pink-50 via-blue-50 to-yellow-50 h-[320px]">
-                            <CardContent className="p-4 flex flex-col relative h-full">
-                              {/* Heart Icon */}
-                              <button className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-all hover:scale-110">
-                                <Heart className="w-4 h-4 text-gray-400 hover:text-red-500 transition-colors" />
-                              </button>
-
-                              <Link
-                                to={`/sell/${phone.id}`}
-                                className="flex flex-col h-full"
-                              >
-                                {/* Product Image */}
-                                <div className="w-full h-44 md:h-56 mb-3 flex items-center justify-center bg-white/60 backdrop-blur-sm rounded-2xl p-0 group-hover:bg-white/80 transition-all overflow-hidden">
-                                  <img
-                                    src={
-                                      phone.image ||
-                                      `/assets/phones/${phone.id}.png`
-                                    }
-                                    alt={phone.Brand + " " + phone.Model}
-                                    className="w-full h-full object-cover drop-shadow-lg group-hover:scale-110 transition-transform duration-300"
-                                    onError={(e) => {
-                                      const img = e.target as HTMLImageElement;
-                                      if (img.dataset.attempt === "1") {
-                                        img.src = `https://placehold.co/400x300/e0e7ff/6366f1?text=${encodeURIComponent(
-                                          phone.Brand + " " + phone.Model
-                                        )}`;
-                                        return;
-                                      }
-                                      img.dataset.attempt = "1";
-                                      img.src = `/assets/phones/${phone.id}.png`;
-                                    }}
-                                  />
-                                </div>
-
-                                {/* Product Info */}
-                                <div className="flex-grow flex flex-col justify-start">
-                                  <h3 className="font-bold text-sm mb-1 line-clamp-2 text-gray-900">
-                                    {phone.Brand + " " + phone.Model}
-                                  </h3>
-                                  <p className="text-xs text-gray-500 mb-2">
-                                    {phone.Brand}
-                                  </p>
-                                  <div className="pt-2">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <Button
-                                        size="sm"
-                                        className="bg-gray-900 hover:bg-gray-800 text-white rounded-full px-4 py-1 text-xs font-medium"
-                                      >
-                                        Sell
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </Link>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Pagination Controls */}
-                    <div className="flex justify-center items-center mt-8 space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage(page - 1)}
-                        disabled={page <= 1}
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                        Previous
-                      </Button>
-                      <span className="text-sm">
-                        Page {page} of {totalPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage(page + 1)}
-                        disabled={page >= totalPages}
-                      >
-                        Next
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </TabsContent>
-
-              <TabsContent value="brands" className="mt-6">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4 md:gap-6">
-                  {BRANDS.map((brand) => (
-                    <Link
-                      to={`/brands/${brand.id}`}
-                      key={brand.id}
-                      className="group"
-                    >
-                      <Card className="overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border-0 rounded-3xl bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 h-[320px]">
-                        <CardContent className="p-6 flex flex-col items-center h-full">
-                          <div className="w-28 h-28 flex items-center justify-center mb-4 bg-white/80 backdrop-blur-sm rounded-full p-3 group-hover:bg-white transition-all group-hover:scale-110 duration-300 shadow-lg overflow-hidden">
-                            <img
-                              src={
-                                brand.logo || `/assets/brands/${brand.id}.png`
-                              }
-                              alt={brand.name}
-                              className="w-full h-full object-contain"
-                              onError={(e) => {
-                                const img = e.target as HTMLImageElement;
-                                if (img.dataset.attempt === "1") {
-                                  img.src = `https://placehold.co/150x150/818cf8/ffffff?text=${encodeURIComponent(
-                                    brand.name
-                                  )}`;
-                                  return;
+            {isLoading && <p>Loading phones...</p>}
+            {error && <p>Error loading phones: {error.message}</p>}
+            {!isLoading && !error && (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                  {filteredPhones.map((phone) => (
+                    <div key={phone.id} className="group">
+                      <Card className="overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border-0 rounded-3xl bg-gradient-to-br from-pink-50 via-blue-50 to-yellow-50 h-[320px]">
+                        <CardContent className="p-4 flex flex-col relative h-full">
+                          <Link
+                            to={`/sell/${phone.id}`}
+                            className="flex flex-col h-full"
+                          >
+                            {/* Product Image */}
+                            <div className="w-full h-44 md:h-56 mb-3 flex items-center justify-center bg-white/60 backdrop-blur-sm rounded-2xl p-0 group-hover:bg-white/80 transition-all overflow-hidden">
+                              <img
+                                src={
+                                  phone.image ||
+                                  `/assets/phones/${phone.id}.png`
                                 }
-                                img.dataset.attempt = "1";
-                                img.src = `/assets/brands/${brand.id}.png`;
-                              }}
-                            />
-                          </div>
-                          <h3 className="font-bold text-center mb-2 text-lg text-gray-900">
-                            {brand.name}
-                          </h3>
-                          <p className="text-xs text-gray-600 text-center line-clamp-2 mb-3">
-                            {brand.popularModels.slice(0, 2).join(", ")} & more
-                          </p>
-                          <div className="mt-auto">
-                            <Button
-                              size="sm"
-                              className="bg-gray-900 hover:bg-gray-800 text-white rounded-full px-6"
-                            >
-                              View Models
-                            </Button>
-                          </div>
+                                alt={phone.Brand + " " + phone.Model}
+                                className="w-full h-full object-cover drop-shadow-lg group-hover:scale-110 transition-transform duration-300"
+                                onError={(e) => {
+                                  const img = e.target as HTMLImageElement;
+                                  if (img.dataset.attempt === "1") {
+                                    img.src = `https://placehold.co/400x300/e0e7ff/6366f1?text=${encodeURIComponent(
+                                      phone.Brand + " " + phone.Model,
+                                    )}`;
+                                    return;
+                                  }
+                                  img.dataset.attempt = "1";
+                                  img.src = `/assets/phones/${phone.id}.png`;
+                                }}
+                              />
+                            </div>
+
+                            {/* Product Info */}
+                            <div className="flex-grow flex flex-col justify-start">
+                              <h3 className="font-bold text-sm mb-1 line-clamp-2 text-gray-900">
+                                {phone.Brand + " " + phone.Model}
+                              </h3>
+                              <p className="text-xs text-gray-500 mb-2">
+                                {phone.Brand}
+                              </p>
+                              <div className="pt-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <Button
+                                    size="sm"
+                                    className="bg-gray-900 hover:bg-gray-800 text-white rounded-full px-4 py-1 text-xs font-medium"
+                                  >
+                                    Sell
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </Link>
                         </CardContent>
                       </Card>
-                    </Link>
+                    </div>
                   ))}
                 </div>
-              </TabsContent>
-            </Tabs>
+
+                {/* Pagination Controls */}
+                <div className="flex justify-center items-center mt-8 space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page - 1)}
+                    disabled={page <= 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Previous
+                  </Button>
+                  <span className="text-sm">
+                    Page {page} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page + 1)}
+                    disabled={page >= totalPages}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </section>
 

@@ -79,6 +79,51 @@ def read_me_details(current_user: models.User = Depends(utils.get_current_user))
     """
     Return full current user details useful for prefilling forms (phone, address, etc).
     """
+    # Determine role by checking admin/agent/partner tables
+    role = "customer"
+    try:
+        from backend.services.admin.schema.models import Admin
+        from backend.services.partner.schema.models import Agent, Partner
+
+        if current_user and current_user.email:
+            admin = (db := None)
+            # use the engine-bound session via utils.get_db if needed; here we can query using current session
+            # but we do not have db here; instead use simple existence checks via SQL queries using current_user.email
+            # Prefer to query via the existing DB session by importing get_db and using a new session
+            from backend.shared.db.connections import SessionLocal
+            dbs = SessionLocal()
+            try:
+                if dbs.query(Admin).filter(Admin.email == current_user.email).first():
+                    role = "admin"
+                elif dbs.query(Agent).filter(Agent.email == current_user.email).first():
+                    role = "agent"
+                elif dbs.query(Partner).filter(Partner.email == current_user.email).first():
+                    role = "partner"
+            finally:
+                dbs.close()
+    except Exception:
+        # if any error, default to customer
+        role = "customer"
+
+    # Return plain dict so Pydantic model includes inferred `role` key
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "phone": current_user.phone,
+        "address": current_user.address,
+        "is_active": current_user.is_active,
+        "pincode": getattr(current_user, "pincode", None),
+        "role": role,
+    }
+
+
+@router.get("/me/profile", response_model=schemas.ProfileOut, tags=["auth"])
+def read_my_profile(current_user: models.User = Depends(utils.get_current_user)):
+    """
+    Return profile details for the currently authenticated user without exposing internal identifiers.
+    Use this endpoint for frontend profile display where `id` must not be returned.
+    """
     return current_user
 
 
@@ -91,6 +136,9 @@ def google_auth(payload: dict = Body(...), db: Session = Depends(get_db)):
     Expected body: { "auth_code": "..." }
     """
     auth_code = payload.get("auth_code")
+    pincode = payload.get("pincode")
+    signup_flag = bool(payload.get("signup", False))
+
     if not auth_code:
         raise HTTPException(status_code=400, detail="auth_code is required")
 
@@ -98,12 +146,44 @@ def google_auth(payload: dict = Body(...), db: Session = Depends(get_db)):
         # Exchange the auth code for an id_token
         id_token = utils.exchange_auth_code_for_id_token(auth_code)
 
-        # Verify id_token and create/get user
-        user = utils.create_or_get_user_from_google(id_token, db)
+        # If signup flow requested, enforce pincode presence and serviceability
+        if signup_flag:
+            if not pincode:
+                raise HTTPException(status_code=400, detail="pincode is required for signup via Google")
+            svc = utils.check_pincode_serviceability(pincode, db)
+            if not svc["serviceable"]:
+                raise HTTPException(status_code=400, detail="Pincode not serviceable for signup")
+
+        # Verify id_token and create/get user (pass pincode for new user creation)
+        user, created = utils.create_or_get_user_from_google(id_token, db, pincode=pincode)
 
         # create access token
         token = utils.create_access_token(data={"user_id": user.id})
-        return {"access_token": token, "token_type": "bearer"}
+
+        needs_profile = (not user.phone) or (not user.address)
+
+        # infer role for client convenience
+        role = "customer"
+        try:
+            from backend.services.admin.schema.models import Admin
+            from backend.services.partner.schema.models import Agent, Partner
+
+            if db.query(Admin).filter(Admin.email == user.email).first():
+                role = "admin"
+            elif db.query(Agent).filter(Agent.email == user.email).first():
+                role = "agent"
+            elif db.query(Partner).filter(Partner.email == user.email).first():
+                role = "partner"
+        except Exception:
+            role = "customer"
+
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "needs_profile": needs_profile,
+            "new_user": bool(created),
+            "role": role,
+        }
     except HTTPException:
         raise
     except Exception as e:

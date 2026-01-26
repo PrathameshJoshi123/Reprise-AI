@@ -395,15 +395,83 @@ export default function Checkout() {
                               <SelectValue placeholder="Select state" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="maharashtra">
-                                Maharashtra
+                              <SelectItem value="andhra-pradesh">
+                                Andhra Pradesh
                               </SelectItem>
-                              <SelectItem value="delhi">Delhi</SelectItem>
+                              <SelectItem value="arunachal-pradesh">
+                                Arunachal Pradesh
+                              </SelectItem>
+                              <SelectItem value="assam">Assam</SelectItem>
+                              <SelectItem value="bihar">Bihar</SelectItem>
+                              <SelectItem value="chhattisgarh">
+                                Chhattisgarh
+                              </SelectItem>
+                              <SelectItem value="goa">Goa</SelectItem>
+                              <SelectItem value="gujarat">Gujarat</SelectItem>
+                              <SelectItem value="haryana">Haryana</SelectItem>
+                              <SelectItem value="himachal-pradesh">
+                                Himachal Pradesh
+                              </SelectItem>
+                              <SelectItem value="jharkhand">
+                                Jharkhand
+                              </SelectItem>
                               <SelectItem value="karnataka">
                                 Karnataka
                               </SelectItem>
+                              <SelectItem value="kerala">Kerala</SelectItem>
+                              <SelectItem value="madhya-pradesh">
+                                Madhya Pradesh
+                              </SelectItem>
+                              <SelectItem value="maharashtra">
+                                Maharashtra
+                              </SelectItem>
+                              <SelectItem value="manipur">Manipur</SelectItem>
+                              <SelectItem value="meghalaya">
+                                Meghalaya
+                              </SelectItem>
+                              <SelectItem value="mizoram">Mizoram</SelectItem>
+                              <SelectItem value="nagaland">Nagaland</SelectItem>
+                              <SelectItem value="odisha">Odisha</SelectItem>
+                              <SelectItem value="punjab">Punjab</SelectItem>
+                              <SelectItem value="rajasthan">
+                                Rajasthan
+                              </SelectItem>
+                              <SelectItem value="sikkim">Sikkim</SelectItem>
                               <SelectItem value="tamil-nadu">
                                 Tamil Nadu
+                              </SelectItem>
+                              <SelectItem value="telangana">
+                                Telangana
+                              </SelectItem>
+                              <SelectItem value="tripura">Tripura</SelectItem>
+                              <SelectItem value="uttar-pradesh">
+                                Uttar Pradesh
+                              </SelectItem>
+                              <SelectItem value="uttarakhand">
+                                Uttarakhand
+                              </SelectItem>
+                              <SelectItem value="west-bengal">
+                                West Bengal
+                              </SelectItem>
+                              <SelectItem value="andaman-and-nicobar-islands">
+                                Andaman and Nicobar Islands
+                              </SelectItem>
+                              <SelectItem value="chandigarh">
+                                Chandigarh
+                              </SelectItem>
+                              <SelectItem value="dadra-and-nagar-haveli-and-daman-and-diu">
+                                Dadra and Nagar Haveli and Daman and Diu
+                              </SelectItem>
+                              <SelectItem value="delhi">Delhi</SelectItem>
+                              <SelectItem value="jammu-and-kashmir">
+                                Jammu and Kashmir
+                              </SelectItem>
+                              <SelectItem value="ladakh">Ladakh</SelectItem>
+                              <SelectItem value="lakshadweep">
+                                Lakshadweep
+                              </SelectItem>
+                              <SelectItem value="puducherry">
+                                Puducherry
                               </SelectItem>
                             </SelectContent>
                           </Select>
@@ -657,15 +725,6 @@ export default function Checkout() {
                     </div>
 
                     <div className="p-6">
-                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 mb-6 text-center border border-blue-100">
-                        <p className="text-sm text-gray-600">Order Reference</p>
-                        <p className="text-2xl font-bold text-blue-600 mt-1">
-                          {createdOrder
-                            ? `ORD-${createdOrder.id}`
-                            : "MOB-78945612"}
-                        </p>
-                      </div>
-
                       <div className="space-y-4 mb-8">
                         <h3 className="font-semibold text-lg flex items-center gap-2">
                           <Sparkles size={20} className="text-yellow-500" />

@@ -119,7 +119,7 @@ import secrets
 from google.oauth2 import id_token as google_id_token
 from google.auth.transport import requests as grequests
 
-def create_or_get_user_from_google(id_token_str: str, db: Session):
+def create_or_get_user_from_google(id_token_str: str, db: Session, pincode: str | None = None):
     """
     Verify Google ID token, create user if not exists, return models.User
     """
@@ -149,11 +149,14 @@ def create_or_get_user_from_google(id_token_str: str, db: Session):
         if not getattr(user, "oauth_provider", None):
             user.oauth_provider = "google"
             updated = True
+        if pincode and (not getattr(user, "pincode", None)):
+            user.pincode = pincode
+            updated = True
         if updated:
             db.add(user)
             db.commit()
             db.refresh(user)
-        return user
+        return user, False
 
     # Create user if not exists
     random_pw = secrets.token_urlsafe(16)
@@ -167,11 +170,12 @@ def create_or_get_user_from_google(id_token_str: str, db: Session):
         is_active=True,
         google_id=google_sub,
         oauth_provider="google",
+        pincode=pincode,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    return user, True
 
 def exchange_auth_code_for_id_token(auth_code: str, code_verifier: str | None = None) -> str:
     """
