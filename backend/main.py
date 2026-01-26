@@ -33,6 +33,7 @@ origins = [
     "http://localhost:5174",  # your frontend dev server
     "http://localhost:8081",
     "http://localhost:5173",
+    "https://washing-currencies-metabolism-scales.trycloudflare.com"
 ]
 
 

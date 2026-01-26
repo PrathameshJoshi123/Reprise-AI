@@ -235,6 +235,61 @@ def get_my_orders(
 	return query.order_by(Order.created_at.desc()).all()
 
 
+@router.post("/orders/{order_id}/cancel", response_model=sell_schemas.OrderCancelResponse)
+def cancel_order(
+	order_id: int,
+	cancel_data: sell_schemas.OrderCancel,
+	db: Session = Depends(get_db),
+	current_user: auth_models.User = Depends(auth_utils.get_current_user),
+):
+	"""
+	Cancel an order if it hasn't been purchased by a partner.
+	Only the order owner can cancel their order.
+	"""
+	# Find the order
+	order = db.query(Order).filter(Order.id == order_id).first()
+	if not order:
+		raise HTTPException(status_code=404, detail="Order not found")
+	
+	# Check if user owns this order
+	if order.customer_id != current_user.id:
+		raise HTTPException(status_code=403, detail="You can only cancel your own orders")
+	
+	# Check if order can be cancelled (not purchased by partner)
+	if order.status == "lead_purchased":
+		raise HTTPException(
+			status_code=400, 
+			detail="Order cannot be cancelled as it has already been purchased by a partner"
+		)
+	
+	# Check if order is already cancelled
+	if order.status == "cancelled":
+		raise HTTPException(status_code=400, detail="Order is already cancelled")
+	
+	# Check if order is completed
+	if order.status in ["pickup_completed", "payment_processed"]:
+		raise HTTPException(status_code=400, detail="Completed orders cannot be cancelled")
+	
+	# Cancel the order
+	from datetime import datetime
+	order.status = "cancelled"
+	order.cancelled_at = datetime.utcnow()
+	order.cancellation_reason = cancel_data.reason
+	
+	# Create status history
+	create_status_history(db, order.id, "cancelled", f"Cancelled by customer: {cancel_data.reason or 'No reason provided'}")
+	
+	db.commit()
+	db.refresh(order)
+	
+	return sell_schemas.OrderCancelResponse(
+		success=True,
+		message="Order cancelled successfully",
+		order_id=order.id,
+		cancelled_at=order.cancelled_at
+	)
+
+
 # ================================
 # PARTNER LEAD MARKETPLACE ENDPOINTS
 # ================================

@@ -18,7 +18,6 @@ export default function OAuthCallback() {
         const tokenFromHash = params.get("access_token");
 
         if (tokenFromHash) {
-          console.log("OAuthCallback: found token in URL fragment");
           const success = await loginWithToken(tokenFromHash);
           if (success) {
             navigate("/sell-phone");
@@ -34,10 +33,9 @@ export default function OAuthCallback() {
         const response = await api.post(
           "/auth/google/token",
           {},
-          { headers: { "x-skip-auth-redirect": "1" } }
+          { headers: { "x-skip-auth-redirect": "1" } },
         );
         const { access_token } = response.data;
-        console.log("Access Token (fallback):", access_token);
         if (access_token) {
           const success = await loginWithToken(access_token);
           if (success) {

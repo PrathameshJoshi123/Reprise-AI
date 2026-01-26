@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -19,6 +19,7 @@ import {
   Mail,
   Package,
   IndianRupee,
+  X,
 } from "lucide-react";
 import api from "@/lib/api";
 import { Link } from "react-router-dom";
@@ -30,6 +31,7 @@ const fetchOrders = async () => {
 
 export default function MyOrders() {
   const { user, token } = useAuth();
+  const queryClient = useQueryClient();
   const {
     data: orders,
     isLoading,
@@ -38,6 +40,25 @@ export default function MyOrders() {
     queryKey: ["orders", token || localStorage.getItem("accessToken")],
     queryFn: fetchOrders,
     enabled: !!(token || localStorage.getItem("accessToken")),
+  });
+
+  // Cancel order mutation
+  const cancelOrderMutation = useMutation({
+    mutationFn: async (orderId: number) => {
+      const res = await api.post(`/sell-phone/orders/${orderId}/cancel`, {
+        reason: "Cancelled by customer",
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      // Refresh orders list
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (error: any) => {
+      alert(
+        `Failed to cancel order: ${error.response?.data?.detail || error.message}`,
+      );
+    },
   });
 
   const getStatusColor = (status: string) => {
@@ -110,6 +131,20 @@ export default function MyOrders() {
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(" ")
     );
+  };
+
+  const canCancelOrder = (status: string) => {
+    // Can cancel if not purchased by partner and not completed/cancelled
+    const nonCancellableStatuses = [
+      "lead_purchased",
+      "assigned_to_agent",
+      "accepted_by_agent",
+      "pickup_scheduled",
+      "pickup_completed",
+      "payment_processed",
+      "cancelled",
+    ];
+    return !nonCancellableStatuses.includes(status);
   };
 
   if (isLoading) {
@@ -225,25 +260,54 @@ export default function MyOrders() {
                       </div>
 
                       {/* Pricing */}
-                      <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
-                        <div>
-                          <p className="text-sm text-gray-600">Quoted Price</p>
-                          <p className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center">
-                            <IndianRupee size={20} />
-                            {(
-                              order.final_quoted_price ||
-                              order.quoted_price ||
-                              0
-                            ).toLocaleString()}
-                          </p>
-                        </div>
-                        {order.ai_estimated_price && (
-                          <div className="text-right">
-                            <p className="text-xs text-gray-500">AI Estimate</p>
-                            <p className="text-sm font-semibold text-gray-700 flex items-center justify-end">
-                              <IndianRupee size={14} />
-                              {order.ai_estimated_price.toLocaleString()}
+                      <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg space-y-3">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-600">
+                              Quoted Price
                             </p>
+                            <p className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center">
+                              <IndianRupee size={18} />
+                              {(
+                                order.final_quoted_price ||
+                                order.quoted_price ||
+                                0
+                              ).toLocaleString()}
+                            </p>
+                          </div>
+                          {order.ai_estimated_price && (
+                            <div>
+                              <p className="text-xs text-gray-500">
+                                AI Estimate
+                              </p>
+                              <p className="text-sm font-semibold text-gray-700 flex items-center">
+                                <IndianRupee size={14} />
+                                {order.ai_estimated_price.toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        {(order.final_offered_price ||
+                          order.payment_amount) && (
+                          <div className="border-t border-blue-200 pt-2">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-gray-600">
+                                  Deal Price
+                                </p>
+                                <p className="text-lg font-bold text-emerald-600 flex items-center">
+                                  <IndianRupee size={16} />
+                                  {(
+                                    order.payment_amount ||
+                                    order.final_offered_price ||
+                                    0
+                                  ).toLocaleString()}
+                                </p>
+                              </div>
+                              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+                                Completed
+                              </Badge>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -352,6 +416,32 @@ export default function MyOrders() {
                           </>
                         )}
                     </CardContent>
+
+                    {/* Cancel Button */}
+                    {canCancelOrder(order.status) && (
+                      <div className="px-6 pb-4">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                "Are you sure you want to cancel this order?",
+                              )
+                            ) {
+                              cancelOrderMutation.mutate(order.id);
+                            }
+                          }}
+                          disabled={cancelOrderMutation.isPending}
+                          className="w-full"
+                        >
+                          <X size={16} className="mr-2" />
+                          {cancelOrderMutation.isPending
+                            ? "Cancelling..."
+                            : "Cancel Order"}
+                        </Button>
+                      </div>
+                    )}
                   </Card>
                 ))}
               </div>

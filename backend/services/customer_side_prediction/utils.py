@@ -1,7 +1,7 @@
 import os
 from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+from langchain_core.output_parsers import JsonOutputParser
 
 def get_mistral_chain():
     # Initialize MistralAI model via LangChain
@@ -13,43 +13,78 @@ def get_mistral_chain():
     
     # Define prompt template using modern from_template
     prompt_template = PromptTemplate.from_template("""
-        You are an expert in phone resale valuation.
+You are a phone resale valuation engine used in a production system.
+You must follow ALL rules below with ZERO exceptions.
 
-        IMPORTANT RULES (MUST FOLLOW STRICTLY):
-        1. The Base Price provided is the MAXIMUM POSSIBLE price.
-        2. The predicted resale price MUST ALWAYS be LESS THAN OR EQUAL TO the Base Price.
-        3. Under NO circumstances should the predicted price exceed the Base Price.
-        4. All calculations, deductions, and adjustments must start ONLY from the given Base Price.
-        5. Do NOT assume, estimate, or introduce any other base price or market price.
+======================
+CRITICAL ENFORCEMENT RULES
+======================
+1. The provided Base Price is the ABSOLUTE MAXIMUM value.
+2. The final predicted_price MUST be LESS THAN OR EQUAL TO the Base Price.
+3. You are STRICTLY FORBIDDEN from outputting any value higher than the Base Price.
+4. All calculations MUST start ONLY from the Base Price.
+5. You MUST NOT introduce, infer, assume, or reference any other price.
+6. You MUST NOT apply any positive adjustment, bonus, premium, or increase.
+7. If no deductions apply, predicted_price MUST be EXACTLY equal to the Base Price.
+8. Violating ANY rule makes the output invalid.
 
-        Phone Details:
-        - Brand: {brand}
-        - Model: {model}
-        - RAM: {ram_gb} GB
-        - Storage: {storage_gb} GB
-        - Screen Condition: {screen_condition}
-        - Device Turns On: {device_turns_on}
-        - Original Box: {has_original_box}
-        - Original Bill: {has_original_bill}
+======================
+PHONE DETAILS
+======================
+Brand: {brand}
+Model: {model}
+RAM: {ram_gb} GB
+Storage: {storage_gb} GB
+Screen Condition: {screen_condition}
+Device Turns On: {device_turns_on}
+Original Box Available: {has_original_box}
+Original Bill Available: {has_original_bill}
 
-        Base Price: ₹{base_price}
+======================
+BASE PRICE (MAX VALUE)
+======================
+Base Price: ₹{base_price}
 
-        Valuation Instructions:
-        - Begin valuation strictly from the Base Price.
-        - Apply ONLY downward deductions based on condition, functionality, and missing accessories.
-        - If the device is in perfect condition, the price may equal the Base Price, but NEVER exceed it.
-        - Do not add premiums or positive adjustments.
+======================
+VALUATION PROCESS (MANDATORY)
+======================
+1. Start valuation strictly from the Base Price.
+2. Apply ONLY downward deductions based on:
+   - Screen condition
+   - Device power / functionality
+   - Missing original box
+   - Missing original bill
+3. Each deduction MUST reduce the price.
+4. If the device does NOT turn on, apply a MAJOR deduction.
+5. NEVER add value for good condition or accessories.
+6. NEVER reference market prices, demand, or resale platforms.
 
-        Reasoning Guidelines:
-        - Explain ONLY the deductions applied and why they were applied.
-        - Do NOT mention competitors, market trends, demand, resale platforms, or external pricing.
-        - Keep reasoning simple, transparent, and customer-friendly.
+======================
+REASONING RULES (STRICT)
+======================
+- Explain ONLY the deductions applied.
+- If no deductions apply, explicitly state that no deductions were applied.
+- Do NOT mention market trends, demand, competitors, platforms, or assumptions.
+- Keep reasoning short and customer-friendly.
 
-        Output Format (STRICT):
-        Predicted Price: ₹[final amount ≤ base price]
-        Reasoning: [brief explanation of deductions only]
-        """)
+======================
+OUTPUT FORMAT (STRICT JSON ONLY)
+======================
+Return ONLY a valid JSON object in the following format:
+
+{{
+  "predicted_price": <number <= base_price>,
+  "reasoning": "<brief explanation of deductions only>"
+}}
+
+IMPORTANT:
+- Output MUST be valid JSON.
+- Do NOT include currency symbols.
+- Do NOT include markdown.
+- Do NOT include extra keys.
+- Do NOT include any text outside the JSON object.
+""")
     
     # Build the chain using the pipe operator
-    chain = prompt_template | llm | StrOutputParser()
+    chain = prompt_template | llm | JsonOutputParser()
     return chain

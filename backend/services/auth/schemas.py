@@ -47,6 +47,8 @@ class UserOut(BaseModel):
     is_active: bool
     # New: include pincode in output
     pincode: Optional[str] = None
+    # Role inferred by backend: 'customer', 'agent', 'partner', 'admin'
+    role: Optional[str] = None
 
     # Pydantic v2: use `model_config` to enable attribute access
     model_config = {"from_attributes": True}
@@ -54,6 +56,18 @@ class UserOut(BaseModel):
 # new: minimal response for /me
 class FullNameOut(BaseModel):
     full_name: Optional[str] = None
+
+
+# Profile output without exposing internal `id` field
+class ProfileOut(BaseModel):
+    email: EmailStr
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    is_active: bool
+    pincode: Optional[str] = None
+
+    model_config = {"from_attributes": True}
 
 class Token(BaseModel):
     access_token: str

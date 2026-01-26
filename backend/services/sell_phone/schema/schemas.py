@@ -85,6 +85,10 @@ class OrderOut(BaseModel):
     ai_reasoning: Optional[str] = None
     final_quoted_price: float
     
+    # Deal completion
+    final_offered_price: Optional[float] = None  # Price offered during pickup
+    payment_amount: Optional[float] = None  # Actual payment amount processed
+    
     # Customer/pickup details
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
@@ -174,8 +178,29 @@ class LeadDetailResponse(BaseModel):
     locked_until: datetime
 
 
-# Legacy compatibility schemas
-class LegacyOrderCreate(BaseModel):
+class OrderCancel(BaseModel):
+    """
+    Request schema for cancelling an order.
+    """
+    reason: Optional[str] = Field(None, description="Reason for cancellation")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "reason": "Changed my mind about selling the phone"
+            }
+        }
+    )
+
+
+class OrderCancelResponse(BaseModel):
+    """
+    Response schema for order cancellation.
+    """
+    success: bool
+    message: str
+    order_id: int
+    cancelled_at: datetime
     """Legacy schema for backward compatibility"""
     phone_name: str
     brand: Optional[str] = None

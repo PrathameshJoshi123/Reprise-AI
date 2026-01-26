@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Heart } from "lucide-react";
 
 // Mock data for featured phones
 const FEATURED_PHONES = [
@@ -63,10 +62,7 @@ export function FeaturedPhones() {
         <div key={phone.id} className="group">
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border-0 rounded-[28px] bg-gradient-to-br from-pink-50 via-blue-50 to-yellow-50">
             <CardContent className="p-6 relative">
-              {/* Heart Icon */}
-              <button className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-all hover:scale-110">
-                <Heart className="w-5 h-5 text-gray-400 hover:text-red-500 transition-colors" />
-              </button>
+              {/* Favorite button removed per request */}
 
               {/* Popular Badge */}
               {phone.popular && (
@@ -83,11 +79,10 @@ export function FeaturedPhones() {
                     alt={phone.name}
                     className="max-h-full max-w-full object-contain drop-shadow-xl group-hover:scale-110 transition-transform duration-300"
                     onError={(e) => {
-                      (
-                        e.target as HTMLImageElement
-                      ).src = `https://placehold.co/400x400/e0e7ff/6366f1?text=${encodeURIComponent(
-                        phone.name
-                      )}`;
+                      (e.target as HTMLImageElement).src =
+                        `https://placehold.co/400x400/e0e7ff/6366f1?text=${encodeURIComponent(
+                          phone.name,
+                        )}`;
                     }}
                   />
                 </div>

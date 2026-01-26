@@ -194,7 +194,6 @@ export default function PhoneDetail() {
     name: phoneData.Brand + " " + phoneData.Model,
     brand: phoneData.Brand,
     image: `/assets/phones/${phoneData.id}.png`, // Fallback image
-    releaseYear: new Date().getFullYear(), // Placeholder, not in DB
     basePrice,
     // Keep options as predefined (not in DB)
     ramOptions,
@@ -390,10 +389,7 @@ export default function PhoneDetail() {
                       <div>
                         <h3 className="font-bold text-lg">{phone.name}</h3>
                         <p className="text-sm text-gray-600">
-                          {phone.brand} • {phone.releaseYear}
-                        </p>
-                        <p className="text-sm font-semibold text-blue-600 mt-1">
-                          Base: ₹{phone.basePrice.toLocaleString()}
+                          {phone.brand}
                         </p>
                         {/* Safe dynamic RAM and Storage display */}
                         <p className="text-sm text-gray-600 mt-1">
@@ -406,14 +402,9 @@ export default function PhoneDetail() {
                 </Card>
               </div>
 
-              {/* Bottom - Navigation & Day */}
+              {/* Bottom - Navigation */}
               <div>
-                <div className="flex items-center justify-between">
-                  <p className="text-2xl font-bold text-gray-400 lowercase">
-                    {new Date().toLocaleDateString("en-US", {
-                      weekday: "long",
-                    })}
-                  </p>
+                <div className="flex items-center justify-end">
                   <div className="flex gap-3">
                     {currentStep > 1 && currentStep < 4 && (
                       <Button
@@ -707,7 +698,7 @@ export default function PhoneDetail() {
                   <div className="space-y-6">
                     {/* Price Card */}
                     <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-8 text-white">
-                      <p className="text-sm opacity-90 mb-2">Estimated Value</p>
+                      <p className="text-sm opacity-90 mb-2">Estimated Value*</p>
                       {isPredictionLoading ? (
                         <p className="text-6xl font-bold mb-4">Loading...</p>
                       ) : predictionError ? (
@@ -723,6 +714,7 @@ export default function PhoneDetail() {
                         <Check size={16} />
                         <span>Instant payment upon verification</span>
                       </div>
+                      <p className="text-xs opacity-75 mt-2">* This is estimated price and final price would be decided by the agent on visit</p>
                     </div>
 
                     {/* AI Reasoning */}
@@ -734,12 +726,6 @@ export default function PhoneDetail() {
                         Price Breakdown
                       </h4>
                       <div className="space-y-3">
-                        <div className="flex justify-between text-sm pb-3 border-b">
-                          <span className="text-gray-600">Base Price</span>
-                          <span className="font-semibold">
-                            ₹{basePrice.toLocaleString()}
-                          </span>
-                        </div>
                         {predictionData?.reasoning ? (
                           <div className="text-sm text-gray-700 pl-4 border-l-2 border-blue-300 py-1">
                             <ReactMarkdown>
@@ -752,7 +738,7 @@ export default function PhoneDetail() {
                           </div>
                         )}
                         <div className="pt-3 mt-3 border-t border-gray-200 flex justify-between font-bold">
-                          <span>Final Price</span>
+                          <span>Estimated Price</span>
                           <span className="text-blue-600">
                             ₹
                             {predictionData?.predicted_price?.toLocaleString() ||
