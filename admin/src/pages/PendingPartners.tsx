@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import api from "../lib/api";
 import { formatDateTime } from "../lib/utils";
+import { getPartnerStatusColor } from "../lib/badgeUtils";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -54,24 +55,20 @@ export default function PendingPartners() {
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, any> = {
-      pending: { icon: Clock, color: "bg-yellow-100 text-yellow-800" },
-      under_review: { icon: AlertCircle, color: "bg-blue-100 text-blue-800" },
-      clarification_needed: {
-        icon: AlertCircle,
-        color: "bg-orange-100 text-orange-800",
-      },
-      approved: { icon: CheckCircle, color: "bg-green-100 text-green-800" },
-      rejected: { icon: XCircle, color: "bg-red-100 text-red-800" },
-      suspended: { icon: XCircle, color: "bg-gray-100 text-gray-800" },
+    const icons: Record<string, any> = {
+      pending: Clock,
+      under_review: AlertCircle,
+      clarification_needed: AlertCircle,
+      approved: CheckCircle,
+      rejected: XCircle,
+      suspended: XCircle,
     };
 
-    const variant = variants[status] || variants.pending;
-    const Icon = variant.icon;
+    const Icon = icons[status] || Clock;
 
     return (
       <Badge
-        className={`${variant.color} flex items-center gap-1`}
+        className={`${getPartnerStatusColor(status)} flex items-center gap-1`}
         variant="outline"
       >
         <Icon className="h-3 w-3" />
@@ -83,7 +80,7 @@ export default function PendingPartners() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -93,7 +90,7 @@ export default function PendingPartners() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Pending Verifications</h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-muted-foreground mt-1">
             Review and approve partner applications
           </p>
         </div>
@@ -111,7 +108,7 @@ export default function PendingPartners() {
         </CardHeader>
         <CardContent>
           {partners.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-muted-foreground">
               No pending verifications
             </div>
           ) : (
