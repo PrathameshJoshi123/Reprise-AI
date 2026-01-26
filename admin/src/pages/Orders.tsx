@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../lib/api";
 import { formatDateTime, formatCurrency } from "../lib/utils";
+import { getOrderStatusColor } from "../lib/badgeUtils";
 import {
   Card,
   CardContent,
@@ -60,19 +61,8 @@ export default function Orders() {
   };
 
   const getStatusBadge = (status: string) => {
-    const colors: Record<string, string> = {
-      pending: "bg-yellow-100 text-yellow-800",
-      confirmed: "bg-blue-100 text-blue-800",
-      picked_up: "bg-purple-100 text-purple-800",
-      completed: "bg-green-100 text-green-800",
-      cancelled: "bg-red-100 text-red-800",
-    };
-
     return (
-      <Badge
-        className={colors[status] || "bg-gray-100 text-gray-800"}
-        variant="outline"
-      >
+      <Badge className={getOrderStatusColor(status)} variant="outline">
         {status.replace(/_/g, " ").toUpperCase()}
       </Badge>
     );
@@ -81,7 +71,7 @@ export default function Orders() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -91,7 +81,9 @@ export default function Orders() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Orders</h1>
-          <p className="text-gray-500 mt-1">Monitor all orders in the system</p>
+          <p className="text-muted-foreground mt-1">
+            Monitor all orders in the system
+          </p>
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-48">
@@ -115,7 +107,7 @@ export default function Orders() {
         </CardHeader>
         <CardContent>
           {orders.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-muted-foreground">
               No orders found
             </div>
           ) : (

@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8000",
+  baseURL: (import.meta.env.VITE_API_URL as string),
   headers: {
     "Content-Type": "application/json",
   },
@@ -31,6 +31,7 @@ api.interceptors.response.use(
       } catch (e) {
         localStorage.removeItem("adminToken");
         window.location.href = "/login";
+        console.error(e);
       }
     }
     return Promise.reject(error);

@@ -101,7 +101,7 @@ export default function Customers() {
   if (fetching) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -111,7 +111,7 @@ export default function Customers() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Customers</h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-muted-foreground mt-1">
             Manage all customers in the system
           </p>
         </div>
@@ -125,7 +125,7 @@ export default function Customers() {
         </CardHeader>
         <CardContent>
           {users.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-muted-foreground">
               No customers found
             </div>
           ) : (

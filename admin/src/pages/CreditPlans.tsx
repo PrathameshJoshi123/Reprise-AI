@@ -151,7 +151,7 @@ export default function CreditPlans() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -161,7 +161,7 @@ export default function CreditPlans() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Credit Plans</h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-muted-foreground mt-1">
             Manage credit packages for partners
           </p>
         </div>
@@ -178,7 +178,7 @@ export default function CreditPlans() {
         </CardHeader>
         <CardContent>
           {plans.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-muted-foreground">
               No credit plans found
             </div>
           ) : (
