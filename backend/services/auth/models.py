@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Float
 from sqlalchemy.sql import func
-from shared.db.connections import Base
+from backend.shared.db.connections import Base
 
 class User(Base):
     __tablename__ = "users"
@@ -19,7 +19,6 @@ class User(Base):
     oauth_provider = Column(String, nullable=True)  # 'google', etc.
 
     # New: store optional geolocation for user (agent)
-    latitude = Column(Float, nullable=True)
-    longitude = Column(Float, nullable=True)
+    # removed latitude/longitude
     # New: optional pincode for customer user
     pincode = Column(String, nullable=True)

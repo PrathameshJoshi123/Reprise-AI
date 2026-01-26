@@ -3,9 +3,9 @@ Script to populate initial admin user and system configuration.
 Run this after creating the database tables.
 """
 from sqlalchemy.orm import Session
-from shared.db.connections import SessionLocal, engine, Base
-from services.admin.schema.models import Admin, AdminCreditConfiguration
-from services.admin import utils as admin_utils
+from backend.shared.db.connections import SessionLocal, engine, Base
+from backend.services.admin.schema.models import Admin, AdminCreditConfiguration
+from backend.services.admin import utils as admin_utils
 
 def create_initial_admin():
     """Create initial super admin if not exists"""
@@ -90,7 +90,7 @@ def create_initial_configuration():
 
 def create_sample_credit_plans():
     """Create sample credit plans"""
-    from services.admin.schema.models import CreditPlan
+    from backend.services.admin.schema.models import CreditPlan
     
     db = SessionLocal()
     try:

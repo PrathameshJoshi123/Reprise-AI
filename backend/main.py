@@ -1,17 +1,15 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from services.auth.apis import router as auth_router
-from services.sell_phone.apis.routes import router as sell_phone_router
-from services.customer_side_prediction.apis import router as customer_side_prediction_router
-from services.admin.apis.routes import router as admin_router
-from services.partner.apis.routes import router as partner_router
-from services.partner.apis.agent_routes import router as agent_router
-# from services.mobile_price_prediction.detection_api import router as detection_router
-from shared.db.connections import Base, engine
+from backend.services.auth.apis import router as auth_router
+from backend.services.sell_phone.apis.routes import router as sell_phone_router
+from backend.services.customer_side_prediction.apis import router as customer_side_prediction_router
+from backend.services.admin.apis.routes import router as admin_router
+from backend.services.partner.apis.routes import router as partner_router
+from backend.services.partner.apis.agent_routes import router as agent_router
+from backend.shared.db.connections import Base, engine
 from starlette.middleware.sessions import SessionMiddleware
-from config import FRONTEND_URL
-
+from backend.config import FRONTEND_URL
 
 import asyncio
 from dotenv import load_dotenv
@@ -34,8 +32,9 @@ app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY",
 origins = [
     "http://localhost:5174",  # your frontend dev server
     "http://localhost:8081",
-    "http://localhost:5173"  # if you also use this
+    "http://localhost:5173",
 ]
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -58,7 +57,7 @@ app.include_router(agent_router)
 # app.include_router(detection_router)
 
 # Register service routes here (e.g., from services.valuation.apis import router; app.include_router(router))
-# Example: app.include_router(valuation_router, prefix="/valuation")
+
 
 @app.get("/")
 def read_root():

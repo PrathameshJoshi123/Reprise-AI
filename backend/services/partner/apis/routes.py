@@ -1,17 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from shared.db.connections import get_db
-from services.partner.schema import schemas as partner_schemas
-from services.partner.schema.models import Agent, Partner
-from services.partner import utils as partner_utils
-from services.auth import utils as auth_utils
-from services.sell_phone.schema.models import Order
-from services.sell_phone.utils import create_status_history
+from backend.shared.db.connections import get_db
+from backend.services.partner.schema import schemas as partner_schemas
+from backend.services.partner.schema.models import Agent, Partner
+from backend.services.partner import utils as partner_utils
+from backend.services.auth import utils as auth_utils
+from backend.services.sell_phone.schema.models import Order
+from backend.services.sell_phone.utils import create_status_history
 from typing import List
 from datetime import datetime, timezone
-from services.admin.schema.models import CreditPlan, PartnerCreditTransaction
-from services.admin import schema as admin_schemas
+from backend.services.admin.schema.models import CreditPlan, PartnerCreditTransaction
+from backend.services.admin import schema as admin_schemas
 
 router = APIRouter(prefix="/partner", tags=["Partner"])
 
@@ -317,7 +317,7 @@ def get_locked_deals(
     """
     Get all deals locked by the current partner (status = lead_locked).
     """
-    from services.sell_phone.utils import calculate_lead_cost
+    from backend.services.sell_phone.utils import calculate_lead_cost
     
     orders = db.query(Order).filter(
         Order.partner_id == current_partner.id,
@@ -399,7 +399,7 @@ def get_lead_purchase_info(
     """
     Get credit balance and lead cost calculation for a locked lead before purchasing.
     """
-    from services.sell_phone.utils import calculate_lead_cost
+    from backend.services.sell_phone.utils import calculate_lead_cost
     
     # Verify the partner has an active lock on this order
     order = db.query(Order).filter(

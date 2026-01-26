@@ -299,18 +299,12 @@ export default function CustomerLogin() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">
-                  {isLogin ? "Email or Phone" : "Email *"}
-                </Label>
+                <Label htmlFor="email">Email *</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="email"
-                    placeholder={
-                      isLogin
-                        ? "your@email.com or +91 98765 43210"
-                        : "your@email.com"
-                    }
+                    placeholder="your@email.com"
                     className="pl-10"
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
@@ -356,6 +350,10 @@ export default function CustomerLogin() {
                 onClick={async () => {
                   try {
                     if (isLogin) {
+                      if (!identifier.includes("@")) {
+                        alert("Please enter a valid email address to login.");
+                        return;
+                      }
                       const ok = await login(identifier, password, "customer");
                       if (ok) {
                         const stateRedirect = (location.state as any)
@@ -385,6 +383,11 @@ export default function CustomerLogin() {
                         return;
                       }
 
+                      if (!identifier.includes("@")) {
+                        alert("Please enter a valid email address for signup.");
+                        return;
+                      }
+
                       if (pincode.length !== 6) {
                         alert("Please enter a valid 6-digit pincode");
                         return;
@@ -403,9 +406,7 @@ export default function CustomerLogin() {
                         return;
                       }
 
-                      const signupEmail = identifier.includes("@")
-                        ? identifier
-                        : `${phone}@phone.local`;
+                      const signupEmail = identifier;
 
                       const ok = await signup(
                         signupEmail,
@@ -472,7 +473,7 @@ export default function CustomerLogin() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <Button variant="outline" onClick={onGoogleLogin}>
                   <svg
                     className="mr-2 h-4 w-4"
@@ -497,14 +498,6 @@ export default function CustomerLogin() {
                     />
                   </svg>
                   Google
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled
-                  title="OTP login coming soon"
-                >
-                  <Phone className="mr-2 h-4 w-4" />
-                  OTP (Soon)
                 </Button>
               </div>
             </CardFooter>

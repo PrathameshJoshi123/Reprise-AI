@@ -21,8 +21,7 @@ class AdminOut(BaseModel):
     is_active: bool
     created_at: datetime
     
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 
 class AdminToken(BaseModel):
@@ -66,8 +65,7 @@ class PartnerOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 
 class PartnerVerificationHistoryOut(BaseModel):
@@ -80,8 +78,7 @@ class PartnerVerificationHistoryOut(BaseModel):
     documents_submitted: Optional[dict] = None
     created_at: datetime
     
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 
 class PartnerServiceablePincodeOut(BaseModel):
@@ -93,8 +90,7 @@ class PartnerServiceablePincodeOut(BaseModel):
     is_active: bool
     created_at: datetime
     
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 
 class PartnerDetailsOut(BaseModel):
@@ -130,8 +126,7 @@ class CreditPlanOut(BaseModel):
     is_active: bool
     created_at: datetime
     
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 
 class CreditPlanCreate(BaseModel):
@@ -166,8 +161,7 @@ class PartnerCreditTransactionOut(BaseModel):
     created_by_admin_id: Optional[int] = None
     created_at: datetime
     
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 
 class AdjustCreditsRequest(BaseModel):
@@ -183,8 +177,7 @@ class AdminCreditConfigurationOut(BaseModel):
     updated_by_admin_id: Optional[int] = None
     updated_at: datetime
     
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 
 class UpdateConfigRequest(BaseModel):
@@ -211,7 +204,7 @@ class DashboardStats(BaseModel):
 # LEGACY SCHEMAS (for existing admin endpoints)
 # ============================================================================
 
-from services.auth.schemas import UserBase
+from backend.services.auth.schemas import UserBase
 
 class AdminUserCreate(UserBase):
     password: str
@@ -234,8 +227,7 @@ class AdminUserOut(BaseModel):
     full_name: Optional[str] = None
     role: str
 
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 
 class AdminOrderOut(BaseModel):
@@ -247,8 +239,7 @@ class AdminOrderOut(BaseModel):
     quoted_price: float
     created_at: Optional[datetime] = None
 
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 
-from services.sell_phone.schema.schemas import OrderOut
+from backend.services.sell_phone.schema.schemas import OrderOut

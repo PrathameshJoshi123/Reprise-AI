@@ -4,9 +4,11 @@ import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from shared.db.connections import get_db
-from services.auth import models, schemas
+from backend.shared.db.connections import get_db
+from backend.services.auth import models, schemas
 import requests
+from dotenv import load_dotenv
+load_dotenv()
 
 # Secret for demo; replace with env var in production
 SECRET_KEY = "replace-this-with-secure-secret"
@@ -57,7 +59,7 @@ def get_current_partner(token: str = Depends(oauth2_scheme), db: Session = Depen
     Dependency to get the currently authenticated partner from JWT token.
     Expects token payload to have 'partner_id' field.
     """
-    from services.partner.schema.models import Partner
+    from backend.services.partner.schema.models import Partner
     
     payload = decode_access_token(token)
     if not payload or "partner_id" not in payload:
@@ -87,7 +89,7 @@ def get_current_agent(token: str = Depends(oauth2_scheme), db: Session = Depends
     Dependency to get the currently authenticated agent from JWT token.
     Expects token payload to have 'agent_id' field.
     """
-    from services.partner.schema.models import Agent
+    from backend.services.partner.schema.models import Agent
     
     payload = decode_access_token(token)
     if not payload or "agent_id" not in payload:
@@ -124,6 +126,7 @@ def create_or_get_user_from_google(id_token_str: str, db: Session):
     try:
         # Optional audience check using GOOGLE_CLIENT_ID env var
         audience = os.getenv("GOOGLE_CLIENT_ID", None)
+
         idinfo = google_id_token.verify_oauth2_token(id_token_str, grequests.Request(), audience)
     except ValueError as e:
         msg = f"Invalid Google token: {str(e)}"
@@ -132,10 +135,24 @@ def create_or_get_user_from_google(id_token_str: str, db: Session):
     email = idinfo.get("email")
     if not email:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Google token missing email")
+    # Extract Google's subject (unique user id)
+    google_sub = idinfo.get("sub")
 
-    # Try find existing user
+    # Try find existing user by email
     user = db.query(models.User).filter(models.User.email == email).first()
     if user:
+        # Ensure we persist google id/provider for future logins
+        updated = False
+        if google_sub and not getattr(user, "google_id", None):
+            user.google_id = google_sub
+            updated = True
+        if not getattr(user, "oauth_provider", None):
+            user.oauth_provider = "google"
+            updated = True
+        if updated:
+            db.add(user)
+            db.commit()
+            db.refresh(user)
         return user
 
     # Create user if not exists
@@ -147,7 +164,9 @@ def create_or_get_user_from_google(id_token_str: str, db: Session):
         phone=None,
         address=None,
         hashed_password=hashed_pw,
-        is_active=True
+        is_active=True,
+        google_id=google_sub,
+        oauth_provider="google",
     )
     db.add(user)
     db.commit()
@@ -187,7 +206,6 @@ def exchange_auth_code_for_id_token(auth_code: str, code_verifier: str | None = 
 
     resp = requests.post(token_url, data=data, timeout=10)
     if resp.status_code != 200:
-        # surface Google's error payload for easier debugging
         raise HTTPException(
             status_code=400,
             detail=f"Google token exchange failed: {resp.status_code} {resp.text}",
@@ -216,7 +234,7 @@ def check_pincode_serviceability(pincode: str, db: Session) -> dict:
             "message": str (optional warning)
         }
     """
-    from services.partner.schema.models import PartnerServiceablePincode
+    from backend.services.partner.schema.models import PartnerServiceablePincode
     
     if not pincode or len(pincode.strip()) != 6:
         return {

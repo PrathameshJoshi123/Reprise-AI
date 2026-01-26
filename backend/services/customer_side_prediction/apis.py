@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from .schema import PricePredictionRequest, PricePredictionResponse
-from .utils import get_mistral_chain
+from backend.services.customer_side_prediction.schema import PricePredictionRequest, PricePredictionResponse
+from backend.services.customer_side_prediction.utils import get_mistral_chain
 import re
 import logging
 

@@ -2,9 +2,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from fastapi import HTTPException, status
 from datetime import datetime
-from services.partner.schema.models import Agent, Partner, PartnerServiceablePincode
-from services.auth.utils import get_password_hash, verify_password, create_access_token
-from services.sell_phone.schema.models import Order
+from backend.services.partner.schema.models import Agent, Partner, PartnerServiceablePincode
+from backend.services.auth.utils import get_password_hash, verify_password, create_access_token
+from backend.services.sell_phone.schema.models import Order
 from typing import List
 
 

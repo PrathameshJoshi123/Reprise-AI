@@ -1,8 +1,8 @@
 from fastapi import APIRouter, FastAPI, File, UploadFile, Form
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
-from services.mobile_price_prediction.detection_service import detect_and_save
-from services.mobile_price_prediction.agentic_workflow import process_images_and_generate_report
+from backend.services.mobile_price_prediction.detection_service import detect_and_save
+from backend.services.mobile_price_prediction.agentic_workflow import process_images_and_generate_report
 import os
 import shutil
 import logging

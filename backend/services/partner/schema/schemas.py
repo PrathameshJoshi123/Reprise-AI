@@ -42,8 +42,7 @@ class PartnerOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class PartnerToken(BaseModel):
@@ -86,8 +85,7 @@ class AgentOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class AgentLogin(BaseModel):
@@ -124,8 +122,7 @@ class AgentOrderSummary(BaseModel):
     assigned_at: Optional[datetime]
     accepted_at: Optional[datetime]
     
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class AcceptOrderRequest(BaseModel):

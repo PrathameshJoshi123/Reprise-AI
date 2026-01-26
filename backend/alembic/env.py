@@ -1,9 +1,11 @@
 import sys
 from pathlib import Path
 
-# Add project root to PYTHONPATH
-BASE_DIR = Path(__file__).resolve().parent.parent
-sys.path.append(str(BASE_DIR))
+# Add project root (two directories up) to PYTHONPATH
+# env.py is at backend/alembic; two parents up is the repository root.
+BASE_DIR = Path(__file__).resolve().parents[2]
+# Prepend to sys.path so project imports take precedence
+sys.path.insert(0, str(BASE_DIR))
 
 from logging.config import fileConfig
 
@@ -25,20 +27,11 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from shared.db.connections import Base  
-
-# Import all models so SQLAlchemy knows about them
-from services.auth.models import User  # noqa: F401
-
-# Partner & Agent first (foreign keys)
-from services.partner.schema.models import Partner, Agent, PartnerServiceablePincode  # noqa: F401
-
-# Admin models
-from services.admin.schema.models import AdminCreditConfiguration, Admin, PartnerCreditTransaction, PartnerVerificationHistory  # noqa: F401
-
-# Sell phone models last (depends on Partner and Agent)
-from services.sell_phone.schema.models import PhoneList, LeadLock, Order, OrderStatusHistory  # noqa: F401
-
+from backend.shared.db.connections import Base
+from backend.services.auth.models import User # noqa: F401
+from backend.services.partner.schema.models import Partner, Agent, PartnerServiceablePincode # noqa: F401
+from backend.services.admin.schema.models import AdminCreditConfiguration, Admin, PartnerCreditTransaction, PartnerVerificationHistory # noqa: F401
+from backend.services.sell_phone.schema.models import PhoneList, LeadLock, Order, OrderStatusHistory # noqa: F401
 
 
 target_metadata = Base.metadata

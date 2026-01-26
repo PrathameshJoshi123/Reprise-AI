@@ -3,8 +3,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt
 from jose.exceptions import ExpiredSignatureError, JWTError
 from sqlalchemy.orm import Session
-from shared.db.connections import get_db
-from services.auth import models as auth_models, utils as auth_utils
+from backend.shared.db.connections import get_db
+from backend.services.auth import models as auth_models, utils as auth_utils
 
 security = HTTPBearer()
 

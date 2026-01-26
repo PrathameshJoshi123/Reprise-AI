@@ -7,8 +7,6 @@ class UserBase(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
     # New: optional pincode for customer
     pincode: Optional[str] = None
 
@@ -28,9 +26,7 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
     address: Optional[str] = None
     is_active: Optional[bool] = None
-    # allow updating coords from client
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
+    # coords removed
     # New: allow updating pincode
     pincode: Optional[str] = None
     
@@ -49,13 +45,11 @@ class UserOut(BaseModel):
     phone: Optional[str] = None
     address: Optional[str] = None
     is_active: bool
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
     # New: include pincode in output
     pincode: Optional[str] = None
 
-    class Config:
-        orm_mode = True
+    # Pydantic v2: use `model_config` to enable attribute access
+    model_config = {"from_attributes": True}
 
 # new: minimal response for /me
 class FullNameOut(BaseModel):
@@ -87,5 +81,4 @@ class UserRegistrationResponse(BaseModel):
     serviceable_partners_count: int = 0
     warning: Optional[str] = None
     
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}

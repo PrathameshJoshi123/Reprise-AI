@@ -2,16 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, load_only
 from sqlalchemy import func, desc
 from typing import Optional, List
-from shared.db.connections import get_db
-from services.auth import models as auth_models, utils as auth_utils
-from services.sell_phone.schema import models as sell_models
-from services.partner.schema.models import Partner, PartnerServiceablePincode
-from services.admin.schema.models import (
+from backend.shared.db.connections import get_db
+from backend.services.auth import models as auth_models, utils as auth_utils
+from backend.services.sell_phone.schema import models as sell_models
+from backend.services.partner.schema.models import Partner, PartnerServiceablePincode
+from backend.services.admin.schema.models import (
     Admin, PartnerVerificationHistory, CreditPlan, 
     PartnerCreditTransaction, AdminCreditConfiguration
 )
-from services.admin import utils as admin_utils
-from ..schema.schemas import (
+from backend.services.admin import utils as admin_utils
+from backend.services.admin.schema.schemas import (
     # Admin auth
     AdminLoginRequest, AdminToken, AdminOut, AdminCreate, AdminUpdate,
     # Partner management

@@ -4,8 +4,8 @@ import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from shared.db.connections import get_db
-from services.admin.schema.models import Admin
+from backend.shared.db.connections import get_db
+from backend.services.admin.schema.models import Admin
 
 # Secret for admin JWT (should be different from customer JWT in production)
 ADMIN_SECRET_KEY = "admin-replace-this-with-secure-secret"

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, Text, JSON
 from sqlalchemy.sql import func
-from shared.db.connections import Base
+from backend.shared.db.connections import Base
 
 
 class Admin(Base):

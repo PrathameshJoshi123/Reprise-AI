@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from shared.db.connections import get_db
-from services.partner.schema import schemas as partner_schemas
-from services.partner.schema.models import Agent
-from services.partner import utils as partner_utils
-from services.auth import utils as auth_utils
-from services.sell_phone.schema.models import Order
-from services.sell_phone.utils import create_status_history
+from backend.shared.db.connections import get_db
+from backend.services.partner.schema import schemas as partner_schemas
+from backend.services.partner.schema.models import Agent
+from backend.services.partner import utils as partner_utils
+from backend.services.auth import utils as auth_utils
+from backend.services.sell_phone.schema.models import Order
+from backend.services.sell_phone.utils import create_status_history
 from typing import List, Optional
 from datetime import datetime
 

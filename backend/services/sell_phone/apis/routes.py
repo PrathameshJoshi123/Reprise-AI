@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_
-from shared.db.connections import get_db
+from backend.shared.db.connections import get_db
 from ..schema.models import PhoneList, Order, LeadLock, OrderStatusHistory
 from ..schema import schemas as sell_schemas
 from ..utils import (
@@ -9,9 +9,9 @@ from ..utils import (
     check_active_lock, create_status_history, get_lock_duration_minutes,
     deduct_partner_credits, expire_lock_if_needed
 )
-from services.auth import utils as auth_utils, models as auth_models
-from services.partner.schema.models import Partner, PartnerServiceablePincode
-from services.admin.schema.models import PartnerCreditTransaction
+from backend.services.auth import utils as auth_utils, models as auth_models
+from backend.services.partner.schema.models import Partner, PartnerServiceablePincode
+from backend.services.admin.schema.models import PartnerCreditTransaction
 from math import ceil
 from datetime import datetime, timedelta
 from typing import List, Optional

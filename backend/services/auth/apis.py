@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
-from services.auth import models, schemas, utils
-from shared.db.connections import Base, engine, get_db
+from backend.services.auth import models, schemas, utils
+from backend.shared.db.connections import Base, engine, get_db
 
 router = APIRouter()
 
@@ -21,8 +21,6 @@ def signup(user_in: schemas.UserCreate, db: Session = Depends(utils.get_db)):
         phone=user_in.phone,
         address=user_in.address,
         hashed_password=hashed,
-        latitude=getattr(user_in, "latitude", None),
-        longitude=getattr(user_in, "longitude", None),
         pincode=user_in.pincode,
     )
     db.add(user)
@@ -79,9 +77,37 @@ def read_me(current_user: models.User = Depends(utils.get_current_user)):
 @router.get("/me/details", response_model=schemas.UserOut, tags=["auth"])
 def read_me_details(current_user: models.User = Depends(utils.get_current_user)):
     """
-    Return full current user details useful for prefilling forms (phone, address, latitude, longitude, etc).
+    Return full current user details useful for prefilling forms (phone, address, etc).
     """
     return current_user
+
+
+@router.post("/google", tags=["auth"])
+def google_auth(payload: dict = Body(...), db: Session = Depends(get_db)):
+    """
+    Exchange a Google auth code for an id_token, then create or retrieve the user and
+    return an access token for the app.
+
+    Expected body: { "auth_code": "..." }
+    """
+    auth_code = payload.get("auth_code")
+    if not auth_code:
+        raise HTTPException(status_code=400, detail="auth_code is required")
+
+    try:
+        # Exchange the auth code for an id_token
+        id_token = utils.exchange_auth_code_for_id_token(auth_code)
+
+        # Verify id_token and create/get user
+        user = utils.create_or_get_user_from_google(id_token, db)
+
+        # create access token
+        token = utils.create_access_token(data={"user_id": user.id})
+        return {"access_token": token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.patch("/me", response_model=schemas.UserOut, tags=["auth"])
 def update_current_user(
@@ -91,7 +117,7 @@ def update_current_user(
 ):
     """
     Update current user's profile fields. Only allowed fields are updated.
-    Intended usage: save missing phone/address/coords during checkout.
+    Intended usage: save missing phone/address during checkout.
     If pincode is updated, logs serviceability info (non-blocking).
     """
     # refresh user from this session
@@ -110,10 +136,7 @@ def update_current_user(
         user.phone = payload.phone
     if payload.address is not None:
         user.address = payload.address
-    if payload.latitude is not None:
-        user.latitude = payload.latitude
-    if payload.longitude is not None:
-        user.longitude = payload.longitude
+    # latitude/longitude removed
     if payload.pincode is not None:
         if user.pincode != payload.pincode:
             pincode_changed = True

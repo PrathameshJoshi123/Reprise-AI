@@ -4,9 +4,9 @@ Utility functions for order and lead management.
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
-from services.sell_phone.schema.models import Order, OrderStatusHistory, LeadLock
-from services.partner.schema.models import Partner, PartnerServiceablePincode
-from services.admin.schema.models import AdminCreditConfiguration, PartnerCreditTransaction
+from backend.services.sell_phone.schema.models import Order, OrderStatusHistory, LeadLock
+from backend.services.partner.schema.models import Partner, PartnerServiceablePincode
+from backend.services.admin.schema.models import AdminCreditConfiguration, PartnerCreditTransaction
 
 
 def get_lead_cost_percentage(db: Session) -> float:
