@@ -18,18 +18,13 @@ import {
   TableRow,
 } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/ui/select";
+import { SimpleDropdown } from "../components/SimpleDropdown";
 
 interface Order {
   id: number;
   phone_name: string;
   customer_name: string;
+  partner_name: string;
   agent_name: string;
   status: string;
   quoted_price: number;
@@ -60,10 +55,24 @@ export default function Orders() {
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    const statusMap: { [key: string]: string } = {
+      pickup_completed: "PICKED UP",
+      picked_up: "PICKED UP",
+      lead_created: "PENDING",
+      pending: "PENDING",
+      confirmed: "CONFIRMED",
+      cancelled: "CANCELLED",
+      completed: "COMPLETED",
+    };
+    
+    return statusMap[status] || status.replace(/_/g, " ").toUpperCase();
+  };
+
   const getStatusBadge = (status: string) => {
     return (
       <Badge className={getOrderStatusColor(status)} variant="outline">
-        {status.replace(/_/g, " ").toUpperCase()}
+        {getStatusLabel(status)}
       </Badge>
     );
   };
@@ -78,67 +87,71 @@ export default function Orders() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">Orders</h1>
           <p className="text-muted-foreground mt-1">
             Monitor all orders in the system
           </p>
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Orders</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="confirmed">Confirmed</SelectItem>
-            <SelectItem value="picked_up">Picked Up</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
+        <SimpleDropdown
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: "all", label: "All Orders" },
+            { value: "pending", label: "Pending" },
+            { value: "confirmed", label: "Confirmed" },
+            { value: "pickup_completed", label: "Picked Up" },
+            { value: "completed", label: "Completed" },
+            { value: "cancelled", label: "Cancelled" },
+          ]}
+          className="w-48"
+        />
       </div>
 
-      <Card>
+      <Card className="overflow-visible">
         <CardHeader>
           <CardTitle>All Orders</CardTitle>
           <CardDescription>{orders.length} order(s) found</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-visible">
           {orders.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               No orders found
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Agent</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Created At</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">#{order.id}</TableCell>
-                    <TableCell>{order.phone_name}</TableCell>
-                    <TableCell>{order.customer_name}</TableCell>
-                    <TableCell>{order.agent_name || "-"}</TableCell>
-                    <TableCell>{getStatusBadge(order.status)}</TableCell>
-                    <TableCell className="font-semibold">
-                      {formatCurrency(order.quoted_price)}
-                    </TableCell>
-                    <TableCell>{formatDateTime(order.created_at)}</TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order ID</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Partner</TableHead>
+                    <TableHead>Agent</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Price</TableHead>
+                    <TableHead>Created At</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {orders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">#{order.id}</TableCell>
+                      <TableCell>{order.phone_name}</TableCell>
+                      <TableCell>{order.customer_name}</TableCell>
+                      <TableCell>{order.partner_name || "-"}</TableCell>
+                      <TableCell>{order.agent_name || "-"}</TableCell>
+                      <TableCell>{getStatusBadge(order.status)}</TableCell>
+                      <TableCell className="font-semibold">
+                        {formatCurrency(order.quoted_price)}
+                      </TableCell>
+                      <TableCell>{formatDateTime(order.created_at)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

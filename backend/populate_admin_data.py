@@ -2,6 +2,12 @@
 Script to populate initial admin user and system configuration.
 Run this after creating the database tables.
 """
+import sys
+from pathlib import Path
+
+# Add parent directory to Python path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from sqlalchemy.orm import Session
 from backend.shared.db.connections import SessionLocal, engine, Base
 from backend.services.admin.schema.models import Admin, AdminCreditConfiguration
