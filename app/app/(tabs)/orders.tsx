@@ -241,7 +241,7 @@ const Orders = () => {
   const filteredOrders = filterOrders(ordersData, selectedTab);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       {/* Header */}
       <View className="bg-white px-6 pt-4 pb-3">
         <Text className="text-2xl font-bold text-slate-900 mb-4">

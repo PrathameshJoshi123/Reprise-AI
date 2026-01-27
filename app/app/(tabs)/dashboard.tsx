@@ -54,7 +54,6 @@ export default function DashboardScreen() {
         api.get("/partner/me"),
       ]);
 
-      console.log("i am invisible", lockedRes);
 
       setOrders(ordersRes.data);
       setLockedDeals(lockedRes.data);

@@ -33,7 +33,6 @@ export default function OrderDetailScreen() {
       const response = await api.get<Order[]>("/partner/orders");
       const foundOrder = response.data.find((o) => o.id.toString() === id);
       setOrder(foundOrder || null);
-      console.log("i am invisible part2", foundOrder);
     } catch (error: any) {
       Alert.alert("Error", "Failed to fetch order details");
     } finally {

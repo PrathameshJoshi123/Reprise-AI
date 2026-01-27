@@ -30,7 +30,6 @@ export default function LeadDetailScreen() {
 
   const fetchLeadDetail = async () => {
     try {
-      // Try marketplace first for available leads
       const marketplaceRes = await api.get<Order[]>(
         "/sell-phone/partner/leads/available",
       );
@@ -64,6 +63,7 @@ export default function LeadDetailScreen() {
       }
 
       setLead(foundLead || null);
+      console.log("i found this lead", foundLead);
     } catch (error: any) {
       Alert.alert("Error", "Failed to fetch lead details");
     } finally {
@@ -144,89 +144,117 @@ export default function LeadDetailScreen() {
 
       <ScrollView style={styles.content}>
         {/* Device Info Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View>
-              <Text style={styles.model}>{lead.phone_name}</Text>
+        <View style={[styles.card, styles.deviceCard]}>
+          <View style={styles.deviceHeader}>
+            <View style={styles.deviceInfo}>
+              <Text style={styles.deviceName}>{lead.phone_name}</Text>
+              <StatusBadge status={lead.status} size="small" />
             </View>
-            <StatusBadge status="available" size="small" />
           </View>
 
           <View style={styles.priceSection}>
-            <Text style={styles.priceLabel}>Estimated Price</Text>
+            <Text style={styles.priceLabel}>Est. Price</Text>
             <Text style={styles.priceValue}>
-              {formatPrice(lead.ai_estimated_price || lead.final_quoted_price)}
+              {formatPrice(lead.ai_estimated_price)}
             </Text>
           </View>
 
-          <View style={styles.specs}>
-            <View style={styles.specItem}>
-              <Text style={styles.specLabel}>RAM</Text>
-              <Text style={styles.specValue}>{lead.ram_gb}GB</Text>
+          <View style={styles.specsGrid}>
+            <View style={styles.specBox}>
+              <Text style={styles.specValueLarge}>{lead.ram_gb}GB</Text>
+              <Text style={styles.specLabelSmall}>RAM</Text>
             </View>
-            <View style={styles.specDivider} />
-            <View style={styles.specItem}>
-              <Text style={styles.specLabel}>Storage</Text>
-              <Text style={styles.specValue}>{lead.storage_gb}GB</Text>
-            </View>
-            <View style={styles.specDivider} />
-            <View style={styles.specItem}>
-              <Text style={styles.specLabel}>Color</Text>
-              <Text style={styles.specValue}>{lead.color || "N/A"}</Text>
+            <View style={styles.specBox}>
+              <Text style={styles.specValueLarge}>{lead.storage_gb}GB</Text>
+              <Text style={styles.specLabelSmall}>Storage</Text>
             </View>
           </View>
         </View>
 
         {/* Customer Info Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Customer Information</Text>
+        <View style={[styles.card, styles.customerCard]}>
+          <Text style={styles.sectionTitle}>Customer Details</Text>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Name:</Text>
-            <Text style={styles.infoValue}>{lead.customer_name}</Text>
+          <View style={styles.infoBlock}>
+            <Text style={styles.infoBlockValue}>{lead.customer_name}</Text>
+            <Text style={styles.infoBlockLabel}>Name</Text>
           </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Phone:</Text>
-            <Text style={styles.infoValue}>{lead.customer_phone}</Text>
+          <View style={styles.twoColumnGrid}>
+            <View style={styles.infoBlock}>
+              <Text style={styles.infoBlockValue}>{lead.customer_phone}</Text>
+              <Text style={styles.infoBlockLabel}>Phone</Text>
+            </View>
+            <View style={styles.infoBlock}>
+              <Text style={styles.infoBlockValue}>{lead.pickup_city}</Text>
+              <Text style={styles.infoBlockLabel}>City</Text>
+            </View>
           </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Email:</Text>
-            <Text style={styles.infoValue}>
-              {lead.customer_email || "Not provided"}
-            </Text>
+          <View style={styles.twoColumnGrid}>
+            <View style={styles.infoBlock}>
+              <Text style={styles.infoBlockValue}>{lead.pickup_state || "—"}</Text>
+              <Text style={styles.infoBlockLabel}>State</Text>
+            </View>
+            <View style={styles.infoBlock}>
+              <Text style={styles.infoBlockValue}>{lead.pickup_pincode}</Text>
+              <Text style={styles.infoBlockLabel}>Pincode</Text>
+            </View>
           </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>City:</Text>
-            <Text style={styles.infoValue}>{lead.pickup_city}</Text>
+          <View style={styles.infoBlock}>
+            <Text style={styles.infoBlockValue}>{lead.customer_email || "—"}</Text>
+            <Text style={styles.infoBlockLabel}>Email</Text>
           </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Pincode:</Text>
-            <Text style={styles.infoValue}>{lead.pickup_pincode}</Text>
-          </View>
-
-          <View style={styles.addressRow}>
-            <Text style={styles.infoLabel}>Address:</Text>
-            <Text style={styles.addressValue}>{lead.pickup_address_line}</Text>
+          <View style={styles.infoBlock}>
+            <Text style={styles.infoBlockValue}>{lead.pickup_address_line}</Text>
+            <Text style={styles.infoBlockLabel}>Address</Text>
           </View>
         </View>
 
-        {/* Additional Info Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Additional Details</Text>
+        {/* Additional Info & AI Card */}
+        <View style={[styles.card, { margin: 16, marginTop: 16 }]}>
+          <Text style={styles.sectionTitle}>Additional Info</Text>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Created:</Text>
-            <Text style={styles.infoValue}>{formatDate(lead.created_at)}</Text>
+          <View style={styles.twoColumnGrid}>
+            <View style={styles.infoBlock}>
+              <Text style={styles.infoBlockValue}>#{lead.id}</Text>
+              <Text style={styles.infoBlockLabel}>Lead ID</Text>
+            </View>
+            <View style={styles.infoBlock}>
+              <Text style={styles.infoBlockValue}>{(lead as any).agent_name || "—"}</Text>
+              <Text style={styles.infoBlockLabel}>Agent</Text>
+            </View>
           </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Lead ID:</Text>
-            <Text style={styles.infoValue}>#{lead.id}</Text>
+          <View style={styles.infoBlock}>
+            <Text style={styles.infoBlockValue}>{formatDate(lead.created_at)}</Text>
+            <Text style={styles.infoBlockLabel}>Created</Text>
           </View>
+        </View>
+
+        {/* AI Analysis Card */}
+        <View style={[styles.card, styles.aiCard]}>
+          <Text style={styles.sectionTitle}>AI Analysis</Text>
+          <View style={styles.infoBlock}>
+            <Text style={styles.infoBlockValue}>{(lead as any).ai_reasoning || "—"}</Text>
+            <Text style={styles.infoBlockLabel}>Reasoning</Text>
+          </View>
+
+          <Text style={[styles.sectionTitle, { marginTop: 12 }]}>Device Condition</Text>
+          {lead.customer_condition_answers ? (
+            <View style={styles.conditionGrid}>
+              {Object.entries(lead.customer_condition_answers).map(([k, v]) => (
+                <View style={styles.conditionTag} key={k}>
+                  <Text style={styles.conditionLabel}>{k.replace(/_/g, " ")}</Text>
+                  <Text style={styles.conditionValue}>{String(v)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.infoBlockLabel}>No data</Text>
+          )}
         </View>
       </ScrollView>
 
@@ -238,7 +266,7 @@ export default function LeadDetailScreen() {
           <View style={styles.footerInfo}>
             <Text style={styles.footerLabel}>Lead Price</Text>
             <Text style={styles.footerPrice}>
-              {formatPrice(lead.ai_estimated_price || lead.final_quoted_price)}
+              {formatPrice(lead.ai_estimated_price)}
             </Text>
           </View>
           {source === "marketplace" && (
@@ -351,10 +379,10 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "#ffffff",
-    margin: 16,
-    marginBottom: 0,
+    margin: 12,
+    marginBottom: 12,
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -380,11 +408,11 @@ const styles = StyleSheet.create({
   },
   priceSection: {
     alignItems: "center",
-    paddingVertical: 20,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: "#f3f4f6",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   priceLabel: {
     fontSize: 14,
@@ -392,15 +420,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   priceValue: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "bold",
     color: "#16a34a",
   },
-  specs: {
+  specsGrid: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "space-between",
+    gap: 8,
   },
-  specItem: {
+  specBox: {
     alignItems: "center",
   },
   specLabel: {
@@ -421,12 +450,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#111827",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   infoLabel: {
     fontSize: 14,
@@ -494,5 +523,93 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  deviceCard: {
+    borderTopWidth: 4,
+    borderTopColor: "#2563eb",
+  },
+  customerCard: {
+    borderTopWidth: 4,
+    borderTopColor: "#16a34a",
+  },
+  aiCard: {
+    borderTopWidth: 4,
+    borderTopColor: "#9333ea",
+  },
+  deviceHeader: {
+    marginBottom: 20,
+  },
+  deviceInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  deviceName: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#111827",
+    flex: 1,
+    marginRight: 12,
+  },
+  
+  specValueLarge: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  specLabelSmall: {
+    fontSize: 12,
+    color: "#6b7280",
+    fontWeight: "500",
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#111827",
+    marginBottom: 14,
+  },
+  infoBlock: {
+    marginBottom: 12,
+  },
+  infoBlockValue: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 2,
+  },
+  infoBlockLabel: {
+    fontSize: 11,
+    color: "#9ca3af",
+    fontWeight: "500",
+  },
+  twoColumnGrid: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 8,
+  },
+  conditionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  conditionTag: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 8,
+  },
+  conditionLabel: {
+    fontSize: 11,
+    color: "#6b7280",
+    fontWeight: "500",
+    textTransform: "capitalize",
+  },
+  conditionValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#111827",
+    marginTop: 2,
   },
 });

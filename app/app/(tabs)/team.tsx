@@ -64,7 +64,12 @@ const Team = () => {
   };
 
   const handleAddAgent = async () => {
-    if (!newAgent.full_name || !newAgent.email || !newAgent.phone || !newAgent.password) {
+    if (
+      !newAgent.full_name ||
+      !newAgent.email ||
+      !newAgent.phone ||
+      !newAgent.password
+    ) {
       Alert.alert("Error", "Please fill all required fields");
       return;
     }
@@ -89,13 +94,19 @@ const Team = () => {
       Alert.alert("Success", "Agent added successfully!");
       await fetchAgents();
     } catch (error: any) {
-      Alert.alert("Error", error.response?.data?.detail || "Failed to add agent");
+      Alert.alert(
+        "Error",
+        error.response?.data?.detail || "Failed to add agent",
+      );
     } finally {
       setFormLoading(false);
     }
   };
 
-  const handleToggleStatus = async (agentId: number, currentStatus: boolean) => {
+  const handleToggleStatus = async (
+    agentId: number,
+    currentStatus: boolean,
+  ) => {
     const action = currentStatus ? "deactivate" : "activate";
     Alert.alert(
       `${action.charAt(0).toUpperCase() + action.slice(1)} Agent`,
@@ -107,15 +118,20 @@ const Team = () => {
           style: currentStatus ? "destructive" : "default",
           onPress: async () => {
             try {
-              await api.patch(`/partner/agents/${agentId}`, { is_active: !currentStatus });
+              await api.patch(`/partner/agents/${agentId}`, {
+                is_active: !currentStatus,
+              });
               await fetchAgents();
               Alert.alert("Success", `Agent ${action}d successfully`);
             } catch (error: any) {
-              Alert.alert("Error", error.response?.data?.detail || `Failed to ${action} agent`);
+              Alert.alert(
+                "Error",
+                error.response?.data?.detail || `Failed to ${action} agent`,
+              );
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -152,9 +168,7 @@ const Team = () => {
                 📞 {item.phone}
               </Text>
             </TouchableOpacity>
-            <Text className="text-slate-400 text-xs mb-1">
-              ✉️ {item.email}
-            </Text>
+            <Text className="text-slate-400 text-xs mb-1">✉️ {item.email}</Text>
             {item.employee_id && (
               <Text className="text-slate-400 text-xs">
                 🆔 {item.employee_id}
@@ -173,7 +187,9 @@ const Team = () => {
               onPress={() => handleToggleStatus(item.id, item.is_active)}
               className={`px-3 py-2 rounded-lg ${item.is_active ? "bg-red-50" : "bg-green-50"}`}
             >
-              <Text className={`text-xs font-semibold ${item.is_active ? "text-red-600" : "text-green-600"}`}>
+              <Text
+                className={`text-xs font-semibold ${item.is_active ? "text-red-600" : "text-green-600"}`}
+              >
                 {item.is_active ? "Deactivate" : "Activate"}
               </Text>
             </TouchableOpacity>
@@ -184,7 +200,7 @@ const Team = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       {/* Header */}
       <View className="bg-white px-6 pt-4 pb-4">
         <View className="flex-row justify-between items-center mb-4">

@@ -34,11 +34,11 @@ const Wallet = () => {
 
   const fetchPlans = async () => {
     try {
-      const response = await api.get('/partner/credit-plans');
+      const response = await api.get("/partner/credit-plans");
       setPlans(response.data || []);
     } catch (error: any) {
       if (error.response?.status !== 401) {
-        Alert.alert('Error', 'Failed to load credit plans');
+        Alert.alert("Error", "Failed to load credit plans");
       }
     } finally {
       setLoading(false);
@@ -56,54 +56,74 @@ const Wallet = () => {
     refreshUser();
   };
 
-  const handlePurchasePlan = async (planId: number, planName: string, price: number) => {
-    console.log('Purchase plan clicked:', { planId, planName, price });
+  const handlePurchasePlan = async (
+    planId: number,
+    planName: string,
+    price: number,
+  ) => {
+    console.log("Purchase plan clicked:", { planId, planName, price });
     Alert.alert(
-      'Purchase Credits',
-      `Purchase ${planName} for ₹${price.toLocaleString('en-IN')}?`,
+      "Purchase Credits",
+      `Purchase ${planName} for ₹${price.toLocaleString("en-IN")}?`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Purchase',
+          text: "Purchase",
           onPress: async () => {
-            console.log('Confirmed purchase for plan:', planId);
+            console.log("Confirmed purchase for plan:", planId);
             setPurchasing(true);
             try {
-              console.log('Making API call to purchase credits...');
-              const response = await api.post('/partner/purchase-credits', {
+              console.log("Making API call to purchase credits...");
+              const response = await api.post("/partner/purchase-credits", {
                 plan_id: planId,
-                payment_method: 'manual',
+                payment_method: "manual",
               });
-              console.log('Purchase response:', response.data);
-              Alert.alert('Success', response.data?.message || 'Credits purchased successfully!');
+              console.log("Purchase response:", response.data);
+              Alert.alert(
+                "Success",
+                response.data?.message || "Credits purchased successfully!",
+              );
               await refreshUser();
               await fetchPlans();
             } catch (error: any) {
-              console.error('Purchase error:', error.response?.data || error.message);
-              Alert.alert('Error', error.response?.data?.detail || 'Failed to purchase credits');
+              console.error(
+                "Purchase error:",
+                error.response?.data || error.message,
+              );
+              Alert.alert(
+                "Error",
+                error.response?.data?.detail || "Failed to purchase credits",
+              );
             } finally {
               setPurchasing(false);
             }
           },
         },
-      ]
+      ],
     );
-  }
+  };
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50 justify-center items-center">
+      <SafeAreaView
+        className="flex-1 bg-gray-50 justify-center items-center"
+        edges={["top"]}
+      >
         <ActivityIndicator size="large" color="#0d9488" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#0d9488"]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#0d9488"]}
+          />
         }
       >
         {/* Header */}
@@ -124,7 +144,7 @@ const Wallet = () => {
             </View>
 
             <Text className="text-white text-5xl font-bold mb-3">
-              {currentBalance.toLocaleString('en-IN')}
+              {currentBalance.toLocaleString("en-IN")}
               <Text className="text-2xl text-teal-100"> CR</Text>
             </Text>
 
@@ -146,12 +166,16 @@ const Wallet = () => {
 
           {plans.length === 0 ? (
             <View className="bg-white rounded-2xl p-6 items-center">
-              <Text className="text-slate-500 text-center">No credit plans available</Text>
+              <Text className="text-slate-500 text-center">
+                No credit plans available
+              </Text>
             </View>
           ) : (
             <View className="gap-4">
               {plans.map((plan, index) => {
-                const bonusCredits = Math.floor((plan.credit_amount * plan.bonus_percentage) / 100);
+                const bonusCredits = Math.floor(
+                  (plan.credit_amount * plan.bonus_percentage) / 100,
+                );
                 const totalCredits = plan.credit_amount + bonusCredits;
 
                 return (
@@ -176,7 +200,7 @@ const Wallet = () => {
                           {plan.description}
                         </Text>
                         <Text className="text-slate-600 text-base font-semibold mt-2">
-                          ₹{plan.price.toLocaleString('en-IN')}
+                          ₹{plan.price.toLocaleString("en-IN")}
                         </Text>
                       </View>
 
@@ -185,7 +209,9 @@ const Wallet = () => {
                           <Text className="text-teal-600 font-bold text-2xl">
                             {plan.credit_amount}
                           </Text>
-                          <Text className="text-teal-600 text-xs text-center">Credits</Text>
+                          <Text className="text-teal-600 text-xs text-center">
+                            Credits
+                          </Text>
                         </View>
                       </View>
                     </View>
@@ -193,7 +219,8 @@ const Wallet = () => {
                     {plan.bonus_percentage > 0 && (
                       <View className="bg-green-50 rounded-lg p-3 mb-4">
                         <Text className="text-green-700 text-sm font-semibold">
-                          ✨ +{bonusCredits} Bonus Credits ({plan.bonus_percentage}% bonus)
+                          ✨ +{bonusCredits} Bonus Credits (
+                          {plan.bonus_percentage}% bonus)
                         </Text>
                         <Text className="text-green-600 text-xs mt-1">
                           Total: {totalCredits} credits
@@ -203,12 +230,14 @@ const Wallet = () => {
 
                     <TouchableOpacity
                       className="bg-teal-600 rounded-xl py-4 items-center"
-                      onPress={() => handlePurchasePlan(plan.id, plan.plan_name, plan.price)}
+                      onPress={() =>
+                        handlePurchasePlan(plan.id, plan.plan_name, plan.price)
+                      }
                       disabled={purchasing}
                       activeOpacity={0.8}
                     >
                       <Text className="text-white font-bold text-base">
-                        {purchasing ? 'Processing...' : 'Purchase Plan'}
+                        {purchasing ? "Processing..." : "Purchase Plan"}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -221,7 +250,9 @@ const Wallet = () => {
         {/* Information */}
         <View className="px-6 py-4 mb-6">
           <View className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
-            <Text className="text-blue-900 font-semibold mb-2">ℹ️ How it works</Text>
+            <Text className="text-blue-900 font-semibold mb-2">
+              ℹ️ How it works
+            </Text>
             <Text className="text-blue-700 text-sm mb-2">
               • Purchase credits to unlock leads from the marketplace
             </Text>

@@ -1,21 +1,13 @@
-/**
- * App Configuration
- * Centralized configuration for the React Native app
- */
+export const API_BASE_URL = 'https://loan-celebrities-spelling-atom.trycloudflare.com';
 
-// Backend API Base URL - Change this to your production URL when deploying
-export const API_BASE_URL = 'https://washing-currencies-metabolism-scales.trycloudflare.com';
 
-// API Endpoints
 export const API_ENDPOINTS = {
-  // Auth
   PARTNER_LOGIN: '/partner/login',
   PARTNER_SIGNUP: '/partner/signup',
   PARTNER_ME: '/partner/me',
   AGENT_LOGIN: '/agent/login',
   AGENT_ME: '/agent/me',
   
-  // Partner - Credit Management
   CREDIT_PLANS: '/partner/credit-plans',
   PURCHASE_CREDITS: '/partner/purchase-credits',
   
