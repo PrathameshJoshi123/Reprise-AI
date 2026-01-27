@@ -1,7 +1,7 @@
 export function formatCurrency(
   value: number | string | null | undefined,
-  currency = "USD",
-  locale = "en-US",
+  currency = "INR",
+  locale = "en-IN",
 ) {
   const num = Number(value ?? 0);
   if (Number.isNaN(num)) return "0";
