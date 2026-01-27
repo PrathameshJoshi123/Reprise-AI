@@ -720,36 +720,6 @@ export default function PhoneDetail() {
                       </p>
                     </div>
 
-                    {/* AI Reasoning */}
-                    <div className="bg-white/80 backdrop-blur rounded-3xl p-6 max-h-[40vh] overflow-y-auto custom-scrollbar">
-                      <h4 className="font-semibold mb-4 flex items-center gap-2">
-                        <span className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">
-                          AI
-                        </span>
-                        Price Breakdown
-                      </h4>
-                      <div className="space-y-3">
-                        {predictionData?.reasoning ? (
-                          <div className="text-sm text-gray-700 pl-4 border-l-2 border-blue-300 py-1">
-                            <ReactMarkdown>
-                              {predictionData.reasoning}
-                            </ReactMarkdown>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-700 pl-4 border-l-2 border-blue-300 py-1">
-                            Loading reasoning...
-                          </div>
-                        )}
-                        <div className="pt-3 mt-3 border-t border-gray-200 flex justify-between font-bold">
-                          <span>Estimated Price</span>
-                          <span className="text-blue-600">
-                            ₹
-                            {predictionData?.predicted_price?.toLocaleString() ||
-                              "0"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
 
                     <Button
                       onClick={() => {
