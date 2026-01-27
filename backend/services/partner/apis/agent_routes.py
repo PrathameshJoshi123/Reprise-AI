@@ -166,102 +166,6 @@ def get_agent_order_detail(
     }
 
 
-@router.post("/orders/{order_id}/accept", status_code=200)
-def accept_order(
-    order_id: int,
-    payload: Optional[partner_schemas.AcceptOrderRequest] = None,
-    db: Session = Depends(get_db),
-    current_agent: Agent = Depends(auth_utils.get_current_agent),
-):
-    """
-    Agent accepts an assigned order.
-    """
-    order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
-    
-    # Validate order status
-    if order.status != "assigned_to_agent":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Order cannot be accepted (current status: {order.status})"
-        )
-    
-    # Update order
-    order.status = "accepted_by_agent"
-    order.accepted_at = datetime.utcnow()
-    
-    # Create status history
-    notes = f"Order accepted by agent {current_agent.full_name}"
-    if payload and payload.notes:
-        notes += f" - Notes: {payload.notes}"
-    
-    create_status_history(
-        db=db,
-        order_id=order_id,
-        from_status="assigned_to_agent",
-        to_status="accepted_by_agent",
-        changed_by_user_type="agent",
-        changed_by_user_id=current_agent.id,
-        notes=notes
-    )
-    
-    db.commit()
-    
-    return {
-        "message": "Order accepted successfully",
-        "order_id": order_id,
-        "status": order.status
-    }
-
-
-@router.post("/orders/{order_id}/reject", status_code=200)
-def reject_order(
-    order_id: int,
-    payload: partner_schemas.RejectOrderRequest,
-    db: Session = Depends(get_db),
-    current_agent: Agent = Depends(auth_utils.get_current_agent),
-):
-    """
-    Agent rejects an assigned order.
-    Order will be returned to partner for reassignment.
-    """
-    order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
-    
-    # Validate order status
-    valid_statuses = ["assigned_to_agent", "accepted_by_agent"]
-    if order.status not in valid_statuses:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Order cannot be rejected (current status: {order.status})"
-        )
-    
-    old_status = order.status
-    
-    # Update order - return to purchased status, clear agent assignment
-    order.status = "lead_purchased"
-    order.agent_id = None
-    order.assigned_at = None
-    order.accepted_at = None
-    
-    # Create status history
-    create_status_history(
-        db=db,
-        order_id=order_id,
-        from_status=old_status,
-        to_status="lead_purchased",
-        changed_by_user_type="agent",
-        changed_by_user_id=current_agent.id,
-        notes=f"Order rejected by agent {current_agent.full_name}. Reason: {payload.rejection_reason}"
-    )
-    
-    db.commit()
-    
-    return {
-        "message": "Order rejected successfully. Returned to partner for reassignment.",
-        "order_id": order_id,
-        "status": order.status
-    }
-
-
 @router.post("/orders/{order_id}/schedule-pickup", status_code=200)
 def schedule_pickup(
     order_id: int,
@@ -270,31 +174,38 @@ def schedule_pickup(
     current_agent: Agent = Depends(auth_utils.get_current_agent),
 ):
     """
-    Schedule pickup for an accepted order.
+    Schedule pickup for an assigned order.
+    When partner assigns an order to agent, agent must complete the order.
+    No accept/reject allowed - agent directly schedules pickup.
     """
     order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
     
-    # Validate order status
-    if order.status != "accepted_by_agent":
+    # Validate order status - agent can schedule from assigned_to_agent status
+    if order.status not in ["assigned_to_agent", "accepted_by_agent"]:
         raise HTTPException(
             status_code=400,
-            detail=f"Can only schedule pickup for accepted orders (current status: {order.status})"
+            detail=f"Can only schedule pickup for assigned orders (current status: {order.status})"
         )
     
-    # Update order with pickup schedule
+    # Update order status to accepted (auto-accept) and schedule pickup
+    old_status = order.status
     order.status = "pickup_scheduled"
     order.pickup_date = payload.scheduled_date
     order.pickup_time = payload.scheduled_time
     
-    # Create status history
-    notes = f"Pickup scheduled for {payload.scheduled_date} at {payload.scheduled_time}"
+    # Set accepted_at if not already set
+    if not order.accepted_at:
+        order.accepted_at = datetime.utcnow()
+    
+    # Create status history - directly from assigned_to_agent to pickup_scheduled
+    notes = f"Order auto-accepted and pickup scheduled for {payload.scheduled_date} at {payload.scheduled_time}"
     if payload.notes:
         notes += f" - Notes: {payload.notes}"
     
     create_status_history(
         db=db,
         order_id=order_id,
-        from_status="accepted_by_agent",
+        from_status=old_status,
         to_status="pickup_scheduled",
         changed_by_user_type="agent",
         changed_by_user_id=current_agent.id,

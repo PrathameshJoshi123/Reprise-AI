@@ -31,7 +31,6 @@ import {
   Package,
   IndianRupee,
   CheckCircle2,
-  XCircle,
   Eye,
 } from "lucide-react";
 
@@ -115,7 +114,10 @@ export default function AgentDashboard() {
 
   useEffect(() => {
     if (selectedOrder) {
-      if (selectedOrder.status === "accepted_by_agent") {
+      if (
+        selectedOrder.status === "assigned_to_agent" ||
+        selectedOrder.status === "accepted_by_agent"
+      ) {
         setScheduleForm({
           scheduled_date: "",
           scheduled_time: "",
@@ -173,36 +175,6 @@ export default function AgentDashboard() {
       console.error("Failed to fetch orders:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleAcceptOrder = async (orderId: number) => {
-    setActionLoading(true);
-    try {
-      await api.post(`/agent/orders/${orderId}/accept`);
-      await fetchOrders();
-      alert("Order accepted successfully!");
-    } catch (error: any) {
-      alert(error.response?.data?.detail || "Failed to accept order");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleRejectOrder = async (orderId: number) => {
-    if (!confirm("Are you sure you want to reject this order?")) {
-      return;
-    }
-
-    setActionLoading(true);
-    try {
-      await api.post(`/agent/orders/${orderId}/reject`);
-      await fetchOrders();
-      alert("Order rejected");
-    } catch (error: any) {
-      alert(error.response?.data?.detail || "Failed to reject order");
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -411,30 +383,8 @@ export default function AgentDashboard() {
 
             {showActions && (
               <div className="flex gap-2 pt-2 border-t">
-                {order.status === "assigned_to_agent" && (
-                  <>
-                    <Button
-                      size="sm"
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                      onClick={() => handleAcceptOrder(order.id!)}
-                      disabled={actionLoading}
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                      Accept
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
-                      onClick={() => handleRejectOrder(order.id!)}
-                      disabled={actionLoading}
-                    >
-                      <XCircle className="w-3.5 h-3.5 mr-1" />
-                      Reject
-                    </Button>
-                  </>
-                )}
-                {(order.status === "accepted_by_agent" ||
+                {(order.status === "assigned_to_agent" ||
+                  order.status === "accepted_by_agent" ||
                   order.status === "pickup_scheduled") && (
                   <Button
                     size="sm"
@@ -442,7 +392,9 @@ export default function AgentDashboard() {
                     onClick={() => setSelectedOrder(order)}
                   >
                     <Eye className="w-3.5 h-3.5 mr-1" />
-                    View Details
+                    {order.status === "assigned_to_agent"
+                      ? "Schedule Pickup"
+                      : "View Details"}
                   </Button>
                 )}
               </div>
@@ -652,7 +604,8 @@ export default function AgentDashboard() {
                 </div>
 
                 {/* Conditional Form */}
-                {selectedOrder.status === "accepted_by_agent" && (
+                {(selectedOrder.status === "assigned_to_agent" ||
+                  selectedOrder.status === "accepted_by_agent") && (
                   <div className="space-y-4 pt-4 border-t">
                     <div className="flex items-center gap-2 mb-2">
                       <Calendar className="w-4 h-4 text-gray-600" />
@@ -850,7 +803,8 @@ export default function AgentDashboard() {
                 )}
 
                 <div className="flex gap-3 pt-4 border-t">
-                  {selectedOrder.status === "accepted_by_agent" && (
+                  {(selectedOrder.status === "assigned_to_agent" ||
+                    selectedOrder.status === "accepted_by_agent") && (
                     <Button
                       className="flex-1 bg-blue-600 hover:bg-blue-700"
                       size="lg"

@@ -33,7 +33,7 @@ export default function AgentDashboardScreen() {
   const fetchOrders = async () => {
     try {
       const response = await api.get<Order[]>("/agent/orders");
-      
+
       setOrders(response.data);
     } catch (error: any) {
       if (error.response?.status !== 401) {
@@ -80,43 +80,6 @@ export default function AgentDashboardScreen() {
         },
       ]);
     }
-  };
-
-  const handleAccept = async (orderId: number) => {
-    try {
-      await api.post(`/agent/orders/${orderId}/accept`);
-      Alert.alert("Success", "Order accepted successfully");
-      fetchOrders();
-    } catch (error: any) {
-      Alert.alert(
-        "Error",
-        error.response?.data?.detail || "Failed to accept order",
-      );
-    }
-  };
-
-  const handleReject = async (orderId: number) => {
-    Alert.alert("Reject Order", "Are you sure you want to reject this order?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Reject",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await api.post(`/agent/orders/${orderId}/reject`, {
-              rejection_reason: "Agent rejected",
-            });
-            Alert.alert("Success", "Order rejected");
-            fetchOrders();
-          } catch (error: any) {
-            Alert.alert(
-              "Error",
-              error.response?.data?.detail || "Failed to reject order",
-            );
-          }
-        },
-      },
-    ]);
   };
 
   const handleSchedule = (orderId: number) => {
@@ -169,7 +132,7 @@ export default function AgentDashboardScreen() {
                 .length
             }
           </Text>
-          <Text style={styles.statLabel}>Pending Accept</Text>
+          <Text style={styles.statLabel}>To Schedule</Text>
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>
@@ -202,8 +165,6 @@ export default function AgentDashboardScreen() {
               <AgentOrderCard
                 key={order.id || order.order_id}
                 order={order}
-                onAccept={handleAccept}
-                onReject={handleReject}
                 onSchedule={handleSchedule}
                 onComplete={handleComplete}
               />
@@ -245,19 +206,13 @@ export default function AgentDashboardScreen() {
 
 function AgentOrderCard({
   order,
-  onAccept,
-  onReject,
   onSchedule,
   onComplete,
 }: {
   order: Order;
-  onAccept: (id: number) => void;
-  onReject: (id: number) => void;
   onSchedule: (id: number) => void;
   onComplete: (id: number) => void;
 }) {
-  
-
   const orderIdentifier = order.id || order.order_id;
   return (
     <View style={styles.orderCard}>
@@ -305,31 +260,8 @@ function AgentOrderCard({
       )}
 
       <View style={styles.orderActions}>
-        {order.status === "assigned_to_agent" && (
-          <>
-            <TouchableOpacity
-              style={styles.acceptButton}
-              onPress={() => {
-                if (orderIdentifier) {
-                  onAccept(orderIdentifier);
-                }
-              }}
-            >
-              <Text style={styles.acceptButtonText}>Accept Order</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.rejectButton}
-              onPress={() => {
-                if (orderIdentifier) {
-                  onReject(orderIdentifier);
-                }
-              }}
-            >
-              <Text style={styles.rejectButtonText}>Reject</Text>
-            </TouchableOpacity>
-          </>
-        )}
-        {order.status === "accepted_by_agent" && (
+        {(order.status === "assigned_to_agent" ||
+          order.status === "accepted_by_agent") && (
           <TouchableOpacity
             style={styles.scheduleButton}
             onPress={() => orderIdentifier && onSchedule(orderIdentifier)}
