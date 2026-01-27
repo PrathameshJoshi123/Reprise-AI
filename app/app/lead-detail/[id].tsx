@@ -63,7 +63,6 @@ export default function LeadDetailScreen() {
       }
 
       setLead(foundLead || null);
-      console.log("i found this lead", foundLead);
     } catch (error: any) {
       Alert.alert("Error", "Failed to fetch lead details");
     } finally {

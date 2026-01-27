@@ -29,7 +29,6 @@ const Team = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showPerformance, setShowPerformance] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [newAgent, setNewAgent] = useState({

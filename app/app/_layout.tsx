@@ -14,7 +14,7 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === "(auth)";
     const inPartnerTabs = segments[0] === "(tabs)";
     const inAgentTabs = segments[0] === "(agent-tabs)";
-    const atRoot = segments.length === 0;
+    const atRoot = !segments[0];
 
     if (!isAuthenticated) {
       // Not authenticated - redirect to home if trying to access protected routes

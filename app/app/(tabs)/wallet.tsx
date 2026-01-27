@@ -61,7 +61,6 @@ const Wallet = () => {
     planName: string,
     price: number,
   ) => {
-    console.log("Purchase plan clicked:", { planId, planName, price });
     Alert.alert(
       "Purchase Credits",
       `Purchase ${planName} for ₹${price.toLocaleString("en-IN")}?`,
@@ -70,15 +69,12 @@ const Wallet = () => {
         {
           text: "Purchase",
           onPress: async () => {
-            console.log("Confirmed purchase for plan:", planId);
             setPurchasing(true);
             try {
-              console.log("Making API call to purchase credits...");
               const response = await api.post("/partner/purchase-credits", {
                 plan_id: planId,
                 payment_method: "manual",
               });
-              console.log("Purchase response:", response.data);
               Alert.alert(
                 "Success",
                 response.data?.message || "Credits purchased successfully!",
@@ -86,10 +82,6 @@ const Wallet = () => {
               await refreshUser();
               await fetchPlans();
             } catch (error: any) {
-              console.error(
-                "Purchase error:",
-                error.response?.data || error.message,
-              );
               Alert.alert(
                 "Error",
                 error.response?.data?.detail || "Failed to purchase credits",
