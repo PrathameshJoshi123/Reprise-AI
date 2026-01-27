@@ -286,7 +286,13 @@ def cancel_order(
 		success=True,
 		message="Order cancelled successfully",
 		order_id=order.id,
-		cancelled_at=order.cancelled_at
+		cancelled_at=order.cancelled_at,
+		phone_name=order.phone_name,
+		brand=order.brand,
+		model=order.model,
+		ram_gb=order.ram_gb,
+		storage_gb=order.storage_gb,
+		variant=order.variant
 	)
 
 

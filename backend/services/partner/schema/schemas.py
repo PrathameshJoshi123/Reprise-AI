@@ -45,11 +45,40 @@ class PartnerOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PartnerCreditNameOut(BaseModel):
+    """Schema for partner credit and name only"""
+    full_name: str
+    credit_balance: float
+
+    model_config = {"from_attributes": True}
+
+
 class PartnerToken(BaseModel):
     """Schema for partner authentication token"""
     access_token: str
     token_type: str = "bearer"
     partner: PartnerOut
+
+# Minimal order summary for partner orders listing
+class PartnerOrderBriefOut(BaseModel):
+    id: int
+    phone_name: str
+    ram_gb: Optional[float] = None
+    storage_gb: Optional[float] = None
+    status: str
+    ai_estimated_price: Optional[float] = None
+    ai_reasoning: Optional[str] = None
+    customer_name: Optional[str] = None
+    agent_name: Optional[str] = None
+    customer_condition_answers: Optional[dict] = None
+    created_at: datetime
+    customer_phone: Optional[str] = None
+    customer_email: Optional[str] = None
+    pickup_address_line: Optional[str] = None
+    pickup_city: Optional[str] = None
+    pickup_state: Optional[str] = None
+
+    model_config = {"from_attributes": True}
 
 
 # ================================
@@ -84,6 +113,13 @@ class AgentOut(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AgentNameOut(BaseModel):
+    """Schema for agent name only"""
+    full_name: str
 
     model_config = {"from_attributes": True}
 

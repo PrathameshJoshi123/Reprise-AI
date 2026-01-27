@@ -40,14 +40,14 @@ def agent_login(
         )
 
 
-@router.get("/me", response_model=partner_schemas.AgentOut)
+@router.get("/me", response_model=partner_schemas.AgentNameOut)
 def get_current_agent_profile(
     current_agent: Agent = Depends(auth_utils.get_current_agent),
 ):
     """
     Get current agent's profile.
     """
-    return current_agent
+    return partner_schemas.AgentNameOut(full_name=current_agent.full_name)
 
 
 # ================================
@@ -73,59 +73,16 @@ def get_agent_orders(
     for order in orders:
         result.append({
             "id": order.id,
-            "customer_id": order.customer_id,
-            "partner_id": order.partner_id,
-            "agent_id": order.agent_id,
             "phone_name": order.phone_name,
-            "brand": order.brand,
-            "model": order.model,
-            "ram_gb": order.ram_gb,
-            "storage_gb": order.storage_gb,
-            "variant": order.variant,
-            "ai_estimated_price": order.ai_estimated_price,
-            "ai_reasoning": order.ai_reasoning,
-            "customer_condition_answers": order.customer_condition_answers,
-            "final_quoted_price": order.final_quoted_price,
-            "customer_name": order.customer_name,
-            "customer_phone": order.customer_phone,
-            "customer_email": order.customer_email,
-            "pickup_address_line": order.pickup_address_line,
-            "pickup_city": order.pickup_city,
-            "pickup_state": order.pickup_state,
-            "pickup_pincode": order.pickup_pincode,
-            "pickup_date": order.pickup_date,
-            "pickup_time": order.pickup_time,
-            "payment_method": order.payment_method,
-            "status": order.status,
-            "lead_locked_at": order.lead_locked_at,
-            "lead_lock_expires_at": order.lead_lock_expires_at,
-            "purchased_at": order.purchased_at,
-            "assigned_at": order.assigned_at,
-            "accepted_at": order.accepted_at,
-            "completed_at": order.completed_at,
-            "cancelled_at": order.cancelled_at,
-            "cancellation_reason": order.cancellation_reason,
-            "actual_condition": order.actual_condition,
-            "final_offered_price": order.final_offered_price,
-            "customer_accepted_offer": order.customer_accepted_offer,
-            "pickup_notes": order.pickup_notes,
-            "payment_amount": order.payment_amount,
-            "payment_transaction_id": order.payment_transaction_id,
-            "payment_notes": order.payment_notes,
-            "payment_processed_at": order.payment_processed_at,
-            "user_id": order.user_id,
-            "condition": order.condition,
-            "quoted_price": order.quoted_price,
-            "phone_number": order.phone_number,
-            "email": order.email,
-            "address_line": order.address_line,
-            "city": order.city,
-            "state": order.state,
-            "pincode": order.pincode,
-            "agent_name": order.agent_name,
-            "agent_phone": order.agent_phone,
-            "agent_email": order.agent_email,
-            "created_at": order.created_at,
+            "specs": f"{int(order.ram_gb)}GB RAM • {int(order.storage_gb)}GB Storage",
+            "status": "pickup completed" if order.status == "pickup_completed" else order.status,
+            "estimated_value": f"${order.ai_estimated_price:,.2f}",
+            "customer": order.customer_name,
+            "phone": order.customer_phone,
+            "pickup_address": f"{order.pickup_city}, {order.pickup_city}, {order.pickup_state} - {order.pickup_pincode}",
+            "pickup_schedule_date": order.pickup_date.strftime('%d/%m/%Y') if order.pickup_date else None,
+            "pickup_schedule_time": order.pickup_time,
+            "payment_mode": order.payment_method
         })
     
     return result

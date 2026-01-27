@@ -247,6 +247,7 @@ def expire_lock_if_needed(db: Session, order_id: int):
     if expired_lock:
         # Deactivate the lock
         expired_lock.is_active = False
+        db.add(expired_lock)
         
         # Reset order fields
         order = db.query(Order).filter(Order.id == order_id).first()
@@ -255,6 +256,7 @@ def expire_lock_if_needed(db: Session, order_id: int):
             order.status = "available_for_partners"
             order.lead_locked_at = None
             order.lead_lock_expires_at = None
+            db.add(order)
             
             # Create status history
             create_status_history(
@@ -265,3 +267,48 @@ def expire_lock_if_needed(db: Session, order_id: int):
                 changed_by_user_type="system",
                 notes="Lock expired, lead returned to marketplace"
             )
+        # Commit changes so DB reflects availability immediately
+        db.commit()
+        return True
+
+    return False
+
+
+def expire_all_expired_locks(db: Session) -> int:
+    """Find all expired active lead locks and deactivate them.
+    Returns the number of locks expired.
+    """
+    now = datetime.utcnow()
+    expired_locks = db.query(LeadLock).filter(
+        LeadLock.is_active == True,
+        LeadLock.expires_at <= now
+    ).all()
+
+    count = 0
+    for lock in expired_locks:
+        lock.is_active = False
+        db.add(lock)
+
+        order = db.query(Order).filter(Order.id == lock.order_id).first()
+        if order:
+            order.partner_id = None
+            order.status = "available_for_partners"
+            order.lead_locked_at = None
+            order.lead_lock_expires_at = None
+            db.add(order)
+
+            create_status_history(
+                db=db,
+                order_id=order.id,
+                from_status="lead_locked",
+                to_status="available_for_partners",
+                changed_by_user_type="system",
+                notes="Lock expired, lead returned to marketplace"
+            )
+
+        count += 1
+
+    if count > 0:
+        db.commit()
+
+    return count

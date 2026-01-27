@@ -166,7 +166,7 @@ def partner_login(
         )
 
 
-@router.get("/me", response_model=partner_schemas.PartnerOut)
+@router.get("/me", response_model=partner_schemas.PartnerCreditNameOut)
 def get_partner_profile(
     current_partner: Partner = Depends(auth_utils.get_current_partner),
 ):
@@ -174,7 +174,10 @@ def get_partner_profile(
     Get current partner profile.
     Requires authentication.
     """
-    return current_partner
+    return partner_schemas.PartnerCreditNameOut(
+        full_name=current_partner.full_name,
+        credit_balance=current_partner.credit_balance
+    )
 
 
 # ================================
@@ -317,7 +320,10 @@ def get_locked_deals(
     """
     Get all deals locked by the current partner (status = lead_locked).
     """
-    from backend.services.sell_phone.utils import calculate_lead_cost
+    from backend.services.sell_phone.utils import calculate_lead_cost, expire_all_expired_locks
+
+    # Expire any locks that have passed their expiry before returning locked deals
+    expire_all_expired_locks(db)
     
     orders = db.query(Order).filter(
         Order.partner_id == current_partner.id,
@@ -400,6 +406,10 @@ def get_lead_purchase_info(
     Get credit balance and lead cost calculation for a locked lead before purchasing.
     """
     from backend.services.sell_phone.utils import calculate_lead_cost
+    from backend.services.sell_phone.utils import expire_all_expired_locks
+
+    # Ensure lock is still active and expire others if needed
+    expire_all_expired_locks(db)
     
     # Verify the partner has an active lock on this order
     order = db.query(Order).filter(
@@ -434,7 +444,7 @@ def get_lead_purchase_info(
     }
 
 
-@router.get("/orders", response_model=List[dict])
+@router.get("/orders", response_model=List[partner_schemas.PartnerOrderBriefOut])
 def get_partner_orders(
     status_filter: str = Query(None, description="Filter by order status"),
     assigned_filter: str = Query(None, description="'assigned', 'unassigned', or None for all"),
@@ -444,6 +454,11 @@ def get_partner_orders(
     """
     Get all orders purchased by the current partner.
     """
+    from backend.services.sell_phone.utils import expire_all_expired_locks
+
+    # Expire any locks that have passed their expiry before returning orders
+    expire_all_expired_locks(db)
+
     query = db.query(Order).filter(Order.partner_id == current_partner.id)
     
     if status_filter:
@@ -456,62 +471,25 @@ def get_partner_orders(
     
     orders = query.order_by(Order.purchased_at.desc()).all()
     
+    # Return only the compact fields required by the partner orders list UI
     result = []
     for order in orders:
         result.append({
             "id": order.id,
-            "customer_id": order.customer_id,
-            "partner_id": order.partner_id,
-            "agent_id": order.agent_id,
             "phone_name": order.phone_name,
-            "brand": order.brand,
-            "model": order.model,
             "ram_gb": order.ram_gb,
             "storage_gb": order.storage_gb,
-            "variant": order.variant,
+            "status": order.status,
             "ai_estimated_price": order.ai_estimated_price,
             "ai_reasoning": order.ai_reasoning,
-            "customer_condition_answers": order.customer_condition_answers,
-            "final_quoted_price": order.final_quoted_price,
             "customer_name": order.customer_name,
+            "agent_name": order.agent_name,
+            "customer_condition_answers": order.customer_condition_answers,
             "customer_phone": order.customer_phone,
             "customer_email": order.customer_email,
             "pickup_address_line": order.pickup_address_line,
             "pickup_city": order.pickup_city,
             "pickup_state": order.pickup_state,
-            "pickup_pincode": order.pickup_pincode,
-            "pickup_date": order.pickup_date,
-            "pickup_time": order.pickup_time,
-            "payment_method": order.payment_method,
-            "status": order.status,
-            "lead_locked_at": order.lead_locked_at,
-            "lead_lock_expires_at": order.lead_lock_expires_at,
-            "purchased_at": order.purchased_at,
-            "assigned_at": order.assigned_at,
-            "accepted_at": order.accepted_at,
-            "completed_at": order.completed_at,
-            "cancelled_at": order.cancelled_at,
-            "cancellation_reason": order.cancellation_reason,
-            "actual_condition": order.actual_condition,
-            "final_offered_price": order.final_offered_price,
-            "customer_accepted_offer": order.customer_accepted_offer,
-            "pickup_notes": order.pickup_notes,
-            "payment_amount": order.payment_amount,
-            "payment_transaction_id": order.payment_transaction_id,
-            "payment_notes": order.payment_notes,
-            "payment_processed_at": order.payment_processed_at,
-            "user_id": order.user_id,
-            "condition": order.condition,
-            "quoted_price": order.quoted_price,
-            "phone_number": order.phone_number,
-            "email": order.email,
-            "address_line": order.address_line,
-            "city": order.city,
-            "state": order.state,
-            "pincode": order.pincode,
-            "agent_name": order.agent_name,
-            "agent_phone": order.agent_phone,
-            "agent_email": order.agent_email,
             "created_at": order.created_at,
         })
     
