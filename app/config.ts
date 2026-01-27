@@ -4,7 +4,7 @@
  */
 
 // Backend API Base URL - Change this to your production URL when deploying
-export const API_BASE_URL = 'https://exchanges-ladies-integration-wan.trycloudflare.com';
+export const API_BASE_URL = 'https://washing-currencies-metabolism-scales.trycloudflare.com';
 
 // API Endpoints
 export const API_ENDPOINTS = {

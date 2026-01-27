@@ -13,11 +13,7 @@ import {
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import api from '../../lib/api';
-import { Order } from '../../types';
-import { formatPrice } from '../../utils/formatting';
-import EmptyState from '../../components/EmptyState';
+
 
 const Leads = () => {
   const [selectedFilter, setSelectedFilter] = useState("All");

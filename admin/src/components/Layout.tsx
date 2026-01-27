@@ -56,12 +56,14 @@ export default function Layout() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Sidebar */}
-      <aside className="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-gray-900">Admin Portal</h1>
-          <p className="text-sm text-gray-500 mt-1">{admin?.email}</p>
+      <aside className="fixed top-0 left-0 h-full w-64 bg-sidebar border-r border-sidebar-border">
+        <div className="p-6 border-b border-sidebar-border">
+          <h1 className="text-2xl font-bold text-sidebar-foreground">
+            Admin Portal
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">{admin?.email}</p>
         </div>
 
         <nav className="p-4 space-y-1">
@@ -76,8 +78,8 @@ export default function Layout() {
                 className={cn(
                   "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors",
                   isActive
-                    ? "bg-gray-900 text-white"
-                    : "text-gray-700 hover:bg-gray-100",
+                    ? "bg-primary text-primary-foreground"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent",
                 )}
               >
                 <Icon className="h-5 w-5" />
@@ -87,7 +89,7 @@ export default function Layout() {
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border">
           <Button
             variant="outline"
             className="w-full justify-start"

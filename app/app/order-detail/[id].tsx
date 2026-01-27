@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,14 +7,14 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import api from '../../lib/api';
-import { Order } from '../../types';
-import { formatPrice, formatDate, formatTime } from '../../utils/formatting';
-import StatusBadge from '../../components/StatusBadge';
-import AssignAgentModal from '../../components/AssignAgentModal';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import api from "../../lib/api";
+import { Order } from "../../types";
+import { formatPrice, formatDate, formatTime } from "../../utils/formatting";
+import StatusBadge from "../../components/StatusBadge";
+import AssignAgentModal from "../../components/AssignAgentModal";
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -30,11 +30,12 @@ export default function OrderDetailScreen() {
   const fetchOrderDetail = async () => {
     try {
       // Fetch partner orders and find the specific one
-      const response = await api.get<Order[]>('/partner/orders');
+      const response = await api.get<Order[]>("/partner/orders");
       const foundOrder = response.data.find((o) => o.id.toString() === id);
       setOrder(foundOrder || null);
+      console.log("i am invisible part2", foundOrder);
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to fetch order details');
+      Alert.alert("Error", "Failed to fetch order details");
     } finally {
       setLoading(false);
     }
@@ -43,7 +44,7 @@ export default function OrderDetailScreen() {
   const handleAssignSuccess = () => {
     setShowAssignModal(false);
     // Navigate to dashboard - it will auto-refresh due to useFocusEffect
-    router.replace('/(tabs)/dashboard?tab=in_progress');
+    router.replace("/(tabs)/dashboard?tab=in_progress");
   };
 
   if (loading) {
@@ -54,6 +55,8 @@ export default function OrderDetailScreen() {
     );
   }
 
+  
+
   if (!order) {
     return (
       <SafeAreaView style={styles.container}>
@@ -62,7 +65,7 @@ export default function OrderDetailScreen() {
           <Text style={styles.errorTitle}>Order Not Found</Text>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.replace('/(tabs)/dashboard')}
+            onPress={() => router.replace("/(tabs)/dashboard")}
           >
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
@@ -72,12 +75,16 @@ export default function OrderDetailScreen() {
   }
 
   // Check if order can have an agent assigned
-  const canAssignAgent = order.status === 'lead_purchased' || order.status === 'purchased';
+  const canAssignAgent =
+    order.status === "lead_purchased" || order.status === "purchased";
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.replace('/(tabs)/dashboard')} style={styles.backIcon}>
+        <TouchableOpacity
+          onPress={() => router.replace("/(tabs)/dashboard")}
+          style={styles.backIcon}
+        >
           <Text style={styles.backIconText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Order #{order.id}</Text>
@@ -159,7 +166,7 @@ export default function OrderDetailScreen() {
                 title="Pickup Scheduled"
                 date={formatDate(order.scheduled_pickup_time)}
                 time={formatTime(order.scheduled_pickup_time)}
-                completed={order.status !== 'scheduled'}
+                completed={order.status !== "scheduled"}
               />
             )}
 
@@ -180,17 +187,22 @@ export default function OrderDetailScreen() {
           <Text style={styles.cardTitle}>Device Information</Text>
 
           <View style={styles.deviceHeader}>
-            <View>
-              <Text style={styles.brand}>{order.brand}</Text>
-              <Text style={styles.model}>{order.model}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.model}>{order.phone_name}</Text>
+              {order.ai_reasoning && (
+                <Text style={styles.aiReasoning}>{order.ai_reasoning}</Text>
+              )}
             </View>
-            <Text style={styles.estimatedPrice}>{formatPrice(order.ai_estimated_price || order.final_quoted_price)}</Text>
+            <Text style={styles.estimatedPrice}>
+              {formatPrice(
+                order.ai_estimated_price || order.final_quoted_price,
+              )}
+            </Text>
           </View>
 
           <View style={styles.specs}>
             <SpecItem label="RAM" value={`${order.ram_gb}GB`} />
             <SpecItem label="Storage" value={`${order.storage_gb}GB`} />
-            <SpecItem label="Color" value={order.color || 'N/A'} />
           </View>
         </View>
 
@@ -199,15 +211,27 @@ export default function OrderDetailScreen() {
           <Text style={styles.cardTitle}>Customer Information</Text>
 
           <InfoRow label="Name" value={order.customer_name} />
-          <InfoRow label="Phone" value={order.customer_phone} />
-          <InfoRow label="Email" value={order.customer_email || 'Not provided'} />
-          <InfoRow label="City" value={order.pickup_city} />
-          <InfoRow label="Pincode" value={order.pickup_pincode} />
+          {order.customer_phone && (
+            <InfoRow label="Phone" value={order.customer_phone} />
+          )}
+          {order.customer_email && (
+            <InfoRow label="Email" value={order.customer_email} />
+          )}
+          {order.pickup_city && (
+            <InfoRow label="City" value={order.pickup_city} />
+          )}
+          {order.pickup_pincode && (
+            <InfoRow label="Pincode" value={order.pickup_pincode} />
+          )}
 
-          <View style={styles.addressRow}>
-            <Text style={styles.infoLabel}>Address:</Text>
-            <Text style={styles.addressValue}>{order.pickup_address_line}</Text>
-          </View>
+          {order.pickup_address_line && (
+            <View style={styles.addressRow}>
+              <Text style={styles.infoLabel}>Address:</Text>
+              <Text style={styles.addressValue}>
+                {order.pickup_address_line}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Agent Info Card */}
@@ -216,8 +240,12 @@ export default function OrderDetailScreen() {
             <Text style={styles.cardTitle}>Assigned Agent</Text>
 
             <InfoRow label="Name" value={order.agent_name} />
-            {order.agent_phone && <InfoRow label="Phone" value={order.agent_phone} />}
-            {order.agent_email && <InfoRow label="Email" value={order.agent_email} />}
+            {order.agent_phone && (
+              <InfoRow label="Phone" value={order.agent_phone} />
+            )}
+            {order.agent_email && (
+              <InfoRow label="Email" value={order.agent_email} />
+            )}
           </View>
         )}
 
@@ -229,30 +257,52 @@ export default function OrderDetailScreen() {
             <InfoRow
               label="Scheduled Time"
               value={`${formatDate(order.scheduled_pickup_time)} ${formatTime(
-                order.scheduled_pickup_time
+                order.scheduled_pickup_time,
               )}`}
             />
           </View>
         )}
 
         {/* Condition Assessment Card */}
-        {order.physical_condition && (
+        {order.customer_condition_answers && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Device Condition Assessment</Text>
 
-            <InfoRow label="Physical Condition" value={order.physical_condition} />
-            <InfoRow label="Screen Condition" value={order.screen_condition || 'N/A'} />
-            <InfoRow label="Battery Health" value={order.battery_health || 'N/A'} />
-            <InfoRow label="Functional Issues" value={order.functional_issues || 'None'} />
-            <InfoRow label="Accessories" value={order.accessories || 'None'} />
+            {order.customer_condition_answers.screen_condition && (
+              <InfoRow
+                label="Screen Condition"
+                value={order.customer_condition_answers.screen_condition.replace(
+                  /-/g,
+                  " ",
+                )}
+              />
+            )}
+            {order.customer_condition_answers.device_turns_on && (
+              <InfoRow
+                label="Device Turns On"
+                value={order.customer_condition_answers.device_turns_on}
+              />
+            )}
 
             <View style={styles.checkboxes}>
-              <CheckItem label="Original Box" checked={order.original_box} />
-              <CheckItem label="Charger Included" checked={order.charger_included} />
-              <CheckItem label="Warranty Valid" checked={order.warranty_valid} />
-              <CheckItem label="Purchase Invoice" checked={order.purchase_invoice} />
-              <CheckItem label="IMEI Verified" checked={order.imei_verified} />
-              <CheckItem label="iCloud Locked" checked={order.icloud_locked} alert />
+              {order.customer_condition_answers.has_original_box !==
+                undefined && (
+                <CheckItem
+                  label="Original Box"
+                  checked={
+                    order.customer_condition_answers.has_original_box === "yes"
+                  }
+                />
+              )}
+              {order.customer_condition_answers.has_original_bill !==
+                undefined && (
+                <CheckItem
+                  label="Original Bill"
+                  checked={
+                    order.customer_condition_answers.has_original_bill === "yes"
+                  }
+                />
+              )}
             </View>
           </View>
         )}
@@ -264,10 +314,15 @@ export default function OrderDetailScreen() {
 
             <View style={styles.finalPriceRow}>
               <Text style={styles.finalPriceLabel}>Final Price</Text>
-              <Text style={styles.finalPriceValue}>{formatPrice(order.final_price)}</Text>
+              <Text style={styles.finalPriceValue}>
+                {formatPrice(order.final_price)}
+              </Text>
             </View>
 
-            <InfoRow label="Payment Method" value={order.payment_method || 'N/A'} />
+            <InfoRow
+              label="Payment Method"
+              value={order.payment_method || "N/A"}
+            />
 
             {order.completion_notes && (
               <View style={styles.notesSection}>
@@ -311,13 +366,22 @@ const TimelineItem = ({
 }) => (
   <View style={styles.timelineItem}>
     <View style={styles.timelineIconContainer}>
-      <Text style={[styles.timelineIcon, !completed && styles.timelineIconInactive]}>
+      <Text
+        style={[styles.timelineIcon, !completed && styles.timelineIconInactive]}
+      >
         {icon}
       </Text>
-      <View style={[styles.timelineLine, !completed && styles.timelineLineInactive]} />
+      <View
+        style={[styles.timelineLine, !completed && styles.timelineLineInactive]}
+      />
     </View>
     <View style={styles.timelineContent}>
-      <Text style={[styles.timelineTitle, !completed && styles.timelineTitleInactive]}>
+      <Text
+        style={[
+          styles.timelineTitle,
+          !completed && styles.timelineTitleInactive,
+        ]}
+      >
         {title}
       </Text>
       <Text style={styles.timelineDate}>
@@ -352,7 +416,7 @@ const CheckItem = ({
 }) => (
   <View style={styles.checkItem}>
     <Text style={styles.checkIcon}>
-      {checked ? (alert ? '⚠️' : '✅') : '❌'}
+      {checked ? (alert ? "⚠️" : "✅") : "❌"}
     </Text>
     <Text style={styles.checkLabel}>{label}</Text>
   </View>
@@ -361,18 +425,18 @@ const CheckItem = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: "#f9fafb",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f9fafb",
   },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 40,
   },
   errorIcon: {
@@ -381,33 +445,33 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: "bold",
+    color: "#111827",
     marginBottom: 24,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: "#e5e7eb",
   },
   backIcon: {
     width: 40,
     height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   backIconText: {
     fontSize: 24,
-    color: '#111827',
+    color: "#111827",
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: "bold",
+    color: "#111827",
   },
   placeholder: {
     width: 40,
@@ -420,28 +484,28 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   assignAgentButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: "#2563eb",
     borderRadius: 12,
     padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   assignAgentButtonText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     margin: 16,
     marginBottom: 0,
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -449,34 +513,34 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: "bold",
+    color: "#111827",
     marginBottom: 16,
   },
   statusHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 20,
   },
   timeline: {
     marginLeft: 8,
   },
   timelineItem: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 20,
   },
   timelineIconContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginRight: 12,
   },
   timelineIcon: {
     fontSize: 24,
     width: 40,
     height: 40,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 40,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: "#f3f4f6",
     borderRadius: 20,
   },
   timelineIconInactive: {
@@ -485,7 +549,7 @@ const styles = StyleSheet.create({
   timelineLine: {
     width: 2,
     flex: 1,
-    backgroundColor: '#d1d5db',
+    backgroundColor: "#d1d5db",
     marginTop: 4,
   },
   timelineLineInactive: {
@@ -497,80 +561,86 @@ const styles = StyleSheet.create({
   },
   timelineTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: "600",
+    color: "#111827",
     marginBottom: 4,
   },
   timelineTitleInactive: {
-    color: '#9ca3af',
+    color: "#9ca3af",
   },
   timelineDate: {
     fontSize: 14,
-    color: '#6b7280',
+    color: "#6b7280",
   },
   deviceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
   },
   brand: {
     fontSize: 14,
-    color: '#6b7280',
-    fontWeight: '600',
+    color: "#6b7280",
+    fontWeight: "600",
+  },
+  aiReasoning: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginTop: 4,
+    fontStyle: "italic",
   },
   model: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: "bold",
+    color: "#111827",
     marginTop: 4,
   },
   estimatedPrice: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#16a34a',
+    fontWeight: "bold",
+    color: "#16a34a",
   },
   specs: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexDirection: "row",
+    justifyContent: "space-around",
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: "#f3f4f6",
   },
   specItem: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   specLabel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: "#6b7280",
     marginBottom: 4,
   },
   specValue: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: "600",
+    color: "#111827",
   },
   infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 12,
   },
   infoLabel: {
     fontSize: 14,
-    color: '#6b7280',
+    color: "#6b7280",
   },
   infoValue: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#111827',
+    fontWeight: "500",
+    color: "#111827",
   },
   addressRow: {
     marginBottom: 12,
   },
   addressValue: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#111827',
+    fontWeight: "500",
+    color: "#111827",
     marginTop: 4,
     lineHeight: 20,
   },
@@ -578,8 +648,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   checkItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   checkIcon: {
@@ -588,46 +658,46 @@ const styles = StyleSheet.create({
   },
   checkLabel: {
     fontSize: 14,
-    color: '#111827',
+    color: "#111827",
   },
   finalPriceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 16,
     marginBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: "#f3f4f6",
   },
   finalPriceLabel: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: "600",
+    color: "#111827",
   },
   finalPriceValue: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#16a34a',
+    fontWeight: "bold",
+    color: "#16a34a",
   },
   notesSection: {
     marginTop: 12,
   },
   notesValue: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#111827',
+    fontWeight: "500",
+    color: "#111827",
     marginTop: 4,
     lineHeight: 20,
   },
   backButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: "#2563eb",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   backButtonText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

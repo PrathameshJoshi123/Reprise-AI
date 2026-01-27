@@ -154,7 +154,7 @@ export default function PartnerDetails() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -162,7 +162,7 @@ export default function PartnerDetails() {
   if (!details) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">Partner not found</p>
+        <p className="text-muted-foreground">Partner not found</p>
         <Button onClick={() => navigate("/partners")} className="mt-4">
           Back to Partners
         </Button>
@@ -180,7 +180,7 @@ export default function PartnerDetails() {
         </Button>
         <div>
           <h1 className="text-3xl font-bold">Partner Details</h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-muted-foreground mt-1">
             Review and manage partner verification
           </p>
         </div>
@@ -210,37 +210,37 @@ export default function PartnerDetails() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-gray-500">Phone</Label>
+              <Label className="text-muted-foreground">Phone</Label>
               <p className="font-medium">{partner.phone}</p>
             </div>
             <div>
-              <Label className="text-gray-500">Company Name</Label>
+              <Label className="text-muted-foreground">Company Name</Label>
               <p className="font-medium">{partner.company_name || "-"}</p>
             </div>
             <div>
-              <Label className="text-gray-500">Business Address</Label>
+              <Label className="text-muted-foreground">Business Address</Label>
               <p className="font-medium">{partner.business_address || "-"}</p>
             </div>
             <div>
-              <Label className="text-gray-500">GST Number</Label>
+              <Label className="text-muted-foreground">GST Number</Label>
               <p className="font-medium">{partner.gst_number || "-"}</p>
             </div>
             <div>
-              <Label className="text-gray-500">PAN Number</Label>
+              <Label className="text-muted-foreground">PAN Number</Label>
               <p className="font-medium">{partner.pan_number || "-"}</p>
             </div>
             <div>
-              <Label className="text-gray-500">Credit Balance</Label>
+              <Label className="text-muted-foreground">Credit Balance</Label>
               <p className="font-medium">₹{partner.credit_balance}</p>
             </div>
             <div>
-              <Label className="text-gray-500">Applied On</Label>
+              <Label className="text-muted-foreground">Applied On</Label>
               <p className="font-medium">
                 {formatDateTime(partner.created_at)}
               </p>
             </div>
             <div>
-              <Label className="text-gray-500">Account Status</Label>
+              <Label className="text-muted-foreground">Account Status</Label>
               <p className="font-medium">
                 {partner.is_active ? "Active" : "Inactive"}
               </p>
@@ -269,7 +269,7 @@ export default function PartnerDetails() {
         <CardContent>
           <div className="flex flex-wrap gap-2">
             {serviceable_pincodes.length === 0 ? (
-              <p className="text-gray-500">No pincodes configured</p>
+              <p className="text-muted-foreground">No pincodes configured</p>
             ) : (
               serviceable_pincodes.map((pincode) => (
                 <Badge key={pincode.id} variant="outline">
@@ -292,19 +292,19 @@ export default function PartnerDetails() {
         </CardHeader>
         <CardContent>
           {verification_history.length === 0 ? (
-            <p className="text-gray-500">No history available</p>
+            <p className="text-muted-foreground">No history available</p>
           ) : (
             <div className="space-y-4">
               {verification_history.map((entry) => (
                 <div
                   key={entry.id}
-                  className="border-l-2 border-gray-200 pl-4 pb-4"
+                  className="border-l-2 border-border pl-4 pb-4"
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="outline">
                       {entry.action_type.replace(/_/g, " ").toUpperCase()}
                     </Badge>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-muted-foreground">
                       {formatDateTime(entry.created_at)}
                     </span>
                   </div>
@@ -319,11 +319,11 @@ export default function PartnerDetails() {
                     </div>
                   )}
                   {entry.message_from_partner && (
-                    <div className="bg-gray-50 rounded p-3 mt-2">
-                      <p className="text-sm font-semibold text-gray-800">
+                    <div className="bg-muted rounded p-3 mt-2">
+                      <p className="text-sm font-semibold text-foreground">
                         Partner Response:
                       </p>
-                      <p className="text-sm text-gray-700">
+                      <p className="text-sm text-foreground">
                         {entry.message_from_partner}
                       </p>
                     </div>

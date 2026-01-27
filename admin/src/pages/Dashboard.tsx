@@ -54,7 +54,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -123,7 +123,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-gray-500 mt-1">
+        <p className="text-muted-foreground mt-1">
           Overview of your system performance
         </p>
       </div>
@@ -140,7 +140,7 @@ export default function Dashboard() {
             onClick={stat.onClick}
           >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 {stat.title}
               </CardTitle>
               <div className={`p-2 rounded-lg ${stat.bgColor}`}>
@@ -168,7 +168,7 @@ export default function Dashboard() {
                 {Object.entries(stats.orders_by_status).map(
                   ([status, count]) => (
                     <div key={status} className="border rounded-lg p-4">
-                      <div className="text-sm text-gray-500 uppercase">
+                      <div className="text-sm text-muted-foreground uppercase">
                         {status}
                       </div>
                       <div className="text-2xl font-bold mt-1">{count}</div>

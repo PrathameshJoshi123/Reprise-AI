@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,14 +7,14 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import api from '../../lib/api';
-import { Order } from '../../types';
-import { formatPrice } from '../../utils/formatting';
-import EmptyState from '../../components/EmptyState';
-import '../../global.css';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import api from "../../lib/api";
+import { Order } from "../../types";
+import { formatPrice } from "../../utils/formatting";
+import EmptyState from "../../components/EmptyState";
+import "../../global.css";
 
 export default function MarketplaceScreen() {
   const router = useRouter();
@@ -25,7 +25,7 @@ export default function MarketplaceScreen() {
 
   const fetchLeads = async () => {
     try {
-      const response = await api.get('/sell-phone/partner/leads/available');
+      const response = await api.get("/sell-phone/partner/leads/available");
       // Map order_id to id for consistency
       const mappedLeads = response.data.map((lead: any) => ({
         ...lead,
@@ -34,7 +34,7 @@ export default function MarketplaceScreen() {
       setLeads(mappedLeads);
     } catch (error: any) {
       if (error.response?.status !== 401) {
-        Alert.alert('Error', 'Failed to fetch marketplace leads');
+        Alert.alert("Error", "Failed to fetch marketplace leads");
       }
     } finally {
       setLoading(false);
@@ -52,40 +52,43 @@ export default function MarketplaceScreen() {
   }, []);
 
   const handleLockLead = async (orderId: number) => {
-    console.log('Attempting to lock lead:', orderId);
-    
+    console.log("Attempting to lock lead:", orderId);
+
     // Direct execution without confirmation for testing
     if (actionLoading) {
-      console.log('Already processing a request');
+      console.log("Already processing a request");
       return;
     }
 
     setActionLoading(true);
     try {
-      console.log('Calling API to lock lead:', orderId);
-      const response = await api.post(`/sell-phone/partner/leads/${orderId}/lock`);
-      console.log('Lock response:', response.data);
-      
-      // Refresh the leads list to remove the locked lead
+      console.log("Calling API to lock lead:", orderId);
+      const response = await api.post(
+        `/sell-phone/partner/leads/${orderId}/lock`,
+      );
+      console.log("Lock response:", response.data);
       await fetchLeads();
-      
+
       Alert.alert(
-        'Success',
-        'Lead locked successfully! You have 15 minutes to purchase it.',
+        "Success",
+        "Lead locked successfully! You have 15 minutes to purchase it.",
         [
           {
-            text: 'View Dashboard',
-            onPress: () => router.push('/(tabs)/dashboard'),
+            text: "View Dashboard",
+            onPress: () => router.push("/(tabs)/dashboard"),
           },
           {
-            text: 'OK',
-            style: 'cancel',
+            text: "OK",
+            style: "cancel",
           },
-        ]
+        ],
       );
     } catch (error: any) {
-      console.error('Lock error:', error.response?.data || error.message);
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to lock lead');
+      console.error("Lock error:", error.response?.data || error.message);
+      Alert.alert(
+        "Error",
+        error.response?.data?.detail || "Failed to lock lead",
+      );
     } finally {
       setActionLoading(false);
     }
@@ -114,7 +117,11 @@ export default function MarketplaceScreen() {
         className="flex-1"
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#0d9488"]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#0d9488"]}
+          />
         }
       >
         {leads.length === 0 ? (
@@ -150,6 +157,7 @@ function LeadCard({
   onLock: (id: number) => void;
   actionLoading: boolean;
 }) {
+  const router = useRouter();
   const isNewLead = new Date(lead.created_at).getTime() > Date.now() - 3600000; // 1 hour
 
   return (
@@ -177,7 +185,11 @@ function LeadCard({
       <View className="mb-4">
         <Text className="text-xs text-slate-500 mb-1">Estimated Value</Text>
         <Text className="text-3xl font-bold text-green-600">
-          {formatPrice(lead.ai_estimated_price || lead.quoted_price || lead.final_quoted_price)}
+          {formatPrice(
+            lead.ai_estimated_price ||
+              lead.quoted_price ||
+              lead.final_quoted_price,
+          )}
         </Text>
       </View>
       {/* Lead Cost */}
@@ -193,7 +205,9 @@ function LeadCard({
       {/* Location */}
       <View className="mb-4 p-3 bg-gray-50 rounded-lg">
         <View className="flex-row items-center mb-2">
-          <Text className="text-sm font-medium text-slate-700">📍 Pickup Location</Text>
+          <Text className="text-sm font-medium text-slate-700">
+            📍 Pickup Location
+          </Text>
         </View>
         <Text className="text-sm text-slate-600">
           {lead.pickup_city}, {lead.pickup_state} - {lead.pickup_pincode}
@@ -203,20 +217,35 @@ function LeadCard({
       {/* Customer Info */}
       <View className="mb-4">
         <Text className="text-xs text-slate-500 mb-1">Customer</Text>
-        <Text className="text-sm font-medium text-slate-700">{lead.customer_name}</Text>
+        <Text className="text-sm font-medium text-slate-700">
+          {lead.customer_name}
+        </Text>
       </View>
 
-      {/* Action Button */}
-      <TouchableOpacity
-        className="bg-teal-600 rounded-xl py-3 items-center"
-        onPress={() => onLock(lead.id)}
-        disabled={actionLoading}
-        activeOpacity={0.8}
-      >
-        <Text className="text-white font-bold text-base">
-          {actionLoading ? 'Locking...' : 'Lock Lead'}
-        </Text>
-      </TouchableOpacity>
+      {/* Action Buttons */}
+      <View className="flex-row gap-3">
+        <TouchableOpacity
+          className="flex-1 bg-gray-100 rounded-xl py-3 items-center"
+          onPress={() =>
+            router.push(`/lead-detail/${lead.id}?source=marketplace`)
+          }
+          activeOpacity={0.8}
+        >
+          <Text className="text-gray-700 font-semibold text-base">
+            View Details
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          className="flex-1 bg-teal-600 rounded-xl py-3 items-center"
+          onPress={() => onLock(lead.id)}
+          disabled={actionLoading}
+          activeOpacity={0.8}
+        >
+          <Text className="text-white font-bold text-base">
+            {actionLoading ? "Locking..." : "Lock Lead"}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

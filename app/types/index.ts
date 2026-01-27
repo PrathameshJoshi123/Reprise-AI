@@ -9,7 +9,7 @@ export interface Partner {
   email: string;
   full_name: string;
   name: string; // Normalized from full_name
-  type: 'partner';
+  type: "partner";
   credit_balance: number;
   phone: string;
   company_name: string;
@@ -25,7 +25,7 @@ export interface Agent {
   email: string;
   full_name: string;
   name: string; // Normalized from full_name
-  type: 'agent';
+  type: "agent";
   phone: string;
   employee_id: string | null;
   partner_id: number;
@@ -43,37 +43,44 @@ export interface Order {
   customer_id: number;
   partner_id: number | null;
   agent_id: number | null;
+  specs: string,
+  estimated_value : number,
+  pickup_schedule_time: string,
+  pickup_schedule_date: string,
+  pickup_address : string,
+  payment_mode: string,
+  phone: number
 
   // Phone details - backend uses these names
   phone_name: string;
-  brand: string;
-  model: string;
+  brand?: string;
+  model?: string;
   ram_gb: number;
   storage_gb: number;
-  variant: string;
+  variant?: string;
   condition?: string;
   color?: string; // Device color
 
   // Pricing
   ai_estimated_price: number;
-  final_quoted_price: number;
-  quoted_price: number;
+  final_quoted_price?: number;
+  quoted_price?: number;
   lead_cost: number | null;
   final_price?: number; // Final agreed price
 
   // AI details
   ai_reasoning: string;
   customer_condition_answers: {
-    screen_condition: string;
-    device_turns_on: boolean;
-    has_original_box: boolean;
-    has_original_bill: boolean;
+    screen_condition?: string;
+    device_turns_on?: string;
+    has_original_box?: string;
+    has_original_bill?: string;
   } | null;
 
   // Customer info
   customer_name: string;
-  customer_phone: string;
-  customer_email: string;
+  customer_phone?: string;
+  customer_email?: string;
 
   // Legacy customer fields (from backend)
   phone_number?: string;
@@ -84,12 +91,12 @@ export interface Order {
   pincode?: string;
 
   // Pickup details
-  pickup_address_line: string;
-  pickup_city: string;
-  pickup_state: string;
-  pickup_pincode: string;
-  pickup_date: string | null;
-  pickup_time: string | null;
+  pickup_address_line?: string;
+  pickup_city?: string;
+  pickup_state?: string;
+  pickup_pincode?: string;
+  pickup_date?: string | null;
+  pickup_time?: string | null;
   scheduled_pickup_time?: string | null;
 
   // Agent info

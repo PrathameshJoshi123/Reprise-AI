@@ -301,10 +301,10 @@ function AgentCard({
     <View style={styles.agentCard}>
       <View style={styles.agentHeader}>
         <View style={styles.agentAvatar}>
-          <Text style={styles.agentAvatarText}>{agent.name ? agent.name.charAt(0).toUpperCase() : '?'}</Text>
+          <Text style={styles.agentAvatarText}>{agent.full_name ? agent.full_name.charAt(0).toUpperCase() : '?'}</Text>
         </View>
         <View style={styles.agentInfo}>
-          <Text style={styles.agentName}>{agent.name || 'Unknown'}</Text>
+          <Text style={styles.agentName}>{agent.full_name || 'Unknown'}</Text>
           <Text style={styles.agentEmail}>{agent.email || 'No email'}</Text>
         </View>
         <View

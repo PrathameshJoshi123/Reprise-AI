@@ -125,23 +125,48 @@ export default function Marketplace() {
             {leads.map((lead) => (
               <Card
                 key={lead.order_id}
-                className="hover:shadow-lg transition-shadow"
+                className="group relative overflow-hidden hover:shadow-2xl transition-all duration-300 border-2 hover:border-purple-200 bg-gradient-to-br from-white to-gray-50"
               >
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">
-                      {lead.brand} {lead.model}
-                    </CardTitle>
-                    <Badge>{lead.status || "lead"}</Badge>
+                {/* Decorative Spots */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-purple-100 rounded-full -mr-16 -mt-16 opacity-50 group-hover:opacity-70 transition-opacity" />
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-100 rounded-full -ml-12 -mb-12 opacity-50 group-hover:opacity-70 transition-opacity" />
+                <div className="absolute top-1/2 left-1/2 w-20 h-20 bg-pink-100 rounded-full opacity-30 group-hover:opacity-50 transition-opacity" />
+
+                <CardHeader className="relative z-10 pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <CardTitle className="text-xl font-bold text-gray-800 group-hover:text-purple-700 transition-colors">
+                        {lead.brand} {lead.model}
+                      </CardTitle>
+                      <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                        {lead.ram_gb && (
+                          <span className="px-2 py-1 bg-gray-100 rounded">
+                            {lead.ram_gb}GB RAM
+                          </span>
+                        )}
+                        {lead.storage_gb && (
+                          <span className="px-2 py-1 bg-gray-100 rounded">
+                            {lead.storage_gb}GB
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white border-0 shadow-sm">
+                      {lead.status || "lead"}
+                    </Badge>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="text-sm text-gray-500">
-                        Estimated Value
+
+                <CardContent className="relative z-10">
+                  <div className="space-y-4">
+                    {/* Price Section */}
+                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xs font-medium text-green-700 uppercase tracking-wide">
+                          Estimated Value
+                        </span>
                       </div>
-                      <div className="text-2xl font-bold text-green-600">
+                      <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mt-1">
                         {new Intl.NumberFormat("en-IN", {
                           style: "currency",
                           currency: "INR",
@@ -150,34 +175,68 @@ export default function Marketplace() {
                       </div>
                     </div>
 
-                    <div>
-                      <div className="text-sm text-gray-500 mb-1">Pickup</div>
-                      <div className="text-sm">
-                        {lead.pickup_city || ""}, {lead.pickup_state || ""} -{" "}
-                        {lead.pickup_pincode}
+                    {/* Location Section */}
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <svg
+                          className="w-4 h-4 text-blue-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                        </svg>
+                        <span className="text-xs font-medium text-blue-700 uppercase tracking-wide">
+                          Pickup Location
+                        </span>
+                      </div>
+                      <div className="text-sm font-medium text-gray-700">
+                        {lead.pickup_city || "City"},{" "}
+                        {lead.pickup_state || "State"}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        PIN: {lead.pickup_pincode}
                       </div>
                     </div>
 
+                    {/* Action Buttons */}
                     <div className="flex gap-2 pt-2">
                       {!lead.is_locked && (
                         <Button
                           onClick={() => lockLead(lead.order_id)}
                           disabled={actionLoading}
+                          className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all"
                         >
-                          Lock
+                          🔒 Lock Lead
                         </Button>
                       )}
                       {lead.is_locked && !lead.locked_by_me && (
-                        <Button variant="outline" disabled>
-                          Locked
+                        <Button
+                          variant="outline"
+                          disabled
+                          className="flex-1 border-2 border-gray-300 text-gray-400"
+                        >
+                          🔒 Locked by Others
                         </Button>
                       )}
                       {lead.locked_by_me && (
                         <Button
                           onClick={() => purchaseLead(lead.order_id)}
                           disabled={actionLoading}
+                          className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-md hover:shadow-lg transition-all"
                         >
-                          Purchase
+                          💳 Purchase Now
                         </Button>
                       )}
                     </div>

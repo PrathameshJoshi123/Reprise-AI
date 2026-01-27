@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,13 +7,13 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import api from '../../lib/api';
-import { Order } from '../../types';
-import { formatPrice, formatDate } from '../../utils/formatting';
-import StatusBadge from '../../components/StatusBadge';
-import EmptyState from '../../components/EmptyState';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import api from "../../lib/api";
+import { Order } from "../../types";
+import { formatPrice, formatDate } from "../../utils/formatting";
+import StatusBadge from "../../components/StatusBadge";
+import EmptyState from "../../components/EmptyState";
 
 export default function CompletedOrdersScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -22,14 +22,18 @@ export default function CompletedOrdersScreen() {
 
   const fetchOrders = async () => {
     try {
-      const response = await api.get<Order[]>('/agent/orders');
+      const response = await api.get<Order[]>("/agent/orders");
+      console.log("no customer completed order", response.data);
       const completed = response.data.filter((o) =>
-        ['pickup_completed', 'payment_processed', 'completed'].includes(o.status)
+        ["pickup completed", "payment_processed", "completed"].includes(
+          o.status,
+        ),
       );
       setOrders(completed);
+      console.log("Filtered Completed Orders:", completed);
     } catch (error: any) {
       if (error.response?.status !== 401) {
-        Alert.alert('Error', 'Failed to fetch completed orders');
+        Alert.alert("Error", "Failed to fetch completed orders");
       }
     } finally {
       setLoading(false);
@@ -55,7 +59,7 @@ export default function CompletedOrdersScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Completed Orders</Text>
         <View style={styles.countBadge}>
@@ -65,7 +69,9 @@ export default function CompletedOrdersScreen() {
 
       <ScrollView
         style={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {orders.length === 0 ? (
           <EmptyState
@@ -76,7 +82,10 @@ export default function CompletedOrdersScreen() {
         ) : (
           <View style={styles.ordersList}>
             {orders.map((order) => (
-              <CompletedOrderCard key={order.id} order={order} />
+              <CompletedOrderCard
+                key={order.id || order.order_id}
+                order={order}
+              />
             ))}
           </View>
         )}
@@ -89,41 +98,38 @@ function CompletedOrderCard({ order }: { order: Order }) {
   return (
     <View style={styles.orderCard}>
       <View style={styles.orderHeader}>
-        <View>
-          <Text style={styles.orderBrand}>{order.brand}</Text>
-          <Text style={styles.orderModel}>{order.model}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.orderModel}>{order.phone_name}</Text>
         </View>
         <StatusBadge status={order.status} size="small" />
       </View>
 
       <View style={styles.orderDetails}>
-        <Text style={styles.orderSpec}>
-          {order.ram_gb}GB RAM • {order.storage_gb}GB
-        </Text>
-        <Text style={styles.orderPrice}>{formatPrice(order.ai_estimated_price || order.final_quoted_price)}</Text>
+        <Text style={styles.orderSpec}>{order.specs}</Text>
+        <Text style={styles.orderPrice}>{order.estimated_value}</Text>
       </View>
 
       <View style={styles.orderInfo}>
         <Text style={styles.infoLabel}>Customer:</Text>
-        <Text style={styles.infoValue}>{order.customer_name}</Text>
+        <Text style={styles.infoValue}>{order.customer}</Text>
+      </View>
+
+      <View style={styles.orderInfo}>
+        <Text style={styles.infoLabel}>Phone:</Text>
+        <Text style={styles.infoValue}>{order.phone}</Text>
       </View>
 
       <View style={styles.orderInfo}>
         <Text style={styles.infoLabel}>Location:</Text>
-        <Text style={styles.infoValue}>{order.pickup_city}</Text>
+        <Text style={styles.infoValue}>{order.pickup_address}</Text>
       </View>
 
-      {order.completed_at && (
+      {order.pickup_schedule_date && (
         <View style={styles.completedInfo}>
-          <Text style={styles.completedLabel}>✅ Completed</Text>
-          <Text style={styles.completedDate}>{formatDate(order.completed_at)}</Text>
-        </View>
-      )}
-
-      {order.final_offered_price && (
-        <View style={styles.finalPriceContainer}>
-          <Text style={styles.finalPriceLabel}>Final Price:</Text>
-          <Text style={styles.finalPriceValue}>{formatPrice(order.final_offered_price)}</Text>
+          <Text style={styles.completedLabel}>✅ Picked Up</Text>
+          <Text style={styles.completedDate}>
+            {order.pickup_schedule_date} at {order.pickup_schedule_time}
+          </Text>
         </View>
       )}
     </View>
@@ -133,38 +139,38 @@ function CompletedOrderCard({ order }: { order: Order }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: "#f9fafb",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f9fafb",
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: "#e5e7eb",
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: "bold",
+    color: "#111827",
   },
   countBadge: {
-    backgroundColor: '#9333ea',
+    backgroundColor: "#9333ea",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
   },
   countText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   content: {
     flex: 1,
@@ -174,100 +180,100 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   orderCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   orderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 12,
   },
   orderBrand: {
     fontSize: 12,
-    color: '#6b7280',
-    fontWeight: '600',
+    color: "#6b7280",
+    fontWeight: "600",
   },
   orderModel: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: "bold",
+    color: "#111827",
     marginTop: 2,
   },
   orderDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: "#f3f4f6",
   },
   orderSpec: {
     fontSize: 14,
-    color: '#6b7280',
+    color: "#6b7280",
   },
   orderPrice: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#6b7280',
+    fontWeight: "bold",
+    color: "#6b7280",
   },
   orderInfo: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 8,
   },
   infoLabel: {
     fontSize: 13,
-    color: '#6b7280',
+    color: "#6b7280",
     width: 80,
   },
   infoValue: {
     fontSize: 13,
-    color: '#111827',
+    color: "#111827",
     flex: 1,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   completedInfo: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: "#f0fdf4",
     padding: 12,
     borderRadius: 8,
     marginTop: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   completedLabel: {
     fontSize: 12,
-    color: '#15803d',
-    fontWeight: '600',
+    color: "#15803d",
+    fontWeight: "600",
   },
   completedDate: {
     fontSize: 12,
-    color: '#15803d',
+    color: "#15803d",
   },
   finalPriceContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: "#f3f4f6",
   },
   finalPriceLabel: {
     fontSize: 14,
-    color: '#6b7280',
-    fontWeight: '600',
+    color: "#6b7280",
+    fontWeight: "600",
   },
   finalPriceValue: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#16a34a',
+    fontWeight: "bold",
+    color: "#16a34a",
   },
 });

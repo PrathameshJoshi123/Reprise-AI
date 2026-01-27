@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,17 +9,17 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '../../context/AuthContext';
-import { useRouter } from 'expo-router';
-import api from '../../lib/api';
-import { Order } from '../../types';
-import { formatPrice, formatDate } from '../../utils/formatting';
-import StatusBadge from '../../components/StatusBadge';
-import EmptyState from '../../components/EmptyState';
-import SchedulePickupModal from '../../components/SchedulePickupModal';
-import CompletePickupModal from '../../components/CompletePickupModal';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "../../context/AuthContext";
+import { useRouter } from "expo-router";
+import api from "../../lib/api";
+import { Order } from "../../types";
+import { formatPrice, formatDate } from "../../utils/formatting";
+import StatusBadge from "../../components/StatusBadge";
+import EmptyState from "../../components/EmptyState";
+import SchedulePickupModal from "../../components/SchedulePickupModal";
+import CompletePickupModal from "../../components/CompletePickupModal";
 
 export default function AgentDashboardScreen() {
   const { user, logout } = useAuth();
@@ -33,11 +33,20 @@ export default function AgentDashboardScreen() {
 
   const fetchOrders = async () => {
     try {
-      const response = await api.get<Order[]>('/agent/orders');
+      const response = await api.get<Order[]>("/agent/orders");
+      console.log(
+        "Agent Orders Full Response:",
+        JSON.stringify(response.data, null, 2),
+      );
+      if (response.data.length > 0) {
+        console.log("First Order Keys:", Object.keys(response.data[0]));
+        console.log("First Order ID field:", response.data[0].id);
+        console.log("First Order order_id field:", response.data[0].order_id);
+      }
       setOrders(response.data);
     } catch (error: any) {
       if (error.response?.status !== 401) {
-        Alert.alert('Error', 'Failed to fetch orders');
+        Alert.alert("Error", "Failed to fetch orders");
       }
     } finally {
       setLoading(false);
@@ -55,21 +64,27 @@ export default function AgentDashboardScreen() {
   }, []);
 
   const handleLogout = async () => {
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm('Are you sure you want to logout?');
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm("Are you sure you want to logout?");
       if (confirmed) {
         await logout();
-        window.location.href = '/';
+        window.location.href = "/";
       }
     } else {
-      Alert.alert('Logout', 'Are you sure you want to logout?', [
-        { text: 'Cancel', style: 'cancel' },
+      Alert.alert("Logout", "Are you sure you want to logout?", [
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Logout',
-          style: 'destructive',
+          text: "Logout",
+          style: "destructive",
           onPress: async () => {
-            await logout();
-            router.replace('/');
+            try {
+              await logout();
+              // Wait for state to clear
+              await new Promise((resolve) => setTimeout(resolve, 150));
+              router.replace("/");
+            } catch (error) {
+              console.error("Logout error:", error);
+            }
           },
         },
       ]);
@@ -77,30 +92,44 @@ export default function AgentDashboardScreen() {
   };
 
   const handleAccept = async (orderId: number) => {
+    console.log(
+      "handleAccept called with orderId:",
+      orderId,
+      "Type:",
+      typeof orderId,
+    );
     try {
       await api.post(`/agent/orders/${orderId}/accept`);
-      Alert.alert('Success', 'Order accepted successfully');
+      Alert.alert("Success", "Order accepted successfully");
       fetchOrders();
     } catch (error: any) {
-      console.error('Accept Order Error:', error);
-      console.error('Response Data:', error.response?.data);
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to accept order');
+      console.error("Accept Order Error:", error);
+      console.error("Response Data:", error.response?.data);
+      Alert.alert(
+        "Error",
+        error.response?.data?.detail || "Failed to accept order",
+      );
     }
   };
 
   const handleReject = async (orderId: number) => {
-    Alert.alert('Reject Order', 'Are you sure you want to reject this order?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert("Reject Order", "Are you sure you want to reject this order?", [
+      { text: "Cancel", style: "cancel" },
       {
-        text: 'Reject',
-        style: 'destructive',
+        text: "Reject",
+        style: "destructive",
         onPress: async () => {
           try {
-            await api.post(`/agent/orders/${orderId}/reject`, { rejection_reason: 'Agent rejected' });
-            Alert.alert('Success', 'Order rejected');
+            await api.post(`/agent/orders/${orderId}/reject`, {
+              rejection_reason: "Agent rejected",
+            });
+            Alert.alert("Success", "Order rejected");
             fetchOrders();
           } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.detail || 'Failed to reject order');
+            Alert.alert(
+              "Error",
+              error.response?.data?.detail || "Failed to reject order",
+            );
           }
         },
       },
@@ -118,7 +147,9 @@ export default function AgentDashboardScreen() {
   };
 
   const currentOrders = orders.filter((o) =>
-    ['assigned_to_agent', 'accepted_by_agent', 'pickup_scheduled'].includes(o.status)
+    ["assigned_to_agent", "accepted_by_agent", "pickup_scheduled"].includes(
+      o.status,
+    ),
   );
 
   if (loading) {
@@ -130,12 +161,12 @@ export default function AgentDashboardScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.welcomeText}>Welcome back,</Text>
-          <Text style={styles.agentName}>{user?.name || 'Agent'}</Text>
+          <Text style={styles.agentName}>{user?.name || "Agent"}</Text>
         </View>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
           <Text style={styles.logoutText}>Logout</Text>
@@ -150,13 +181,19 @@ export default function AgentDashboardScreen() {
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>
-            {currentOrders.filter((o) => o.status === 'assigned_to_agent').length}
+            {
+              currentOrders.filter((o) => o.status === "assigned_to_agent")
+                .length
+            }
           </Text>
           <Text style={styles.statLabel}>Pending Accept</Text>
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>
-            {currentOrders.filter((o) => o.status === 'pickup_scheduled').length}
+            {
+              currentOrders.filter((o) => o.status === "pickup_scheduled")
+                .length
+            }
           </Text>
           <Text style={styles.statLabel}>Scheduled</Text>
         </View>
@@ -164,8 +201,11 @@ export default function AgentDashboardScreen() {
 
       {/* Orders List */}
       <ScrollView
+        key={currentOrders.length}
         style={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {currentOrders.length === 0 ? (
           <EmptyState
@@ -177,7 +217,7 @@ export default function AgentDashboardScreen() {
           <View style={styles.ordersList}>
             {currentOrders.map((order) => (
               <AgentOrderCard
-                key={order.id}
+                key={order.id || order.order_id}
                 order={order}
                 onAccept={handleAccept}
                 onReject={handleReject}
@@ -233,78 +273,108 @@ function AgentOrderCard({
   onSchedule: (id: number) => void;
   onComplete: (id: number) => void;
 }) {
+  // Debug: Log the order object to see what ID we have
+  console.log(
+    "Rendering order with ID:",
+    order.id,
+    "order_id:",
+    order.order_id,
+    "All keys:",
+    Object.keys(order),
+  );
+
+  // Use order_id if id is not available
+  const orderIdentifier = order.id || order.order_id;
   return (
     <View style={styles.orderCard}>
       <View style={styles.orderHeader}>
-        <View>
-          <Text style={styles.orderBrand}>{order.brand}</Text>
-          <Text style={styles.orderModel}>{order.model}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.orderModel}>{order.phone_name}</Text>
         </View>
         <StatusBadge status={order.status} size="small" />
       </View>
 
       <View style={styles.orderDetails}>
-        <Text style={styles.orderSpec}>
-          {order.ram_gb}GB RAM • {order.storage_gb}GB
-        </Text>
-        <Text style={styles.orderPrice}>{formatPrice(order.ai_estimated_price || order.final_quoted_price)}</Text>
+        <Text style={styles.orderSpec}>{order.specs}</Text>
+        <Text style={styles.orderPrice}>{order.estimated_value}</Text>
       </View>
 
       <View style={styles.orderInfo}>
         <Text style={styles.infoLabel}>Customer:</Text>
-        <Text style={styles.infoValue}>{order.customer_name}</Text>
+        <Text style={styles.infoValue}>{order.customer}</Text>
       </View>
 
       <View style={styles.orderInfo}>
         <Text style={styles.infoLabel}>Phone:</Text>
-        <Text style={styles.infoValue}>{order.customer_phone}</Text>
+        <Text style={styles.infoValue}>{order.phone}</Text>
+      </View>
+
+      <View style={styles.orderInfo}>
+        <Text style={styles.infoLabel}>Payment:</Text>
+        <Text style={styles.infoValue}>
+          {order.payment_mode?.toUpperCase() || "N/A"}
+        </Text>
       </View>
 
       <View style={styles.orderInfo}>
         <Text style={styles.infoLabel}>Location:</Text>
-        <Text style={styles.infoValue}>
-          {order.pickup_address_line}, {order.pickup_city}
-        </Text>
+        <Text style={styles.infoValue}>{order.pickup_address}</Text>
       </View>
 
-      {order.pickup_date && (
+      {order.pickup_schedule_date && (
         <View style={styles.pickupInfo}>
           <Text style={styles.pickupLabel}>📅 Pickup Scheduled</Text>
           <Text style={styles.pickupDate}>
-            {formatDate(order.pickup_date)} at {order.pickup_time}
+            {order.pickup_schedule_date} at {order.pickup_schedule_time}
           </Text>
         </View>
       )}
 
       <View style={styles.orderActions}>
-        {order.status === 'assigned_to_agent' && (
+        {order.status === "assigned_to_agent" && (
           <>
             <TouchableOpacity
               style={styles.acceptButton}
-              onPress={() => onAccept(order.id)}
+              onPress={() => {
+                if (orderIdentifier) {
+                  console.log(
+                    "Accept button pressed with ID:",
+                    orderIdentifier,
+                  );
+                  onAccept(orderIdentifier);
+                }
+              }}
             >
               <Text style={styles.acceptButtonText}>Accept Order</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.rejectButton}
-              onPress={() => onReject(order.id)}
+              onPress={() => {
+                if (orderIdentifier) {
+                  console.log(
+                    "Reject button pressed with ID:",
+                    orderIdentifier,
+                  );
+                  onReject(orderIdentifier);
+                }
+              }}
             >
               <Text style={styles.rejectButtonText}>Reject</Text>
             </TouchableOpacity>
           </>
         )}
-        {order.status === 'accepted_by_agent' && (
+        {order.status === "accepted_by_agent" && (
           <TouchableOpacity
             style={styles.scheduleButton}
-            onPress={() => onSchedule(order.id)}
+            onPress={() => orderIdentifier && onSchedule(orderIdentifier)}
           >
             <Text style={styles.scheduleButtonText}>Schedule Pickup</Text>
           </TouchableOpacity>
         )}
-        {order.status === 'pickup_scheduled' && (
+        {order.status === "pickup_scheduled" && (
           <TouchableOpacity
             style={styles.completeButton}
-            onPress={() => onComplete(order.id)}
+            onPress={() => orderIdentifier && onComplete(orderIdentifier)}
           >
             <Text style={styles.completeButtonText}>Complete Pickup</Text>
           </TouchableOpacity>
@@ -317,31 +387,31 @@ function AgentOrderCard({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: "#f9fafb",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f9fafb",
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: "#e5e7eb",
   },
   welcomeText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: "#6b7280",
   },
   agentName: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: "bold",
+    color: "#111827",
     marginTop: 2,
   },
   logoutButton: {
@@ -350,104 +420,105 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     fontSize: 14,
-    color: '#dc2626',
-    fontWeight: '600',
+    color: "#dc2626",
+    fontWeight: "600",
   },
   statsContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: 16,
-    gap: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
+    justifyContent: "space-between",
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: "#f9fafb",
     borderRadius: 8,
     padding: 12,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: "#e5e7eb",
+    marginHorizontal: 4,
   },
   statValue: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#9333ea',
+    fontWeight: "bold",
+    color: "#9333ea",
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 11,
-    color: '#6b7280',
-    textAlign: 'center',
+    color: "#6b7280",
+    textAlign: "center",
   },
   content: {
     flex: 1,
   },
   ordersList: {
     padding: 16,
-    gap: 16,
   },
   orderCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    marginBottom: 16,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   orderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 12,
   },
   orderBrand: {
     fontSize: 12,
-    color: '#6b7280',
-    fontWeight: '600',
+    color: "#6b7280",
+    fontWeight: "600",
   },
   orderModel: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: "bold",
+    color: "#111827",
     marginTop: 2,
   },
   orderDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: "#f3f4f6",
   },
   orderSpec: {
     fontSize: 14,
-    color: '#6b7280',
+    color: "#6b7280",
   },
   orderPrice: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#16a34a',
+    fontWeight: "bold",
+    color: "#16a34a",
   },
   orderInfo: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 8,
   },
   infoLabel: {
     fontSize: 13,
-    color: '#6b7280',
+    color: "#6b7280",
     width: 80,
   },
   infoValue: {
     fontSize: 13,
-    color: '#111827',
+    color: "#111827",
     flex: 1,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   pickupInfo: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: "#f0fdf4",
     padding: 12,
     borderRadius: 8,
     marginTop: 8,
@@ -455,65 +526,65 @@ const styles = StyleSheet.create({
   },
   pickupLabel: {
     fontSize: 12,
-    color: '#15803d',
-    fontWeight: '600',
+    color: "#15803d",
+    fontWeight: "600",
     marginBottom: 4,
   },
   pickupDate: {
     fontSize: 14,
-    color: '#15803d',
-    fontWeight: 'bold',
+    color: "#15803d",
+    fontWeight: "bold",
   },
   orderActions: {
-    flexDirection: 'row',
-    gap: 8,
+    flexDirection: "row",
     marginTop: 12,
   },
   acceptButton: {
     flex: 1,
-    backgroundColor: '#16a34a',
+    backgroundColor: "#16a34a",
     borderRadius: 8,
     padding: 12,
-    alignItems: 'center',
+    alignItems: "center",
+    marginRight: 8,
   },
   acceptButtonText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   rejectButton: {
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: "#f3f4f6",
   },
   rejectButtonText: {
-    color: '#dc2626',
+    color: "#dc2626",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   scheduleButton: {
     flex: 1,
-    backgroundColor: '#2563eb',
+    backgroundColor: "#2563eb",
     borderRadius: 8,
     padding: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   scheduleButtonText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   completeButton: {
     flex: 1,
-    backgroundColor: '#9333ea',
+    backgroundColor: "#9333ea",
     borderRadius: 8,
     padding: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   completeButtonText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
