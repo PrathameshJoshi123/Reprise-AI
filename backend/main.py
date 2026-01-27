@@ -33,7 +33,7 @@ origins = [
     "http://localhost:5174",  # your frontend dev server
     "http://localhost:8081",
     "http://localhost:5173",
-    "https://loan-celebrities-spelling-atom.trycloudflare.com",
+    "https://lying-bobby-eligible-promo.trycloudflare.com",
     "http://localhost:5175",
 ]
 
