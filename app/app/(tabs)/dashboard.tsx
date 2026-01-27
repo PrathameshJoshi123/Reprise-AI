@@ -73,20 +73,15 @@ export default function DashboardScreen() {
   }, [fetchData]);
 
   const handlePurchase = (orderId: number) => {
-    console.log("Purchase lead clicked for order:", orderId);
-    // Navigate to the lead purchase confirmation page like the website does
     router.push(`/lead-purchase/${orderId}`);
   };
 
   const handleLogout = async () => {
-    console.log("Logout initiated, Platform:", Platform.OS);
     try {
       if (Platform.OS === "web") {
         const confirmed = window.confirm("Are you sure you want to logout?");
-        console.log("Logout confirmed:", confirmed);
         if (confirmed) {
           await logout();
-          console.log("Logout successful, redirecting to /");
           window.location.href = "/";
         }
       } else {
@@ -102,7 +97,6 @@ export default function DashboardScreen() {
                 await new Promise((resolve) => setTimeout(resolve, 150));
                 router.replace("/");
               } catch (e) {
-                console.error("Logout failed:", e);
                 Alert.alert("Error", "Failed to logout");
               }
             },

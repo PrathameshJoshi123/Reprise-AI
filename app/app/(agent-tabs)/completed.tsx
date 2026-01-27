@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import api from "../../lib/api";
 import { Order } from "../../types";
-import { formatPrice, formatDate } from "../../utils/formatting";
 import StatusBadge from "../../components/StatusBadge";
 import EmptyState from "../../components/EmptyState";
 
@@ -23,14 +22,12 @@ export default function CompletedOrdersScreen() {
   const fetchOrders = async () => {
     try {
       const response = await api.get<Order[]>("/agent/orders");
-      console.log("no customer completed order", response.data);
       const completed = response.data.filter((o) =>
         ["pickup completed", "payment_processed", "completed"].includes(
           o.status,
         ),
       );
       setOrders(completed);
-      console.log("Filtered Completed Orders:", completed);
     } catch (error: any) {
       if (error.response?.status !== 401) {
         Alert.alert("Error", "Failed to fetch completed orders");

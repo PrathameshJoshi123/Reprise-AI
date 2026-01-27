@@ -1,9 +1,3 @@
-/**
- * Agent Login Screen
- * Reference: SPEC Section - Agent Login Screen (/agent/login)
- * Features: Simple email/password login, no signup option
- */
-
 import React, { useState } from "react";
 import {
   View,

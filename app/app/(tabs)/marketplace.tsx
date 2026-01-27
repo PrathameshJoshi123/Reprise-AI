@@ -26,7 +26,6 @@ export default function MarketplaceScreen() {
   const fetchLeads = async () => {
     try {
       const response = await api.get("/sell-phone/partner/leads/available");
-      // Map order_id to id for consistency
       const mappedLeads = response.data.map((lead: any) => ({
         ...lead,
         id: lead.order_id,
@@ -52,21 +51,17 @@ export default function MarketplaceScreen() {
   }, []);
 
   const handleLockLead = async (orderId: number) => {
-    console.log("Attempting to lock lead:", orderId);
 
     // Direct execution without confirmation for testing
     if (actionLoading) {
-      console.log("Already processing a request");
       return;
     }
 
     setActionLoading(true);
     try {
-      console.log("Calling API to lock lead:", orderId);
       const response = await api.post(
         `/sell-phone/partner/leads/${orderId}/lock`,
       );
-      console.log("Lock response:", response.data);
       await fetchLeads();
 
       Alert.alert(
@@ -84,7 +79,6 @@ export default function MarketplaceScreen() {
         ],
       );
     } catch (error: any) {
-      console.error("Lock error:", error.response?.data || error.message);
       Alert.alert(
         "Error",
         error.response?.data?.detail || "Failed to lock lead",
@@ -189,9 +183,7 @@ function LeadCard({
         <Text className="text-xs text-slate-500 mb-1">Estimated Value</Text>
         <Text className="text-3xl font-bold text-green-600">
           {formatPrice(
-            lead.ai_estimated_price ||
-              lead.quoted_price ||
-              lead.final_quoted_price,
+            lead.ai_estimated_price
           )}
         </Text>
       </View>

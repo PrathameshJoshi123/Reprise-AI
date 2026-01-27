@@ -29,21 +29,12 @@ export default function LeadPurchaseScreen() {
   }, [id]);
 
   const fetchLeadDetail = async () => {
-    console.log('Fetching lead detail for ID:', id);
     try {
-      // Fetch from locked deals (correct endpoint)
       const response = await api.get<Order[]>('/partner/locked-deals');
-      console.log('Locked deals response:', response.data);
-
-      // Check multiple possible ID fields
       const foundLead = response.data.find((l: any) =>
         l.id?.toString() === id ||
         l.order_id?.toString() === id
       );
-
-      console.log('Found lead:', foundLead);
-
-      // Normalize the lead object
       if (foundLead) {
         setLead({
           ...foundLead,
@@ -53,45 +44,22 @@ export default function LeadPurchaseScreen() {
         setLead(null);
       }
     } catch (error: any) {
-      console.error('Error fetching lead:', error.response?.data || error.message);
       Alert.alert('Error', 'Failed to fetch lead details');
     } finally {
       setLoading(false);
     }
   };
 
-  // Re-lock the lead when lock expires
-  const handleReLock = async () => {
-    if (!lead) return;
-    console.log('Re-locking lead:', lead.id);
-    setPurchasing(true);
-    try {
-      await api.post(`/sell-phone/partner/leads/${lead.id}/lock`);
-      console.log('Lead re-locked successfully');
-      Alert.alert('Success', 'Lead locked for 15 minutes. You can now purchase it.');
-      // Refresh lead data
-      fetchLeadDetail();
-    } catch (error: any) {
-      console.error('Re-lock error:', error.response?.data || error.message);
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to lock lead. It may have been purchased by another partner.');
-      router.replace('/(tabs)/marketplace');
-    } finally {
-      setPurchasing(false);
-    }
-  };
+  
 
   const handlePurchase = async () => {
-    console.log('handlePurchase called');
     if (!lead || !user) {
-      console.log('No lead or user', { lead, user });
       return;
     }
 
     const userCredits = user.credit_balance || 0;
-    const leadPrice = lead.ai_estimated_price || lead.final_quoted_price;
-    console.log('Credits check:', { userCredits, leadPrice });
+    const leadPrice = lead.ai_estimated_price ;
 
-    // Check if partner has enough credits
     if (userCredits < leadPrice) {
       Alert.alert(
         'Insufficient Credits',
@@ -105,15 +73,12 @@ export default function LeadPurchaseScreen() {
     }
 
     // Execute purchase directly
-    console.log('Starting purchase for lead:', lead.id);
     setPurchasing(true);
     try {
       // Attempt purchase (lead should already be locked from locked-deals)
       const response = await api.post(`/sell-phone/partner/leads/${lead.id}/purchase`);
-      console.log('Purchase response:', response.data);
 
       await refreshUser(); // Refresh to update credit balance
-      console.log('User refreshed after purchase');
 
       if (Platform.OS === 'web') {
         window.alert('Lead purchased successfully!');
@@ -122,7 +87,6 @@ export default function LeadPurchaseScreen() {
       }
       router.replace('/(tabs)/dashboard');
     } catch (error: any) {
-      console.error('Purchase error:', error.response?.data || error.message);
       const errorDetail = error.response?.data?.detail || 'Failed to purchase lead';
 
       // Check if error is due to expired lock
@@ -186,7 +150,7 @@ export default function LeadPurchaseScreen() {
     );
   }
 
-  const creditCost = lead.ai_estimated_price || lead.final_quoted_price;
+  const creditCost = lead.ai_estimated_price ;
   const remainingBalance = (user?.credit_balance || 0) - creditCost;
   const hasEnoughCredits = remainingBalance >= 0;
 
@@ -352,7 +316,6 @@ export default function LeadPurchaseScreen() {
         <TouchableOpacity
           style={styles.cancelButton}
           onPress={() => {
-            console.log('Cancel pressed - navigating to dashboard');
             router.replace('/(tabs)/dashboard');
           }}
           activeOpacity={0.7}

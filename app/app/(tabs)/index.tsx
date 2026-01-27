@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import api from "../../lib/api";
 import "../../global.css";
 
@@ -80,7 +80,6 @@ export default function PartnerDashboard() {
   // Auto-refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log("Dashboard focused, refreshing data...");
       fetchStats();
       refreshUser();
     }, []),

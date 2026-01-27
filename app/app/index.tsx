@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, StatusBar, Animated } from "react-native";
 import { useRouter } from "expo-router";
+
 import { useAuth } from "../context/AuthContext";
 import { useEffect, useRef } from "react";
 import OnboardingCarousel from "../components/OnboardingCarousel";

@@ -15,7 +15,6 @@ import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "expo-router";
 import api from "../../lib/api";
 import { Order } from "../../types";
-import { formatPrice, formatDate } from "../../utils/formatting";
 import StatusBadge from "../../components/StatusBadge";
 import EmptyState from "../../components/EmptyState";
 import SchedulePickupModal from "../../components/SchedulePickupModal";
@@ -34,15 +33,7 @@ export default function AgentDashboardScreen() {
   const fetchOrders = async () => {
     try {
       const response = await api.get<Order[]>("/agent/orders");
-      console.log(
-        "Agent Orders Full Response:",
-        JSON.stringify(response.data, null, 2),
-      );
-      if (response.data.length > 0) {
-        console.log("First Order Keys:", Object.keys(response.data[0]));
-        console.log("First Order ID field:", response.data[0].id);
-        console.log("First Order order_id field:", response.data[0].order_id);
-      }
+      
       setOrders(response.data);
     } catch (error: any) {
       if (error.response?.status !== 401) {
@@ -92,19 +83,11 @@ export default function AgentDashboardScreen() {
   };
 
   const handleAccept = async (orderId: number) => {
-    console.log(
-      "handleAccept called with orderId:",
-      orderId,
-      "Type:",
-      typeof orderId,
-    );
     try {
       await api.post(`/agent/orders/${orderId}/accept`);
       Alert.alert("Success", "Order accepted successfully");
       fetchOrders();
     } catch (error: any) {
-      console.error("Accept Order Error:", error);
-      console.error("Response Data:", error.response?.data);
       Alert.alert(
         "Error",
         error.response?.data?.detail || "Failed to accept order",
@@ -273,17 +256,8 @@ function AgentOrderCard({
   onSchedule: (id: number) => void;
   onComplete: (id: number) => void;
 }) {
-  // Debug: Log the order object to see what ID we have
-  console.log(
-    "Rendering order with ID:",
-    order.id,
-    "order_id:",
-    order.order_id,
-    "All keys:",
-    Object.keys(order),
-  );
+  
 
-  // Use order_id if id is not available
   const orderIdentifier = order.id || order.order_id;
   return (
     <View style={styles.orderCard}>
@@ -337,10 +311,6 @@ function AgentOrderCard({
               style={styles.acceptButton}
               onPress={() => {
                 if (orderIdentifier) {
-                  console.log(
-                    "Accept button pressed with ID:",
-                    orderIdentifier,
-                  );
                   onAccept(orderIdentifier);
                 }
               }}
@@ -351,10 +321,6 @@ function AgentOrderCard({
               style={styles.rejectButton}
               onPress={() => {
                 if (orderIdentifier) {
-                  console.log(
-                    "Reject button pressed with ID:",
-                    orderIdentifier,
-                  );
                   onReject(orderIdentifier);
                 }
               }}

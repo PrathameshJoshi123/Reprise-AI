@@ -81,7 +81,7 @@ export default function DiagnosticDetailScreen() {
         <View style={styles.priceRow}>
           <Text style={styles.priceLabel}>AI Estimated Price</Text>
           <Text style={styles.priceValue}>
-            {formatPrice(order.ai_estimated_price || order.final_quoted_price)}
+            {formatPrice(order.ai_estimated_price)}
           </Text>
         </View>
       </View>

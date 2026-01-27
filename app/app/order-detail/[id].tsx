@@ -194,7 +194,7 @@ export default function OrderDetailScreen() {
             </View>
             <Text style={styles.estimatedPrice}>
               {formatPrice(
-                order.ai_estimated_price || order.final_quoted_price,
+                order.ai_estimated_price,
               )}
             </Text>
           </View>
