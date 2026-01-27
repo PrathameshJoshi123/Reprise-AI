@@ -397,17 +397,6 @@ export default function CustomerLogin() {
                   />
                 </div>
               </div>
-
-              {isLogin && (
-                <div className="flex justify-end">
-                  <Link
-                    to="/forgot-password"
-                    className="text-sm text-primary hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-              )}
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button
@@ -589,6 +578,25 @@ export default function CustomerLogin() {
               value={pincode}
               onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
             />
+            {pincodeChecking && (
+              <p className="text-sm text-blue-600 mb-3">Checking pincode...</p>
+            )}
+            {pincodeValid && serviceableInfo && (
+              <Alert className="bg-green-50 border-green-200 mb-3">
+                <AlertDescription className="text-green-800 text-sm">
+                  ✓ Great! {serviceableInfo.partner_count} partner(s) service
+                  your area
+                </AlertDescription>
+              </Alert>
+            )}
+            {pincodeError && (
+              <Alert className="bg-amber-50 border-amber-200 mb-3">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800 text-sm">
+                  {pincodeError}
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="flex justify-end gap-2">
               <Button
                 variant="ghost"
