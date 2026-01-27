@@ -43,13 +43,16 @@ export interface Order {
   customer_id: number;
   partner_id: number | null;
   agent_id: number | null;
-  specs: string,
-  estimated_value : number,
-  pickup_schedule_time: string,
-  pickup_schedule_date: string,
-  pickup_address : string,
-  payment_mode: string,
-  phone: number
+  specs: string;
+  estimated_value : number;
+  pickup_schedule_time: string;
+  pickup_schedule_date: string;
+  pickup_address : string;
+  payment_mode: string;
+  phone: number;
+  customer: string;
+  ai_estimated_price: number;
+
 
   // Phone details - backend uses these names
   phone_name: string;
@@ -62,7 +65,6 @@ export interface Order {
   color?: string; // Device color
 
   // Pricing
-  ai_estimated_price: number;
   final_quoted_price?: number;
   quoted_price?: number;
   lead_cost: number | null;

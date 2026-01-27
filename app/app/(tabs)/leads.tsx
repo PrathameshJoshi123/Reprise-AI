@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,9 +11,8 @@ import {
   Alert,
   FlatList,
   Modal,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const Leads = () => {
   const [selectedFilter, setSelectedFilter] = useState("All");
@@ -169,7 +168,7 @@ const Leads = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       {/* Header */}
       <View className="bg-white px-6 pt-4 pb-3">
         <View className="flex-row justify-between items-center mb-4">
