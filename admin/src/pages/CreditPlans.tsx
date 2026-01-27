@@ -31,7 +31,7 @@ import {
 } from "../components/ui/dialog";
 import { Badge } from "../components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, Settings } from "lucide-react";
 
 interface CreditPlan {
   id: number;
@@ -44,12 +44,23 @@ interface CreditPlan {
   created_at: string;
 }
 
+interface SystemConfig {
+  id: number;
+  config_key: string;
+  config_value: string;
+  description: string | null;
+  updated_at: string;
+}
+
 export default function CreditPlans() {
   const [plans, setPlans] = useState<CreditPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialog, setCreateDialog] = useState(false);
   const [editDialog, setEditDialog] = useState(false);
+  const [configDialog, setConfigDialog] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<CreditPlan | null>(null);
+  const [leadCostPercentage, setLeadCostPercentage] = useState<string>("15.0");
+  const [isUpdatingConfig, setIsUpdatingConfig] = useState(false);
 
   const [formData, setFormData] = useState({
     plan_name: "",
@@ -61,6 +72,7 @@ export default function CreditPlans() {
 
   useEffect(() => {
     fetchPlans();
+    fetchSystemConfig();
   }, []);
 
   const fetchPlans = async () => {
@@ -71,6 +83,21 @@ export default function CreditPlans() {
       console.error("Failed to fetch credit plans:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSystemConfig = async () => {
+    try {
+      const response = await api.get("/admin/config");
+      const configs: SystemConfig[] = response.data;
+      const leadCostConfig = configs.find(
+        (c) => c.config_key === "lead_cost_percentage",
+      );
+      if (leadCostConfig) {
+        setLeadCostPercentage(leadCostConfig.config_value);
+      }
+    } catch (error) {
+      console.error("Failed to fetch system config:", error);
     }
   };
 
@@ -148,6 +175,24 @@ export default function CreditPlans() {
     });
   };
 
+  const handleUpdateLeadCostPercentage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsUpdatingConfig(true);
+    try {
+      await api.put("/admin/config/lead_cost_percentage", {
+        config_value: leadCostPercentage,
+      });
+      toast.success("Lead cost percentage updated successfully");
+      setConfigDialog(false);
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.detail || "Failed to update configuration",
+      );
+    } finally {
+      setIsUpdatingConfig(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -165,10 +210,16 @@ export default function CreditPlans() {
             Manage credit packages for partners
           </p>
         </div>
-        <Button onClick={() => setCreateDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Plan
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setConfigDialog(true)}>
+            <Settings className="h-4 w-4 mr-2" />
+            Configure Lead Cost
+          </Button>
+          <Button onClick={() => setCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Plan
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -418,6 +469,53 @@ export default function CreditPlans() {
                 Cancel
               </Button>
               <Button type="submit">Update Plan</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Configuration Dialog */}
+      <Dialog open={configDialog} onOpenChange={setConfigDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Configure Lead Cost Percentage</DialogTitle>
+            <DialogDescription>
+              Set the percentage of quoted price that partners pay to purchase a
+              lead
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateLeadCostPercentage} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="lead_cost_percentage">
+                Lead Cost Percentage (%)
+              </Label>
+              <Input
+                id="lead_cost_percentage"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                required
+                value={leadCostPercentage}
+                onChange={(e) => setLeadCostPercentage(e.target.value)}
+                placeholder="15.0"
+              />
+              <p className="text-sm text-muted-foreground mt-2">
+                Example: If a phone's quoted price is ₹10,000 and this is set to
+                15%, the lead cost will be ₹1,500.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setConfigDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isUpdatingConfig}>
+                {isUpdatingConfig ? "Updating..." : "Update Configuration"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
