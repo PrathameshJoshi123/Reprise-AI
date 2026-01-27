@@ -352,3 +352,113 @@ def process_payment(
         "payment_method": payload.payment_method,
         "status": order.status
     }
+
+
+@router.post("/orders/{order_id}/reschedule-pickup", status_code=200)
+def reschedule_pickup(
+    order_id: int,
+    payload: partner_schemas.ReschedulePickupRequest,
+    db: Session = Depends(get_db),
+    current_agent: Agent = Depends(auth_utils.get_current_agent),
+):
+    """
+    Reschedule a pickup that was previously scheduled.
+    """
+    order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
+    
+    # Validate order status
+    valid_statuses = ["accepted_by_agent", "pickup_scheduled"]
+    if order.status not in valid_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Can only reschedule accepted or scheduled pickups (current status: {order.status})"
+        )
+    
+    old_date = order.pickup_date.strftime('%d/%m/%Y') if order.pickup_date else 'Not set'
+    old_time = order.pickup_time or 'Not set'
+    
+    # Update order with new pickup schedule
+    order.pickup_date = payload.new_date
+    order.pickup_time = payload.new_time
+    if order.status == "accepted_by_agent":
+        order.status = "pickup_scheduled"
+    
+    # Create status history
+    notes = f"Pickup rescheduled from {old_date} {old_time} to {payload.new_date} at {payload.new_time}. Reason: {payload.reschedule_reason}"
+    if payload.notes:
+        notes += f" - Notes: {payload.notes}"
+    
+    create_status_history(
+        db=db,
+        order_id=order_id,
+        from_status=order.status,
+        to_status="pickup_scheduled",
+        changed_by_user_type="agent",
+        changed_by_user_id=current_agent.id,
+        notes=notes
+    )
+    
+    db.commit()
+    
+    return {
+        "message": "Pickup rescheduled successfully",
+        "order_id": order_id,
+        "new_pickup_date": payload.new_date,
+        "new_pickup_time": payload.new_time
+    }
+
+
+@router.post("/orders/{order_id}/cancel-pickup", status_code=200)
+def cancel_pickup(
+    order_id: int,
+    payload: partner_schemas.CancelPickupRequest,
+    db: Session = Depends(get_db),
+    current_agent: Agent = Depends(auth_utils.get_current_agent),
+):
+    """
+    Cancel a pickup. Returns order to partner for reassignment.
+    """
+    order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
+    
+    # Validate order status
+    valid_statuses = ["accepted_by_agent", "pickup_scheduled"]
+    if order.status not in valid_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Can only cancel accepted or scheduled pickups (current status: {order.status})"
+        )
+    
+    old_status = order.status
+    
+    # Update order - return to purchased status, clear agent assignment
+    order.status = "lead_purchased"
+    order.cancelled_at = datetime.utcnow()
+    order.cancellation_reason = payload.cancellation_reason
+    order.agent_id = None
+    order.assigned_at = None
+    order.accepted_at = None
+    order.pickup_date = None
+    order.pickup_time = None
+    
+    # Create status history
+    notes = f"Pickup cancelled by agent {current_agent.full_name}. Reason: {payload.cancellation_reason}"
+    if payload.notes:
+        notes += f" - Notes: {payload.notes}"
+    
+    create_status_history(
+        db=db,
+        order_id=order_id,
+        from_status=old_status,
+        to_status="lead_purchased",
+        changed_by_user_type="agent",
+        changed_by_user_id=current_agent.id,
+        notes=notes
+    )
+    
+    db.commit()
+    
+    return {
+        "message": "Pickup cancelled. Order returned to partner for reassignment.",
+        "order_id": order_id,
+        "status": order.status
+    }
