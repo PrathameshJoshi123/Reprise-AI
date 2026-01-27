@@ -51,7 +51,7 @@ export default function PhoneDetail() {
     queryKey: ["phone", phoneId],
     queryFn: async () => {
       const API_URL = (
-        import.meta.env.VITE_API_URL || "http://localhost:8000"
+        import.meta.env.API_BASE_URL || "http://localhost:8000"
       ).replace(/\/$/, "");
       const response = await fetch(`${API_URL}/sell-phone/phones/${phoneId}`);
       if (!response.ok) throw new Error("Failed to fetch phone");
@@ -68,7 +68,7 @@ export default function PhoneDetail() {
     queryKey: ["phoneVariants", phoneId],
     queryFn: async () => {
       const API_URL = (
-        import.meta.env.VITE_API_URL || "http://localhost:8000"
+        import.meta.env.API_BASE_URL || "http://localhost:8000"
       ).replace(/\/$/, "");
       const response = await fetch(
         `${API_URL}/sell-phone/phones/${phoneId}/variants`,
@@ -388,9 +388,7 @@ export default function PhoneDetail() {
                       />
                       <div>
                         <h3 className="font-bold text-lg">{phone.name}</h3>
-                        <p className="text-sm text-gray-600">
-                          {phone.brand}
-                        </p>
+                        <p className="text-sm text-gray-600">{phone.brand}</p>
                         {/* Safe dynamic RAM and Storage display */}
                         <p className="text-sm text-gray-600 mt-1">
                           RAM: {formatRamDisplay(selectedRam)} | Storage:{" "}
@@ -698,7 +696,9 @@ export default function PhoneDetail() {
                   <div className="space-y-6">
                     {/* Price Card */}
                     <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-8 text-white">
-                      <p className="text-sm opacity-90 mb-2">Estimated Value*</p>
+                      <p className="text-sm opacity-90 mb-2">
+                        Estimated Value*
+                      </p>
                       {isPredictionLoading ? (
                         <p className="text-6xl font-bold mb-4">Loading...</p>
                       ) : predictionError ? (
@@ -714,7 +714,10 @@ export default function PhoneDetail() {
                         <Check size={16} />
                         <span>Instant payment upon verification</span>
                       </div>
-                      <p className="text-xs opacity-75 mt-2">* This is estimated price and final price would be decided by the agent on visit</p>
+                      <p className="text-xs opacity-75 mt-2">
+                        * This is estimated price and final price would be
+                        decided by the agent on visit
+                      </p>
                     </div>
 
                     {/* AI Reasoning */}

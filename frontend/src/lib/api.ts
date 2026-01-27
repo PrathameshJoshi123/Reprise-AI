@@ -2,9 +2,9 @@ import axios, { AxiosHeaders } from "axios";
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(
+  baseURL: (import.meta.env.API_BASE_URL || "http://localhost:8000").replace(
     /\/$/,
-    ""
+    "",
   ), // Adjust as needed
   headers: {
     "Content-Type": "application/json",
@@ -23,7 +23,7 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // Response interceptor for error handling
@@ -48,7 +48,7 @@ api.interceptors.response.use(
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 // keep named export for existing imports and add default export for AuthContext default import
