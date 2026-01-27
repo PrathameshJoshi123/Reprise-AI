@@ -141,8 +141,10 @@ def get_partner_verification_details(
     current_admin: Admin = Depends(admin_utils.get_current_admin)
 ):
     """
-    Get complete partner details including verification history and pincodes.
+    Get complete partner details including verification history, pincodes, and agents.
     """
+    from backend.services.partner.schema.models import Agent
+    
     partner = db.query(Partner).filter(Partner.id == partner_id).first()
     if not partner:
         raise HTTPException(status_code=404, detail="Partner not found")
@@ -155,10 +157,15 @@ def get_partner_verification_details(
         PartnerVerificationHistory.partner_id == partner_id
     ).order_by(PartnerVerificationHistory.created_at).all()
     
+    agents = db.query(Agent).filter(
+        Agent.partner_id == partner_id
+    ).order_by(Agent.created_at.desc()).all()
+    
     return {
         "partner": partner,
         "serviceable_pincodes": pincodes,
-        "verification_history": history
+        "verification_history": history,
+        "agents": agents
     }
 
 
@@ -698,20 +705,37 @@ def list_orders(
     """
     List orders — only load fields required by the admin UI to avoid fetching everything.
     """
-    query = db.query(sell_models.Order).options(
-        load_only(
-            sell_models.Order.id,
-            sell_models.Order.phone_name,
-            sell_models.Order.customer_name,
-            sell_models.Order.agent_name,
-            sell_models.Order.status,
-            sell_models.Order.quoted_price,
-            sell_models.Order.created_at,
-        )
+    from sqlalchemy import case
+    query = db.query(
+        sell_models.Order.id,
+        sell_models.Order.phone_name,
+        sell_models.Order.customer_name,
+        Partner.company_name.label('partner_name'),
+        sell_models.Order.agent_name,
+        sell_models.Order.status,
+        sell_models.Order.quoted_price,
+        sell_models.Order.created_at,
+    ).outerjoin(
+        Partner, sell_models.Order.partner_id == Partner.id
     )
     if status:
         query = query.filter(sell_models.Order.status == status)
-    return query.order_by(sell_models.Order.created_at.desc()).all()
+    results = query.order_by(sell_models.Order.created_at.desc()).all()
+    
+    # Convert to dict format for Pydantic
+    return [
+        {
+            "id": r.id,
+            "phone_name": r.phone_name,
+            "customer_name": r.customer_name,
+            "partner_name": r.partner_name,
+            "agent_name": r.agent_name,
+            "status": r.status,
+            "quoted_price": r.quoted_price,
+            "created_at": r.created_at,
+        }
+        for r in results
+    ]
 
 
 # ============================================================================

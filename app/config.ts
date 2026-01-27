@@ -1,5 +1,6 @@
-export const API_BASE_URL = 'https://loan-celebrities-spelling-atom.trycloudflare.com';
 
+// Backend API Base URL - Change this to your production URL when deploying
+export const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000';
 
 export const API_ENDPOINTS = {
   PARTNER_LOGIN: '/partner/login',

@@ -1,17 +1,17 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 export function formatPrice(
   value: number | string | null | undefined,
-  currency = "USD",
-  locale = "en-US",
+  currency = "INR",
+  locale = "en-IN",
 ) {
   const num = Number(value ?? 0);
-  if (Number.isNaN(num)) return "0";
+  if (Number.isNaN(num)) return "₹0";
   return new Intl.NumberFormat(locale, { style: "currency", currency }).format(
     num,
   );

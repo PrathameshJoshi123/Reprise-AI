@@ -40,31 +40,35 @@ interface Order {
   phone_name?: string;
   specs?: string;
   status: string;
-  estimated_value?: string;
+  estimated_value?: string | number;
   customer?: string;
-  phone?: string;
-  pickup_address?: string;
-  pickup_schedule_date?: string;
-  pickup_schedule_time?: string;
-  payment_mode?: string;
-  // Legacy fields (keeping for backward compatibility)
   customer_name?: string;
+  phone?: string;
   customer_phone?: string;
+  pickup_address?: string;
   pickup_address_line?: string;
   pickup_city?: string;
   pickup_state?: string;
   pickup_pincode?: string;
+  pickup_schedule_date?: string;
+  pickup_date?: string | Date;
+  pickup_schedule_time?: string;
+  pickup_time?: string;
+  payment_mode?: string;
+  payment_method?: string;
+  // Legacy fields (keeping for backward compatibility)
+  customer_email?: string;
+  agent_name?: string;
+  agent_id?: number;
   brand?: string;
   model?: string;
   ram_gb?: number;
   storage_gb?: number;
   ai_estimated_price?: number;
   final_quoted_price?: number;
-  pickup_date?: string;
-  pickup_time?: string;
+  ai_reasoning?: string;
   accepted_at?: string;
   completed_at?: string;
-  payment_method?: string;
 }
 
 export default function AgentDashboard() {
@@ -87,6 +91,23 @@ export default function AgentDashboard() {
     scheduled_time: "",
     notes: "",
   });
+
+  // Helper function to parse DD/MM/YYYY date format
+  const parseDate = (dateInput: string | Date | null | undefined) => {
+    if (!dateInput) return null;
+    if (dateInput instanceof Date) return dateInput;
+    if (typeof dateInput === "string") {
+      const parts = dateInput.split("/");
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // JavaScript months are 0-indexed
+        const year = parseInt(parts[2], 10);
+        return new Date(year, month, day);
+      }
+      return new Date(dateInput); // Fallback for other formats
+    }
+    return null;
+  };
 
   useEffect(() => {
     fetchOrders();
@@ -279,7 +300,7 @@ export default function AgentDashboard() {
     const getPickupDate = () =>
       order.pickup_schedule_date ||
       (order.pickup_date
-        ? new Date(order.pickup_date).toLocaleDateString()
+        ? parseDate(order.pickup_date)?.toLocaleDateString()
         : "");
     const getPickupTime = () =>
       order.pickup_schedule_time || order.pickup_time || "TBD";
@@ -538,7 +559,9 @@ export default function AgentDashboard() {
                     <Label className="text-gray-700 font-medium">Device</Label>
                   </div>
                   <div className="text-lg font-semibold text-gray-900">
-                    {selectedOrder.brand} {selectedOrder.model}
+                    {selectedOrder.brand && selectedOrder.model
+                      ? `${selectedOrder.brand} ${selectedOrder.model}`
+                      : selectedOrder.phone_name || "Device"}
                   </div>
                   <div className="text-sm text-gray-600 mt-1">
                     {selectedOrder.ram_gb}GB RAM • {selectedOrder.storage_gb}GB
@@ -555,7 +578,9 @@ export default function AgentDashboard() {
                       </Label>
                     </div>
                     <div className="font-medium text-gray-900 text-sm">
-                      {selectedOrder.customer_name}
+                      {selectedOrder.customer_name ||
+                        selectedOrder.customer ||
+                        "-"}
                     </div>
                   </div>
 
@@ -567,7 +592,9 @@ export default function AgentDashboard() {
                       </Label>
                     </div>
                     <div className="font-medium text-gray-900 text-sm">
-                      {selectedOrder.customer_phone}
+                      {selectedOrder.customer_phone ||
+                        selectedOrder.phone ||
+                        "-"}
                     </div>
                   </div>
                 </div>
@@ -580,13 +607,14 @@ export default function AgentDashboard() {
                     </Label>
                   </div>
                   <div className="text-sm text-gray-900">
-                    {selectedOrder.pickup_address_line},{" "}
-                    {selectedOrder.pickup_city}, {selectedOrder.pickup_state} -{" "}
-                    {selectedOrder.pickup_pincode}
+                    {selectedOrder.pickup_address ||
+                      `${selectedOrder.pickup_address_line || ""}, ${selectedOrder.pickup_city || ""}, ${selectedOrder.pickup_state || ""} - ${selectedOrder.pickup_pincode || ""}`.trim() ||
+                      "-"}
                   </div>
                 </div>
 
-                {selectedOrder.pickup_date && (
+                {(selectedOrder.pickup_date ||
+                  selectedOrder.pickup_schedule_date) && (
                   <div className="bg-gray-50 p-3 rounded-lg border">
                     <div className="flex items-center gap-2 mb-1">
                       <Calendar className="w-4 h-4 text-gray-500" />
@@ -595,9 +623,15 @@ export default function AgentDashboard() {
                       </Label>
                     </div>
                     <div className="font-medium text-gray-900 flex items-center gap-2 text-sm">
-                      {new Date(selectedOrder.pickup_date).toLocaleDateString()}
+                      {(selectedOrder.pickup_date
+                        ? parseDate(
+                            selectedOrder.pickup_date,
+                          )?.toLocaleDateString()
+                        : selectedOrder.pickup_schedule_date) || "-"}
                       <Clock className="w-3 h-3 text-gray-500" />
-                      {selectedOrder.pickup_time || "TBD"}
+                      {selectedOrder.pickup_time ||
+                        selectedOrder.pickup_schedule_time ||
+                        "TBD"}
                     </div>
                   </div>
                 )}
