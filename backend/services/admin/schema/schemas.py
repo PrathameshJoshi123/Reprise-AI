@@ -93,10 +93,25 @@ class PartnerServiceablePincodeOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class AgentOut(BaseModel):
+    """Schema for agent information in admin view"""
+    id: int
+    partner_id: int
+    email: str
+    phone: str
+    full_name: str
+    employee_id: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    
+    model_config = {"from_attributes": True}
+
+
 class PartnerDetailsOut(BaseModel):
     partner: PartnerOut
     serviceable_pincodes: List[PartnerServiceablePincodeOut]
     verification_history: List[PartnerVerificationHistoryOut]
+    agents: List[AgentOut]
 
 
 class RequestClarificationRequest(BaseModel):
@@ -234,6 +249,7 @@ class AdminOrderOut(BaseModel):
     id: int
     phone_name: str
     customer_name: str
+    partner_name: Optional[str] = None
     agent_name: Optional[str] = None
     status: str
     quoted_price: float

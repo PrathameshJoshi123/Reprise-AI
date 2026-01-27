@@ -56,6 +56,16 @@ interface PartnerDetails {
     message_from_partner: string;
     created_at: string;
   }>;
+  agents: Array<{
+    id: number;
+    partner_id: number;
+    email: string;
+    phone: string;
+    full_name: string;
+    employee_id: string | null;
+    is_active: boolean;
+    created_at: string;
+  }>;
 }
 
 export default function PartnerDetails() {
@@ -170,7 +180,7 @@ export default function PartnerDetails() {
     );
   }
 
-  const { partner, serviceable_pincodes, verification_history } = details;
+  const { partner, serviceable_pincodes, verification_history, agents = [] } = details;
 
   return (
     <div className="space-y-6">
@@ -279,6 +289,46 @@ export default function PartnerDetails() {
               ))
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Agents */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Agents</CardTitle>
+          <CardDescription>
+            {agents.length} agent(s) working under this partner
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {agents.length === 0 ? (
+            <p className="text-muted-foreground">No agents assigned yet</p>
+          ) : (
+            <div className="space-y-3">
+              {agents.map((agent) => (
+                <div
+                  key={agent.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
+                  <div className="space-y-1">
+                    <p className="font-semibold">{agent.full_name}</p>
+                    <div className="flex gap-4 text-sm text-muted-foreground">
+                      <span>{agent.email}</span>
+                      <span>{agent.phone}</span>
+                      {agent.employee_id && (
+                        <span>ID: {agent.employee_id}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={agent.is_active ? "default" : "secondary"}>
+                      {agent.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
