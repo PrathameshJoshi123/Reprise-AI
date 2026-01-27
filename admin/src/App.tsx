@@ -10,6 +10,7 @@ import PendingPartners from "./pages/PendingPartners";
 import PartnerDetails from "./pages/PartnerDetails";
 import CreditPlans from "./pages/CreditPlans";
 import Orders from "./pages/Orders";
+import PhonesList from "./pages/PhonesList";
 import "./App.css";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -52,6 +53,7 @@ function App() {
             <Route path="partners/:id" element={<PartnerDetails />} />
             <Route path="credit-plans" element={<CreditPlans />} />
             <Route path="orders" element={<Orders />} />
+            <Route path="phones" element={<PhonesList />} />
           </Route>
         </Routes>
       </AuthProvider>

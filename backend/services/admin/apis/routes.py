@@ -24,6 +24,8 @@ from backend.services.admin.schema.schemas import (
     AdminCreditConfigurationOut, UpdateConfigRequest,
     # Dashboard
     DashboardStats,
+    # Phone List
+    PhoneListOut, PhoneListCreate, PhoneListUpdate, PhoneListPaginatedOut,
     # Legacy
     AdminUserCreate, AdminUserUpdate, AdminUserOut, AdminOrderOut,
 )
@@ -710,3 +712,136 @@ def list_orders(
     if status:
         query = query.filter(sell_models.Order.status == status)
     return query.order_by(sell_models.Order.created_at.desc()).all()
+
+
+# ============================================================================
+# PHONE LIST MANAGEMENT
+# ============================================================================
+
+@router.get("/phones", response_model=PhoneListPaginatedOut)
+def get_phones_list(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
+    search: Optional[str] = Query(None, description="Search by brand, series, or model"),
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """
+    Get paginated phones from the database with search support.
+    Search is performed on Brand, Series, and Model fields.
+    """
+    query = db.query(sell_models.PhoneList)
+    
+    # Apply search filter across Brand, Series, and Model
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (sell_models.PhoneList.Brand.ilike(search_term)) |
+            (sell_models.PhoneList.Series.ilike(search_term)) |
+            (sell_models.PhoneList.Model.ilike(search_term))
+        )
+    
+    # Get total count before pagination
+    total = query.count()
+    
+    # Apply pagination
+    phones = query.order_by(sell_models.PhoneList.Brand, sell_models.PhoneList.Model)\
+                   .offset(skip).limit(limit).all()
+    
+    # Calculate pagination metadata
+    total_pages = (total + limit - 1) // limit  # Ceiling division
+    page = (skip // limit) + 1
+    
+    return {
+        "items": phones,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": total_pages
+    }
+
+
+@router.get("/phones/{phone_id}", response_model=PhoneListOut)
+def get_phone_by_id(
+    phone_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """
+    Get a specific phone by ID.
+    """
+    phone = db.query(sell_models.PhoneList).filter(sell_models.PhoneList.id == phone_id).first()
+    if not phone:
+        raise HTTPException(status_code=404, detail="Phone not found")
+    return phone
+
+
+@router.post("/phones", response_model=PhoneListOut, status_code=201)
+def create_phone(
+    payload: PhoneListCreate,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """
+    Create a new phone in the database.
+    """
+    # Check for duplicate
+    existing = db.query(sell_models.PhoneList).filter(
+        sell_models.PhoneList.Brand == payload.Brand,
+        sell_models.PhoneList.Model == payload.Model,
+        sell_models.PhoneList.Storage_Raw == payload.Storage_Raw
+    ).first()
+    
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="Phone with this brand, model, and storage already exists"
+        )
+    
+    phone = sell_models.PhoneList(**payload.model_dump())
+    db.add(phone)
+    db.commit()
+    db.refresh(phone)
+    return phone
+
+
+@router.put("/phones/{phone_id}", response_model=PhoneListOut)
+def update_phone(
+    phone_id: int,
+    payload: PhoneListUpdate,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """
+    Update an existing phone.
+    """
+    phone = db.query(sell_models.PhoneList).filter(sell_models.PhoneList.id == phone_id).first()
+    if not phone:
+        raise HTTPException(status_code=404, detail="Phone not found")
+    
+    # Update only provided fields
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(phone, field, value)
+    
+    db.commit()
+    db.refresh(phone)
+    return phone
+
+
+@router.delete("/phones/{phone_id}", status_code=204)
+def delete_phone(
+    phone_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """
+    Delete a phone from the database.
+    """
+    phone = db.query(sell_models.PhoneList).filter(sell_models.PhoneList.id == phone_id).first()
+    if not phone:
+        raise HTTPException(status_code=404, detail="Phone not found")
+    
+    db.delete(phone)
+    db.commit()
+    return None

@@ -242,4 +242,54 @@ class AdminOrderOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ============================================================================
+# PHONE LIST MANAGEMENT
+# ============================================================================
+
+class PhoneListOut(BaseModel):
+    id: int
+    Brand: str
+    Series: str
+    Model: str
+    Storage_Raw: str
+    Original_Price: Optional[float] = None
+    Selling_Price: float
+    RAM_GB: Optional[float] = None
+    Internal_Storage_GB: float
+    
+    model_config = {"from_attributes": True}
+
+
+class PhoneListCreate(BaseModel):
+    Brand: str
+    Series: str
+    Model: str
+    Storage_Raw: str
+    Original_Price: Optional[float] = None
+    Selling_Price: float
+    RAM_GB: Optional[float] = None
+    Internal_Storage_GB: float
+
+
+class PhoneListUpdate(BaseModel):
+    Brand: Optional[str] = None
+    Series: Optional[str] = None
+    Model: Optional[str] = None
+    Storage_Raw: Optional[str] = None
+    Original_Price: Optional[float] = None
+    Selling_Price: Optional[float] = None
+    RAM_GB: Optional[float] = None
+    Internal_Storage_GB: Optional[float] = None
+
+
+class PhoneListPaginatedOut(BaseModel):
+    items: List[PhoneListOut]
+    total: int
+    page: int
+    limit: int
+    total_pages: int
+    
+    model_config = {"from_attributes": True}
+
+
 from backend.services.sell_phone.schema.schemas import OrderOut

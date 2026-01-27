@@ -10,6 +10,7 @@ import {
   CreditCard,
   ShoppingCart,
   LogOut,
+  Smartphone,
 } from "lucide-react";
 
 export default function Layout() {
@@ -52,6 +53,11 @@ export default function Layout() {
       label: "Orders",
       icon: ShoppingCart,
       path: "/orders",
+    },
+    {
+      label: "Phone List",
+      icon: Smartphone,
+      path: "/phones",
     },
   ];
 
