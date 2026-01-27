@@ -22,26 +22,49 @@ import { Badge } from "../components/ui/badge";
 import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Phone,
+  User,
+  Package,
+  IndianRupee,
+  CheckCircle2,
+  XCircle,
+  Eye,
+} from "lucide-react";
 
 interface Order {
-  id: number;
-  customer_name: string;
-  customer_phone: string;
-  pickup_address_line: string;
-  pickup_city: string;
-  pickup_state: string;
-  pickup_pincode: string;
-  brand: string;
-  model: string;
-  ram_gb: number;
-  storage_gb: number;
-  ai_estimated_price: number;
-  final_quoted_price: number;
+  id?: number;
+  phone_name?: string;
+  specs?: string;
   status: string;
+  estimated_value?: string;
+  customer?: string;
+  phone?: string;
+  pickup_address?: string;
+  pickup_schedule_date?: string;
+  pickup_schedule_time?: string;
+  payment_mode?: string;
+  // Legacy fields (keeping for backward compatibility)
+  customer_name?: string;
+  customer_phone?: string;
+  pickup_address_line?: string;
+  pickup_city?: string;
+  pickup_state?: string;
+  pickup_pincode?: string;
+  brand?: string;
+  model?: string;
+  ram_gb?: number;
+  storage_gb?: number;
+  ai_estimated_price?: number;
+  final_quoted_price?: number;
   pickup_date?: string;
   pickup_time?: string;
   accepted_at?: string;
   completed_at?: string;
+  payment_method?: string;
 }
 
 export default function AgentDashboard() {
@@ -99,22 +122,31 @@ export default function AgentDashboard() {
       const orders: Order[] = response.data;
 
       // Filter orders into current and completed
+      // Normalize status for comparison (handle both spaces and underscores)
       setCurrentOrders(
-        orders.filter(
-          (order) =>
-            order.status === "assigned_to_agent" ||
-            order.status === "accepted_by_agent" ||
-            order.status === "pickup_scheduled",
-        ),
+        orders.filter((order) => {
+          const normalizedStatus = order.status
+            .toLowerCase()
+            .replace(/ /g, "_");
+          return (
+            normalizedStatus === "assigned_to_agent" ||
+            normalizedStatus === "accepted_by_agent" ||
+            normalizedStatus === "pickup_scheduled"
+          );
+        }),
       );
 
       setCompletedOrders(
-        orders.filter(
-          (order) =>
-            order.status === "pickup_completed" ||
-            order.status === "payment_processed" ||
-            order.status === "completed",
-        ),
+        orders.filter((order) => {
+          const normalizedStatus = order.status
+            .toLowerCase()
+            .replace(/ /g, "_");
+          return (
+            normalizedStatus === "pickup_completed" ||
+            normalizedStatus === "payment_processed" ||
+            normalizedStatus === "completed"
+          );
+        }),
       );
     } catch (error) {
       console.error("Failed to fetch orders:", error);
@@ -210,13 +242,15 @@ export default function AgentDashboard() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      assigned_to_agent: "bg-yellow-500",
-      accepted_by_agent: "bg-green-500",
-      pickup_scheduled: "bg-teal-500",
-      pickup_completed: "bg-indigo-500",
-      payment_processed: "bg-emerald-500",
+      assigned_to_agent: "bg-amber-100 text-amber-800 border border-amber-200",
+      accepted_by_agent: "bg-green-100 text-green-800 border border-green-200",
+      pickup_scheduled: "bg-blue-100 text-blue-800 border border-blue-200",
+      pickup_completed:
+        "bg-purple-100 text-purple-800 border border-purple-200",
+      payment_processed:
+        "bg-emerald-100 text-emerald-800 border border-emerald-200",
     };
-    return colors[status] || "bg-gray-500";
+    return colors[status] || "bg-gray-100 text-gray-800 border border-gray-200";
   };
 
   const OrderCard = ({
@@ -225,97 +259,178 @@ export default function AgentDashboard() {
   }: {
     order: Order;
     showActions?: boolean;
-  }) => (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-lg">
-              {order.brand} {order.model}
-            </CardTitle>
-            <CardDescription>
-              {order.ram_gb}GB RAM • {order.storage_gb}GB Storage
-            </CardDescription>
-          </div>
-          <Badge className={getStatusColor(order.status)}>
-            {order.status.replace(/_/g, " ")}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <div>
-            <div className="text-sm text-gray-500">Estimated Value</div>
-            <div className="text-2xl font-bold text-green-600">
-              {formatPrice(
-                order.ai_estimated_price || order.final_quoted_price,
-              )}
+  }) => {
+    // Helper functions to get values from either new or legacy fields
+    const getPhoneName = () =>
+      order.phone_name || `${order.brand || ""} ${order.model || ""}`.trim();
+    const getSpecs = () =>
+      order.specs ||
+      `${order.ram_gb || 0}GB RAM • ${order.storage_gb || 0}GB Storage`;
+    const getCustomerName = () => order.customer || order.customer_name || "";
+    const getCustomerPhone = () => order.phone || order.customer_phone || "";
+    const getPickupAddress = () =>
+      order.pickup_address ||
+      `${order.pickup_address_line || ""}, ${order.pickup_city || ""}, ${order.pickup_state || ""} - ${order.pickup_pincode || ""}`.trim();
+    const getEstimatedValue = () => {
+      if (order.estimated_value) return order.estimated_value;
+      const price = order.ai_estimated_price || order.final_quoted_price || 0;
+      return formatPrice(price);
+    };
+    const getPickupDate = () =>
+      order.pickup_schedule_date ||
+      (order.pickup_date
+        ? new Date(order.pickup_date).toLocaleDateString()
+        : "");
+    const getPickupTime = () =>
+      order.pickup_schedule_time || order.pickup_time || "TBD";
+    const getPaymentMethod = () => {
+      if (order.payment_mode) {
+        return order.payment_mode.replace("payment mode - ", "");
+      }
+      return order.payment_method || "";
+    };
+
+    return (
+      <Card className="hover:shadow-lg transition-all duration-200 border">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <Package className="w-4 h-4 text-gray-600" />
+                <CardTitle className="text-lg font-semibold text-gray-900">
+                  {getPhoneName()}
+                </CardTitle>
+              </div>
+              <CardDescription className="text-sm">
+                {getSpecs()}
+              </CardDescription>
             </div>
+            <Badge
+              className={`${getStatusColor(order.status)} px-2.5 py-0.5 text-xs font-medium`}
+            >
+              {order.status.replace(/_/g, " ")}
+            </Badge>
           </div>
-
-          <div>
-            <div className="text-sm text-gray-500 mb-1">Customer</div>
-            <div className="font-medium">{order.customer_name}</div>
-            <div className="text-sm text-gray-600">{order.customer_phone}</div>
-          </div>
-
-          <div>
-            <div className="text-sm text-gray-500 mb-1">Address</div>
-            <div className="text-sm">
-              {order.pickup_address_line}, {order.pickup_city},{" "}
-              {order.pickup_state} - {order.pickup_pincode}
-            </div>
-          </div>
-
-          {order.pickup_date && (
-            <div>
-              <div className="text-sm text-gray-500 mb-1">Pickup Schedule</div>
-              <div className="font-medium">
-                {new Date(order.pickup_date).toLocaleDateString()} -{" "}
-                {order.pickup_time || "TBD"}
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+              <div className="flex items-center gap-2 mb-1">
+                <IndianRupee className="w-4 h-4 text-green-700" />
+                <div className="text-xs font-medium text-green-700">
+                  Estimated Value
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-green-700">
+                {getEstimatedValue()}
               </div>
             </div>
-          )}
 
-          {showActions && (
-            <div className="flex gap-2 pt-2">
-              {order.status === "assigned_to_agent" && (
-                <>
-                  <Button
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleAcceptOrder(order.id)}
-                    disabled={actionLoading}
-                  >
-                    Accept
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => handleRejectOrder(order.id)}
-                    disabled={actionLoading}
-                  >
-                    Reject
-                  </Button>
-                </>
+            <div className="space-y-2">
+              <div className="flex items-start gap-2 p-2.5 bg-gray-50 rounded-md border">
+                <User className="w-4 h-4 text-gray-500 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-gray-500 mb-0.5">Customer</div>
+                  <div className="font-medium text-gray-900 text-sm">
+                    {getCustomerName()}
+                  </div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <Phone className="w-3 h-3 text-gray-400" />
+                    <div className="text-xs text-gray-600">
+                      {getCustomerPhone()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 p-2.5 bg-gray-50 rounded-md border">
+                <MapPin className="w-4 h-4 text-gray-500 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-gray-500 mb-0.5">
+                    Pickup Address
+                  </div>
+                  <div className="text-xs text-gray-700">
+                    {getPickupAddress()}
+                  </div>
+                </div>
+              </div>
+
+              {getPickupDate() && (
+                <div className="flex items-start gap-2 p-2.5 bg-gray-50 rounded-md border">
+                  <Calendar className="w-4 h-4 text-gray-500 mt-0.5" />
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-0.5">
+                      Pickup Schedule
+                    </div>
+                    <div className="font-medium text-gray-900 flex items-center gap-1.5 text-sm">
+                      {getPickupDate()}
+                      <Clock className="w-3 h-3 text-gray-400" />
+                      <span className="text-xs text-gray-600">
+                        {getPickupTime()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               )}
-              {(order.status === "accepted_by_agent" ||
-                order.status === "pickup_scheduled") && (
-                <Button
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => setSelectedOrder(order)}
-                >
-                  View Details
-                </Button>
+
+              {getPaymentMethod() && (
+                <div className="flex items-start gap-2 p-2.5 bg-green-50 rounded-md border border-green-200">
+                  <IndianRupee className="w-4 h-4 text-green-600 mt-0.5" />
+                  <div className="flex-1">
+                    <div className="text-xs text-green-700 mb-0.5">
+                      Payment Method
+                    </div>
+                    <div className="font-medium text-gray-900 text-sm">
+                      {getPaymentMethod()}
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
+
+            {showActions && (
+              <div className="flex gap-2 pt-2 border-t">
+                {order.status === "assigned_to_agent" && (
+                  <>
+                    <Button
+                      size="sm"
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                      onClick={() => handleAcceptOrder(order.id!)}
+                      disabled={actionLoading}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                      Accept
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+                      onClick={() => handleRejectOrder(order.id!)}
+                      disabled={actionLoading}
+                    >
+                      <XCircle className="w-3.5 h-3.5 mr-1" />
+                      Reject
+                    </Button>
+                  </>
+                )}
+                {(order.status === "accepted_by_agent" ||
+                  order.status === "pickup_scheduled") && (
+                  <Button
+                    size="sm"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                    onClick={() => setSelectedOrder(order)}
+                  >
+                    <Eye className="w-3.5 h-3.5 mr-1" />
+                    View Details
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <>
@@ -325,26 +440,41 @@ export default function AgentDashboard() {
         showLogout={true}
         onLogout={handleLogout}
       />
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+      <div className="min-h-screen bg-gray-50">
         {/* Main Content */}
         <div className="container mx-auto px-4 py-8">
           <Tabs defaultValue="current" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8">
-              <TabsTrigger value="current">
+            <TabsList className="grid w-full grid-cols-2 mb-6 bg-white p-1 border">
+              <TabsTrigger
+                value="current"
+                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+              >
                 Current Orders ({currentOrders.length})
               </TabsTrigger>
-              <TabsTrigger value="completed">
+              <TabsTrigger
+                value="completed"
+                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+              >
                 Completed ({completedOrders.length})
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="current">
               {loading ? (
-                <div className="text-center py-12">Loading...</div>
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-10 w-10 border-3 border-blue-600 border-t-transparent"></div>
+                  <p className="mt-3 text-gray-600">Loading orders...</p>
+                </div>
               ) : currentOrders.length === 0 ? (
-                <Card>
+                <Card className="border-2 border-dashed">
                   <CardContent className="py-12 text-center">
-                    <p className="text-gray-500">No current orders assigned</p>
+                    <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-500 font-medium">
+                      No current orders assigned
+                    </p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      New orders will appear here
+                    </p>
                   </CardContent>
                 </Card>
               ) : (
@@ -358,11 +488,20 @@ export default function AgentDashboard() {
 
             <TabsContent value="completed">
               {loading ? (
-                <div className="text-center py-12">Loading...</div>
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-10 w-10 border-3 border-blue-600 border-t-transparent"></div>
+                  <p className="mt-3 text-gray-600">Loading orders...</p>
+                </div>
               ) : completedOrders.length === 0 ? (
-                <Card>
+                <Card className="border-2 border-dashed">
                   <CardContent className="py-12 text-center">
-                    <p className="text-gray-500">No completed orders</p>
+                    <CheckCircle2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-500 font-medium">
+                      No completed orders
+                    </p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Completed orders will appear here
+                    </p>
                   </CardContent>
                 </Card>
               ) : (
@@ -379,10 +518,10 @@ export default function AgentDashboard() {
         {/* Order Detail Modal */}
         {selectedOrder && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <CardHeader>
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
+              <CardHeader className="bg-gray-50 border-b sticky top-0 z-10">
                 <div className="flex items-start justify-between">
-                  <CardTitle>Order Details</CardTitle>
+                  <CardTitle className="text-xl">Order Details</CardTitle>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -392,35 +531,55 @@ export default function AgentDashboard() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-gray-500">Phone</Label>
-                  <div className="text-lg font-semibold">
+              <CardContent className="space-y-4 p-6">
+                <div className="bg-gray-50 p-4 rounded-lg border">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Package className="w-4 h-4 text-gray-600" />
+                    <Label className="text-gray-700 font-medium">Device</Label>
+                  </div>
+                  <div className="text-lg font-semibold text-gray-900">
                     {selectedOrder.brand} {selectedOrder.model}
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-gray-600 mt-1">
                     {selectedOrder.ram_gb}GB RAM • {selectedOrder.storage_gb}GB
                     Storage
                   </div>
                 </div>
 
-                <div>
-                  <Label className="text-gray-500">Customer Name</Label>
-                  <div className="font-semibold">
-                    {selectedOrder.customer_name}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="bg-gray-50 p-3 rounded-lg border">
+                    <div className="flex items-center gap-2 mb-1">
+                      <User className="w-4 h-4 text-gray-500" />
+                      <Label className="text-gray-600 text-xs">
+                        Customer Name
+                      </Label>
+                    </div>
+                    <div className="font-medium text-gray-900 text-sm">
+                      {selectedOrder.customer_name}
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-3 rounded-lg border">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Phone className="w-4 h-4 text-gray-500" />
+                      <Label className="text-gray-600 text-xs">
+                        Customer Phone
+                      </Label>
+                    </div>
+                    <div className="font-medium text-gray-900 text-sm">
+                      {selectedOrder.customer_phone}
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <Label className="text-gray-500">Customer Phone</Label>
-                  <div className="font-semibold">
-                    {selectedOrder.customer_phone}
+                <div className="bg-gray-50 p-3 rounded-lg border">
+                  <div className="flex items-center gap-2 mb-1">
+                    <MapPin className="w-4 h-4 text-gray-500" />
+                    <Label className="text-gray-700 font-medium text-sm">
+                      Pickup Address
+                    </Label>
                   </div>
-                </div>
-
-                <div>
-                  <Label className="text-gray-500">Pickup Address</Label>
-                  <div className="font-semibold">
+                  <div className="text-sm text-gray-900">
                     {selectedOrder.pickup_address_line},{" "}
                     {selectedOrder.pickup_city}, {selectedOrder.pickup_state} -{" "}
                     {selectedOrder.pickup_pincode}
@@ -428,19 +587,29 @@ export default function AgentDashboard() {
                 </div>
 
                 {selectedOrder.pickup_date && (
-                  <div>
-                    <Label className="text-gray-500">Scheduled Pickup</Label>
-                    <div className="font-semibold">
+                  <div className="bg-gray-50 p-3 rounded-lg border">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Calendar className="w-4 h-4 text-gray-500" />
+                      <Label className="text-gray-700 font-medium text-sm">
+                        Scheduled Pickup
+                      </Label>
+                    </div>
+                    <div className="font-medium text-gray-900 flex items-center gap-2 text-sm">
                       {new Date(selectedOrder.pickup_date).toLocaleDateString()}
-                      {" at "}
+                      <Clock className="w-3 h-3 text-gray-500" />
                       {selectedOrder.pickup_time || "TBD"}
                     </div>
                   </div>
                 )}
 
-                <div>
-                  <Label className="text-gray-500">Estimated Price</Label>
-                  <div className="text-2xl font-bold text-green-600">
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <IndianRupee className="w-4 h-4 text-green-700" />
+                    <Label className="text-green-700 font-medium text-sm">
+                      Estimated Price
+                    </Label>
+                  </div>
+                  <div className="text-2xl font-bold text-green-700">
                     {formatPrice(
                       selectedOrder.ai_estimated_price ||
                         selectedOrder.final_quoted_price,
@@ -451,10 +620,20 @@ export default function AgentDashboard() {
                 {/* Conditional Form */}
                 {selectedOrder.status === "accepted_by_agent" && (
                   <div className="space-y-4 pt-4 border-t">
-                    <h3 className="font-semibold">Schedule Pickup</h3>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Calendar className="w-4 h-4 text-gray-600" />
+                      <h3 className="font-semibold text-base text-gray-900">
+                        Schedule Pickup
+                      </h3>
+                    </div>
 
-                    <div>
-                      <Label htmlFor="scheduled_date">Pickup Date</Label>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="scheduled_date"
+                        className="text-gray-700 font-medium text-sm"
+                      >
+                        Pickup Date
+                      </Label>
                       <Input
                         id="scheduled_date"
                         type="date"
@@ -468,8 +647,13 @@ export default function AgentDashboard() {
                       />
                     </div>
 
-                    <div>
-                      <Label htmlFor="scheduled_time">Pickup Time</Label>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="scheduled_time"
+                        className="text-gray-700 font-medium text-sm"
+                      >
+                        Pickup Time
+                      </Label>
                       <Input
                         id="scheduled_time"
                         type="time"
@@ -483,8 +667,13 @@ export default function AgentDashboard() {
                       />
                     </div>
 
-                    <div>
-                      <Label htmlFor="schedule_notes">Notes (Optional)</Label>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="schedule_notes"
+                        className="text-gray-700 font-medium text-sm"
+                      >
+                        Notes (Optional)
+                      </Label>
                       <Textarea
                         id="schedule_notes"
                         value={scheduleForm.notes}
@@ -502,10 +691,20 @@ export default function AgentDashboard() {
 
                 {selectedOrder.status === "pickup_scheduled" && (
                   <div className="space-y-4 pt-4 border-t">
-                    <h3 className="font-semibold">Complete Pickup Details</h3>
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle2 className="w-4 h-4 text-gray-600" />
+                      <h3 className="font-semibold text-base text-gray-900">
+                        Complete Pickup Details
+                      </h3>
+                    </div>
 
-                    <div>
-                      <Label htmlFor="actual_condition">Actual Condition</Label>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="actual_condition"
+                        className="text-gray-700 font-medium text-sm"
+                      >
+                        Actual Condition
+                      </Label>
                       <select
                         id="actual_condition"
                         className="w-full p-2 border rounded-md"
@@ -525,9 +724,12 @@ export default function AgentDashboard() {
                       </select>
                     </div>
 
-                    <div>
-                      <Label htmlFor="final_offered_price">
-                        Final Offered Price (₹)
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="final_offered_price"
+                        className="text-gray-700 font-medium text-sm"
+                      >
+                        Final Offered Price
                       </Label>
                       <Input
                         id="final_offered_price"
@@ -544,10 +746,11 @@ export default function AgentDashboard() {
                       />
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-md border">
                       <input
                         type="checkbox"
                         id="customer_accepted"
+                        className="w-4 h-4 rounded"
                         checked={pickupForm.customer_accepted}
                         onChange={(e) =>
                           setPickupForm((prev) => ({
@@ -556,13 +759,19 @@ export default function AgentDashboard() {
                           }))
                         }
                       />
-                      <Label htmlFor="customer_accepted">
+                      <Label
+                        htmlFor="customer_accepted"
+                        className="text-gray-700 font-medium text-sm cursor-pointer"
+                      >
                         Customer accepted the offer
                       </Label>
                     </div>
 
-                    <div>
-                      <Label htmlFor="pickup_notes">
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="pickup_notes"
+                        className="text-gray-700 font-medium text-sm"
+                      >
                         Pickup Notes (Optional)
                       </Label>
                       <Textarea
@@ -578,8 +787,11 @@ export default function AgentDashboard() {
                       />
                     </div>
 
-                    <div>
-                      <Label htmlFor="payment_method">
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="payment_method"
+                        className="text-gray-700 font-medium text-sm"
+                      >
                         Payment Method (Optional)
                       </Label>
                       <select
@@ -603,10 +815,10 @@ export default function AgentDashboard() {
                   </div>
                 )}
 
-                <div className="flex gap-3 pt-4">
+                <div className="flex gap-3 pt-4 border-t">
                   {selectedOrder.status === "accepted_by_agent" && (
                     <Button
-                      className="flex-1"
+                      className="flex-1 bg-blue-600 hover:bg-blue-700"
                       size="lg"
                       onClick={handleSchedulePickup}
                       disabled={
@@ -620,7 +832,7 @@ export default function AgentDashboard() {
                   )}
                   {selectedOrder.status === "pickup_scheduled" && (
                     <Button
-                      className="flex-1"
+                      className="flex-1 bg-green-600 hover:bg-green-700"
                       size="lg"
                       onClick={handleCompletePickup}
                       disabled={

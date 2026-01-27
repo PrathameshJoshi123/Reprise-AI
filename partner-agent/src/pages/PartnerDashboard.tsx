@@ -11,14 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "../components/ui/tabs";
 import { Badge } from "../components/ui/badge";
 import { formatPrice } from "../lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Lead {
   id: number;
@@ -60,6 +55,9 @@ interface Agent {
 export default function PartnerDashboard() {
   const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<
+    "locked" | "purchased" | "accepted" | "completed"
+  >("locked");
   const [lockedDeals, setLockedDeals] = useState<Lead[]>([]);
   const [purchasedOrders, setPurchasedOrders] = useState<Lead[]>([]);
   const [acceptedLeads, setAcceptedLeads] = useState<Lead[]>([]);
@@ -89,18 +87,13 @@ export default function PartnerDashboard() {
       const lockedResponse = await api.get("/partner/locked-deals");
       setLockedDeals(lockedResponse.data || []);
 
-      // Fetch
-      // Fetch all orders for the partner
       const response = await api.get("/partner/orders");
       const orders: Lead[] = response.data;
 
-      // Filter orders by status
-      // Purchased but not yet assigned
       setPurchasedOrders(
         orders.filter((order) => order.status === "lead_purchased"),
       );
 
-      // Assigned and in progress
       setAcceptedLeads(
         orders.filter(
           (order) =>
@@ -125,7 +118,6 @@ export default function PartnerDashboard() {
     }
   };
 
-  // Credit plans and purchase flow
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [plans, setPlans] = useState<any[]>([]);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
@@ -151,7 +143,6 @@ export default function PartnerDashboard() {
       });
       alert(resp.data?.message || "Purchase successful");
       setShowBuyModal(false);
-      // refresh user balance and reload orders
       await refreshUser();
       await fetchAllData();
     } catch (err: any) {
@@ -178,7 +169,6 @@ export default function PartnerDashboard() {
 
   const handlePurchaseLockedDeal = async (orderId: number) => {
     try {
-      // First get purchase info to show confirmation
       const infoResponse = await api.get(
         `/partner/lead-purchase-info/${orderId}`,
       );
@@ -230,45 +220,48 @@ export default function PartnerDashboard() {
     lead: Lead;
     showLockButton?: boolean;
   }) => (
-    <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-lg">
-              {lead.brand} {lead.model}
-            </CardTitle>
-            <CardDescription>
-              {lead.ram_gb}GB RAM • {lead.storage_gb}GB Storage
-            </CardDescription>
-          </div>
-          <Badge className={getStatusColor(lead.status)}>
-            {lead.status.replace(/_/g, " ")}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <div>
-            <div className="text-sm text-gray-500">AI Estimated Price</div>
-            <div className="text-2xl font-bold text-green-600">
-              {formatPrice(lead.ai_estimated_price || lead.final_quoted_price)}
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer hover:-translate-y-1 border border-gray-200">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="text-base font-semibold">
+                {lead.brand} {lead.model}
+              </CardTitle>
+              <CardDescription className="text-xs mt-1">
+                {lead.ram_gb}GB RAM • {lead.storage_gb}GB Storage
+              </CardDescription>
             </div>
-            <div className="mt-2">
-              <Button size="sm" onClick={openBuyModal}>
-                Buy Credits
-              </Button>
+            <Badge
+              className={`${getStatusColor(lead.status)} text-xs px-2 py-0.5`}
+            >
+              {lead.status.replace(/_/g, " ")}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <div className="text-xs text-gray-500">AI Estimated Price</div>
+            <div className="text-xl font-bold text-green-600">
+              {formatPrice(lead.ai_estimated_price || lead.final_quoted_price)}
             </div>
           </div>
 
           <div>
-            <div className="text-sm text-gray-500 mb-1">Customer</div>
-            <div className="font-medium">{lead.customer_name}</div>
+            <div className="text-xs text-gray-500 mb-1">Customer</div>
+            <div className="font-medium text-sm">{lead.customer_name}</div>
           </div>
 
           {lead.agent_name && (
             <div>
-              <div className="text-sm text-gray-500 mb-1">Assigned Agent</div>
-              <div className="font-medium">{lead.agent_name}</div>
+              <div className="text-xs text-gray-500 mb-1">Assigned Agent</div>
+              <div className="font-medium text-sm">{lead.agent_name}</div>
             </div>
           )}
 
@@ -276,7 +269,7 @@ export default function PartnerDashboard() {
             <Button
               size="sm"
               variant="outline"
-              className="flex-1"
+              className="flex-1 text-xs h-8"
               onClick={() => navigate(`/partner/lead/${lead.id}`)}
             >
               View Details
@@ -284,16 +277,16 @@ export default function PartnerDashboard() {
             {showLockButton && (
               <Button
                 size="sm"
-                className="flex-1"
+                className="flex-1 text-xs h-8"
                 onClick={() => navigate(`/partner/lead/${lead.id}`)}
               >
                 Lock Lead
               </Button>
             )}
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 
   return (
@@ -332,251 +325,177 @@ export default function PartnerDashboard() {
         }
       />
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
-        {/* Main Content */}
-        <div className="container mx-auto px-4 py-8">
-          <Tabs defaultValue="locked" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-8">
-              <TabsTrigger value="locked">
-                Locked Deals ({lockedDeals.length})
-              </TabsTrigger>
-              <TabsTrigger value="purchased">
-                Purchased ({purchasedOrders.length})
-              </TabsTrigger>
-              <TabsTrigger value="accepted">
-                In Progress ({acceptedLeads.length})
-              </TabsTrigger>
-              <TabsTrigger value="completed">
-                Completed ({completedOrders.length})
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="locked">
-              {loading ? (
-                <div className="text-center py-12">Loading...</div>
-              ) : lockedDeals.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <p className="text-gray-500 mb-4">
-                      No locked deals at the moment
-                    </p>
-                    <Button onClick={() => navigate("/partner/marketplace")}>
-                      Go to Marketplace
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {lockedDeals.map((lead) => (
-                    <Card
-                      key={lead.id}
-                      className="hover:shadow-lg transition-shadow border-2 border-purple-200"
+        <div className="container mx-auto px-4 py-6">
+          {/* Custom Tabs */}
+          <div className="mb-6">
+            <div className="flex gap-2 p-1 bg-white rounded-lg shadow-sm border border-gray-200 w-fit">
+              {[
+                {
+                  key: "locked",
+                  label: "Locked Deals",
+                  count: lockedDeals.length,
+                },
+                {
+                  key: "purchased",
+                  label: "Purchased",
+                  count: purchasedOrders.length,
+                },
+                {
+                  key: "accepted",
+                  label: "In Progress",
+                  count: acceptedLeads.length,
+                },
+                {
+                  key: "completed",
+                  label: "Completed",
+                  count: completedOrders.length,
+                },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key as any)}
+                  className={`relative px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                    activeTab === tab.key
+                      ? "text-white"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  }`}
+                >
+                  {activeTab === tab.key && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 rounded-md"
+                      transition={{
+                        type: "spring",
+                        bounce: 0.2,
+                        duration: 0.6,
+                      }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-2">
+                    {tab.label}
+                    <span
+                      className={`text-xs px-1.5 py-0.5 rounded-full ${
+                        activeTab === tab.key
+                          ? "bg-white/20"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
                     >
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle className="text-lg">
-                              {lead.brand} {lead.model}
-                            </CardTitle>
-                            <CardDescription>
-                              {lead.ram_gb}GB RAM • {lead.storage_gb}GB Storage
-                            </CardDescription>
-                          </div>
-                          <Badge className="bg-purple-500">Locked</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          <div>
-                            <div className="text-sm text-gray-500">Price</div>
-                            <div className="text-2xl font-bold text-green-600">
-                              {formatPrice(
-                                lead.ai_estimated_price ||
-                                  lead.final_quoted_price,
-                              )}
-                            </div>
-                          </div>
+                      {tab.count}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
 
-                          <div>
-                            <div className="text-sm text-gray-500">
-                              Lead Cost
+          <AnimatePresence mode="wait">
+            {activeTab === "locked" && (
+              <motion.div
+                key="locked"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {loading ? (
+                  <div className="text-center py-12">
+                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
+                  </div>
+                ) : lockedDeals.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="py-12 text-center">
+                      <p className="text-gray-500 mb-4">
+                        No locked deals at the moment
+                      </p>
+                      <Button onClick={() => navigate("/partner/marketplace")}>
+                        Go to Marketplace
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {lockedDeals.map((lead) => (
+                      <motion.div
+                        key={lead.id}
+                        layout
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <Card className="hover:shadow-xl transition-all duration-300 border-2 border-purple-200 hover:-translate-y-1">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <CardTitle className="text-base font-semibold">
+                                  {lead.brand} {lead.model}
+                                </CardTitle>
+                                <CardDescription className="text-xs mt-1">
+                                  {lead.ram_gb}GB RAM • {lead.storage_gb}GB
+                                  Storage
+                                </CardDescription>
+                              </div>
+                              <Badge className="bg-purple-500 text-xs px-2 py-0.5">
+                                Locked
+                              </Badge>
                             </div>
-                            <div className="text-lg font-semibold text-orange-600">
-                              {formatPrice(lead.lead_cost || 0)}
-                            </div>
-                          </div>
-
-                          {lead.time_remaining && lead.time_remaining > 0 && (
+                          </CardHeader>
+                          <CardContent className="space-y-3">
                             <div>
-                              <div className="text-sm text-gray-500">
-                                Time Remaining
-                              </div>
-                              <div className="text-sm font-medium text-red-600">
-                                {Math.floor(lead.time_remaining / 60)} min{" "}
-                                {Math.floor(lead.time_remaining % 60)} sec
-                              </div>
-                            </div>
-                          )}
-
-                          <div>
-                            <div className="text-sm text-gray-500 mb-1">
-                              Customer
-                            </div>
-                            <div className="font-medium">
-                              {lead.customer_name}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-sm text-gray-500 mb-1">
-                              Location
-                            </div>
-                            <div className="text-sm">
-                              {lead.pickup_city}, {lead.pickup_state} -{" "}
-                              {lead.pickup_pincode}
-                            </div>
-                          </div>
-
-                          <div className="flex gap-2 pt-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1"
-                              onClick={() =>
-                                navigate(`/partner/lead/${lead.id}`)
-                              }
-                            >
-                              View Details
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="flex-1 bg-green-600 hover:bg-green-700"
-                              onClick={() => handlePurchaseLockedDeal(lead.id)}
-                            >
-                              Purchase
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="purchased">
-              {loading ? (
-                <div className="text-center py-12">Loading...</div>
-              ) : purchasedOrders.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <p className="text-gray-500 mb-4">
-                      No purchased orders yet
-                    </p>
-                    <Button onClick={() => navigate("/partner/marketplace")}>
-                      Go to Marketplace
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {purchasedOrders.map((lead) => (
-                    <Card
-                      key={lead.id}
-                      className="hover:shadow-lg transition-shadow"
-                    >
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle className="text-lg">
-                              {lead.brand} {lead.model}
-                            </CardTitle>
-                            <CardDescription>
-                              {lead.ram_gb}GB RAM • {lead.storage_gb}GB Storage
-                            </CardDescription>
-                          </div>
-                          <Badge className="bg-green-500">Purchased</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          <div>
-                            <div className="text-sm text-gray-500">Price</div>
-                            <div className="text-2xl font-bold text-green-600">
-                              {formatPrice(
-                                lead.ai_estimated_price ||
-                                  lead.final_quoted_price,
-                              )}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-sm text-gray-500 mb-1">
-                              Customer
-                            </div>
-                            <div className="font-medium">
-                              {lead.customer_name}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-sm text-gray-500 mb-1">
-                              Location
-                            </div>
-                            <div className="text-sm">
-                              {lead.pickup_city}, {lead.pickup_state} -{" "}
-                              {lead.pickup_pincode}
-                            </div>
-                          </div>
-
-                          {assigningOrder === lead.id ? (
-                            <div className="space-y-2">
-                              <select
-                                className="w-full border rounded px-3 py-2"
-                                value={selectedAgent || ""}
-                                onChange={(e) =>
-                                  setSelectedAgent(Number(e.target.value))
-                                }
-                              >
-                                <option value="">Select an agent</option>
-                                {agents
-                                  .filter((a) => a.is_active)
-                                  .map((agent) => (
-                                    <option key={agent.id} value={agent.id}>
-                                      {agent.full_name}
-                                    </option>
-                                  ))}
-                              </select>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  className="flex-1"
-                                  onClick={() =>
-                                    selectedAgent &&
-                                    handleAssignAgent(lead.id, selectedAgent)
-                                  }
-                                  disabled={!selectedAgent}
-                                >
-                                  Confirm
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="flex-1"
-                                  onClick={() => {
-                                    setAssigningOrder(null);
-                                    setSelectedAgent(null);
-                                  }}
-                                >
-                                  Cancel
-                                </Button>
+                              <div className="text-xs text-gray-500">Price</div>
+                              <div className="text-xl font-bold text-green-600">
+                                {formatPrice(
+                                  lead.ai_estimated_price ||
+                                    lead.final_quoted_price,
+                                )}
                               </div>
                             </div>
-                          ) : (
+
+                            <div>
+                              <div className="text-xs text-gray-500">
+                                Lead Cost
+                              </div>
+                              <div className="text-base font-semibold text-orange-600">
+                                {formatPrice(lead.lead_cost || 0)}
+                              </div>
+                            </div>
+
+                            {lead.time_remaining && lead.time_remaining > 0 && (
+                              <div>
+                                <div className="text-xs text-gray-500">
+                                  Time Remaining
+                                </div>
+                                <div className="text-sm font-medium text-red-600">
+                                  {Math.floor(lead.time_remaining / 60)} min{" "}
+                                  {Math.floor(lead.time_remaining % 60)} sec
+                                </div>
+                              </div>
+                            )}
+
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">
+                                Customer
+                              </div>
+                              <div className="font-medium text-sm">
+                                {lead.customer_name}
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">
+                                Location
+                              </div>
+                              <div className="text-xs">
+                                {lead.pickup_city}, {lead.pickup_state} -{" "}
+                                {lead.pickup_pincode}
+                              </div>
+                            </div>
+
                             <div className="flex gap-2 pt-2">
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="flex-1"
+                                className="flex-1 text-xs h-8"
                                 onClick={() =>
                                   navigate(`/partner/lead/${lead.id}`)
                                 }
@@ -585,112 +504,317 @@ export default function PartnerDashboard() {
                               </Button>
                               <Button
                                 size="sm"
-                                className="flex-1 bg-blue-600 hover:bg-blue-700"
-                                onClick={() => setAssigningOrder(lead.id)}
+                                className="flex-1 bg-green-600 hover:bg-green-700 text-xs h-8"
+                                onClick={() =>
+                                  handlePurchaseLockedDeal(lead.id)
+                                }
                               >
-                                Assign Agent
+                                Purchase
                               </Button>
                             </div>
-                          )}
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === "purchased" && (
+              <motion.div
+                key="purchased"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {loading ? (
+                  <div className="text-center py-12">
+                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
+                  </div>
+                ) : purchasedOrders.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="py-12 text-center">
+                      <p className="text-gray-500 mb-4">
+                        No purchased orders yet
+                      </p>
+                      <Button onClick={() => navigate("/partner/marketplace")}>
+                        Go to Marketplace
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {purchasedOrders.map((lead) => (
+                      <motion.div
+                        key={lead.id}
+                        layout
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <Card className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-gray-200">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <CardTitle className="text-base font-semibold">
+                                  {lead.brand} {lead.model}
+                                </CardTitle>
+                                <CardDescription className="text-xs mt-1">
+                                  {lead.ram_gb}GB RAM • {lead.storage_gb}GB
+                                  Storage
+                                </CardDescription>
+                              </div>
+                              <Badge className="bg-green-500 text-xs px-2 py-0.5">
+                                Purchased
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div>
+                              <div className="text-xs text-gray-500">Price</div>
+                              <div className="text-xl font-bold text-green-600">
+                                {formatPrice(
+                                  lead.ai_estimated_price ||
+                                    lead.final_quoted_price,
+                                )}
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">
+                                Customer
+                              </div>
+                              <div className="font-medium text-sm">
+                                {lead.customer_name}
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">
+                                Location
+                              </div>
+                              <div className="text-xs">
+                                {lead.pickup_city}, {lead.pickup_state} -{" "}
+                                {lead.pickup_pincode}
+                              </div>
+                            </div>
+
+                            {assigningOrder === lead.id ? (
+                              <div className="space-y-2">
+                                <select
+                                  className="w-full border rounded px-3 py-2 text-sm"
+                                  value={selectedAgent || ""}
+                                  onChange={(e) =>
+                                    setSelectedAgent(Number(e.target.value))
+                                  }
+                                >
+                                  <option value="">Select an agent</option>
+                                  {agents
+                                    .filter((a) => a.is_active)
+                                    .map((agent) => (
+                                      <option key={agent.id} value={agent.id}>
+                                        {agent.full_name}
+                                      </option>
+                                    ))}
+                                </select>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    className="flex-1 text-xs h-8"
+                                    onClick={() =>
+                                      selectedAgent &&
+                                      handleAssignAgent(lead.id, selectedAgent)
+                                    }
+                                    disabled={!selectedAgent}
+                                  >
+                                    Confirm
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="flex-1 text-xs h-8"
+                                    onClick={() => {
+                                      setAssigningOrder(null);
+                                      setSelectedAgent(null);
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2 pt-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="flex-1 text-xs h-8"
+                                  onClick={() =>
+                                    navigate(`/partner/lead/${lead.id}`)
+                                  }
+                                >
+                                  View Details
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-xs h-8"
+                                  onClick={() => setAssigningOrder(lead.id)}
+                                >
+                                  Assign Agent
+                                </Button>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === "accepted" && (
+              <motion.div
+                key="accepted"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {loading ? (
+                  <div className="text-center py-12">
+                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
+                  </div>
+                ) : acceptedLeads.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="py-12 text-center">
+                      <p className="text-gray-500">No orders in progress</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {acceptedLeads.map((lead) => (
+                      <LeadCard key={lead.id} lead={lead} />
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === "completed" && (
+              <motion.div
+                key="completed"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {loading ? (
+                  <div className="text-center py-12">
+                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
+                  </div>
+                ) : completedOrders.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="py-12 text-center">
+                      <p className="text-gray-500">No completed orders</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {completedOrders.map((lead) => (
+                      <LeadCard key={lead.id} lead={lead} />
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Buy Credits Modal */}
+      {showBuyModal && (
+        <AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center"
+          >
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setShowBuyModal(false)}
+            ></div>
+
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", duration: 0.5 }}
+              className="relative w-full max-w-2xl bg-white rounded-xl p-6 shadow-2xl"
+            >
+              <h2 className="text-2xl font-bold mb-2">Buy Credits</h2>
+              <p className="text-sm text-gray-500 mb-4">
+                Choose a credit plan to purchase
+              </p>
+
+              <div className="space-y-3">
+                {plans.map((p, index) => (
+                  <motion.div
+                    key={p.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Card className="hover:shadow-lg transition-all duration-200 hover:border-purple-300">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-semibold text-base">
+                              {p.plan_name}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {p.description}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold">
+                              {p.credit_amount} credits
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              ₹{p.price}
+                            </div>
+                            <div className="mt-2">
+                              <Button
+                                size="sm"
+                                className="text-xs h-8"
+                                onClick={() => handleBuyPlan(p.id)}
+                                disabled={purchaseLoading}
+                              >
+                                {purchaseLoading ? "Processing..." : "Buy"}
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
+                  </motion.div>
+                ))}
+              </div>
 
-            <TabsContent value="accepted">
-              {loading ? (
-                <div className="text-center py-12">Loading...</div>
-              ) : acceptedLeads.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <p className="text-gray-500">No orders in progress</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {acceptedLeads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="completed">
-              {loading ? (
-                <div className="text-center py-12">Loading...</div>
-              ) : completedOrders.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <p className="text-gray-500">No completed orders</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {completedOrders.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
-      {/* Buy Credits Modal */}
-      {showBuyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setShowBuyModal(false)}
-          ></div>
-
-          <div className="relative w-full max-w-2xl bg-white rounded-lg p-6">
-            <h2 className="text-2xl font-bold mb-2">Buy Credits</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Choose a credit plan to purchase
-            </p>
-
-            <div className="space-y-4">
-              {plans.map((p) => (
-                <Card key={p.id}>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold">{p.plan_name}</div>
-                        <div className="text-sm text-gray-500">
-                          {p.description}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold">
-                          {p.credit_amount} credits
-                        </div>
-                        <div className="text-sm text-gray-500">₹{p.price}</div>
-                        <div className="mt-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleBuyPlan(p.id)}
-                            disabled={purchaseLoading}
-                          >
-                            {purchaseLoading ? "Processing..." : "Buy"}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            <div className="mt-4 text-right">
-              <Button variant="outline" onClick={() => setShowBuyModal(false)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
+              <div className="mt-6 text-right">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowBuyModal(false)}
+                >
+                  Close
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>
       )}
     </>
   );

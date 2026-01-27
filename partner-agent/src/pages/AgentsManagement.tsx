@@ -122,19 +122,34 @@ export default function AgentsManagement() {
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Add Agent Button */}
         <div className="mb-6">
-          <Button onClick={() => setShowAddForm(!showAddForm)}>
-            {showAddForm ? "Cancel" : "+ Add New Agent"}
+          <Button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className={
+              showAddForm
+                ? "bg-gray-600 hover:bg-gray-700"
+                : "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-md hover:shadow-lg transition-all"
+            }
+          >
+            {showAddForm ? "✕ Cancel" : "+ Add New Agent"}
           </Button>
         </div>
 
         {/* Add Agent Form */}
         {showAddForm && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Add New Agent</CardTitle>
-              <CardDescription>Create a new agent account</CardDescription>
+          <Card className="mb-8 relative overflow-hidden border-2 shadow-lg">
+            {/* Decorative Spots for Form */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-100 rounded-full -mr-16 -mt-16 opacity-30" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-100 rounded-full -ml-12 -mb-12 opacity-30" />
+
+            <CardHeader className="relative z-10 bg-gradient-to-r from-purple-50 to-blue-50 border-b">
+              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                Add New Agent
+              </CardTitle>
+              <CardDescription className="text-gray-600">
+                Create a new agent account for your team
+              </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="relative z-10">
               <form onSubmit={handleAddAgent} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -198,8 +213,12 @@ export default function AgentsManagement() {
                     />
                   </div>
                 </div>
-                <Button type="submit" disabled={formLoading}>
-                  {formLoading ? "Adding..." : "Add Agent"}
+                <Button
+                  type="submit"
+                  disabled={formLoading}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-md hover:shadow-lg transition-all"
+                >
+                  {formLoading ? "Adding..." : "✓ Add Agent"}
                 </Button>
               </form>
             </CardContent>
@@ -210,50 +229,148 @@ export default function AgentsManagement() {
         {loading ? (
           <div className="text-center py-12">Loading agents...</div>
         ) : agents.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-gray-500 mb-4">No agents added yet</p>
-              <Button onClick={() => setShowAddForm(true)}>
-                Add Your First Agent
+          <Card className="relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-purple-100 rounded-full -mr-20 -mt-20 opacity-40" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-100 rounded-full -ml-16 -mb-16 opacity-40" />
+            <CardContent className="relative z-10 py-12 text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                <svg
+                  className="w-10 h-10 text-purple-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                  />
+                </svg>
+              </div>
+              <p className="text-gray-600 mb-4 text-lg font-medium">
+                No agents added yet
+              </p>
+              <p className="text-gray-400 text-sm mb-6">
+                Start building your delivery team
+              </p>
+              <Button
+                onClick={() => setShowAddForm(true)}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              >
+                + Add Your First Agent
               </Button>
             </CardContent>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {agents.map((agent) => (
-              <Card key={agent.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg">{agent.full_name}</CardTitle>
-                    <Badge variant={agent.is_active ? "default" : "secondary"}>
-                      {agent.is_active ? "Active" : "Inactive"}
+              <Card
+                key={agent.id}
+                className="group relative overflow-hidden hover:shadow-2xl transition-all duration-300 border-2 hover:border-purple-200 bg-gradient-to-br from-white to-gray-50"
+              >
+                {/* Decorative Spots */}
+                <div className="absolute top-0 right-0 w-24 h-24 bg-purple-100 rounded-full -mr-12 -mt-12 opacity-40 group-hover:opacity-60 transition-opacity" />
+                <div className="absolute bottom-0 left-0 w-20 h-20 bg-blue-100 rounded-full -ml-10 -mb-10 opacity-40 group-hover:opacity-60 transition-opacity" />
+                <div className="absolute top-1/3 right-1/4 w-16 h-16 bg-pink-100 rounded-full opacity-20 group-hover:opacity-40 transition-opacity" />
+                <div className="absolute bottom-1/3 left-1/4 w-12 h-12 bg-indigo-100 rounded-full opacity-20 group-hover:opacity-40 transition-opacity" />
+
+                <CardHeader className="relative z-10 pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1">
+                      {/* Avatar */}
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
+                        {agent.full_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg font-bold text-gray-800 group-hover:text-purple-700 transition-colors">
+                          {agent.full_name}
+                        </CardTitle>
+                        {agent.employee_id && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            ID: {agent.employee_id}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <Badge
+                      variant={agent.is_active ? "default" : "secondary"}
+                      className={
+                        agent.is_active
+                          ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-sm"
+                          : "bg-gray-200 text-gray-600"
+                      }
+                    >
+                      {agent.is_active ? "✓ Active" : "○ Inactive"}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <div className="text-sm text-gray-500">Email</div>
-                    <div className="font-medium">{agent.email}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500">Phone</div>
-                    <div className="font-medium">{agent.phone}</div>
-                  </div>
-                  {agent.employee_id && (
-                    <div>
-                      <div className="text-sm text-gray-500">Employee ID</div>
-                      <div className="font-medium">{agent.employee_id}</div>
+
+                <CardContent className="relative z-10 space-y-3">
+                  {/* Email Section */}
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-3 border border-blue-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <svg
+                        className="w-4 h-4 text-blue-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                        />
+                      </svg>
+                      <div className="text-xs text-blue-700 font-medium uppercase tracking-wide">
+                        Email
+                      </div>
                     </div>
-                  )}
+                    <div className="font-medium text-gray-700 text-sm truncate">
+                      {agent.email}
+                    </div>
+                  </div>
+
+                  {/* Phone Section */}
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-3 border border-purple-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <svg
+                        className="w-4 h-4 text-purple-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                        />
+                      </svg>
+                      <div className="text-xs text-purple-700 font-medium uppercase tracking-wide">
+                        Phone
+                      </div>
+                    </div>
+                    <div className="font-medium text-gray-700 text-sm">
+                      {agent.phone}
+                    </div>
+                  </div>
+
+                  {/* Action Button */}
                   <Button
-                    variant="outline"
+                    variant={agent.is_active ? "outline" : "default"}
                     size="sm"
-                    className="w-full"
+                    className={`w-full mt-2 transition-all ${
+                      agent.is_active
+                        ? "border-2 border-gray-300 hover:border-red-300 hover:text-red-600 hover:bg-red-50"
+                        : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-md"
+                    }`}
                     onClick={() =>
                       handleToggleStatus(agent.id, agent.is_active)
                     }
                   >
-                    {agent.is_active ? "Deactivate" : "Activate"}
+                    {agent.is_active ? "⊗ Deactivate" : "✓ Activate"}
                   </Button>
                 </CardContent>
               </Card>

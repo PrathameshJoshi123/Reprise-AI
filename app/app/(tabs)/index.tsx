@@ -1,4 +1,13 @@
-import { ScrollView, Text, TouchableOpacity, View, Alert, RefreshControl, ActivityIndicator, Platform } from "react-native";
+import {
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+  Alert,
+  RefreshControl,
+  ActivityIndicator,
+  Platform,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -41,18 +50,20 @@ export default function PartnerDashboard() {
       const locked = lockedDeals.length;
 
       // Filter orders by status
-      const purchased = orders.filter((o: any) => o.status === "lead_purchased").length;
+      const purchased = orders.filter(
+        (o: any) => o.status === "lead_purchased",
+      ).length;
       const inProgress = orders.filter(
         (o: any) =>
           o.status === "assigned_to_agent" ||
           o.status === "accepted_by_agent" ||
-          o.status === "pickup_scheduled"
+          o.status === "pickup_scheduled",
       ).length;
       const completed = orders.filter(
         (o: any) =>
           o.status === "pickup_completed" ||
           o.status === "payment_processed" ||
-          o.status === "completed"
+          o.status === "completed",
       ).length;
 
       setStats({ locked, purchased, in_progress: inProgress, completed });
@@ -69,10 +80,10 @@ export default function PartnerDashboard() {
   // Auto-refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('Dashboard focused, refreshing data...');
+      console.log("Dashboard focused, refreshing data...");
       fetchStats();
       refreshUser();
-    }, [])
+    }, []),
   );
 
   const onRefresh = useCallback(() => {
@@ -82,11 +93,11 @@ export default function PartnerDashboard() {
   }, []);
 
   const handleLogout = async () => {
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm('Are you sure you want to logout?');
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm("Are you sure you want to logout?");
       if (confirmed) {
         await logout();
-        window.location.href = '/';
+        window.location.href = "/";
       }
     } else {
       Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -95,8 +106,14 @@ export default function PartnerDashboard() {
           text: "Logout",
           style: "destructive",
           onPress: async () => {
-            await logout();
-            router.replace("/");
+            try {
+              await logout();
+              // Wait for state to clear
+              await new Promise((resolve) => setTimeout(resolve, 150));
+              router.replace("/");
+            } catch (error) {
+              console.error("Logout error:", error);
+            }
           },
         },
       ]);
@@ -117,7 +134,11 @@ export default function PartnerDashboard() {
         className="flex-1"
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#0d9488"]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#0d9488"]}
+          />
         }
       >
         {/* Header with Logout */}
@@ -244,7 +265,11 @@ export default function PartnerDashboard() {
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center flex-1">
                   <View className="w-12 h-12 bg-green-100 rounded-full items-center justify-center mr-3">
-                    <Ionicons name="checkmark-circle" size={24} color="#16a34a" />
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={24}
+                      color="#16a34a"
+                    />
                   </View>
                   <View>
                     <Text className="text-slate-500 text-sm font-medium">

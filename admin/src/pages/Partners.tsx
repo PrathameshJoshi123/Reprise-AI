@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import api from "../lib/api";
 import { formatDateTime, formatCurrency } from "../lib/utils";
+import { getPartnerStatusColor } from "../lib/badgeUtils";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -26,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
-import { Plus } from "lucide-react";
 
 interface Partner {
   id: number;
@@ -68,17 +68,8 @@ export default function Partners() {
   };
 
   const getStatusBadge = (status: string) => {
-    const colors: Record<string, string> = {
-      pending: "bg-yellow-100 text-yellow-800",
-      under_review: "bg-blue-100 text-blue-800",
-      clarification_needed: "bg-orange-100 text-orange-800",
-      approved: "bg-green-100 text-green-800",
-      rejected: "bg-red-100 text-red-800",
-      suspended: "bg-gray-100 text-gray-800",
-    };
-
     return (
-      <Badge className={colors[status]} variant="outline">
+      <Badge className={getPartnerStatusColor(status)} variant="outline">
         {status.replace(/_/g, " ").toUpperCase()}
       </Badge>
     );
@@ -87,7 +78,7 @@ export default function Partners() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -97,7 +88,7 @@ export default function Partners() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Partners</h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-muted-foreground mt-1">
             Manage all partners in the system
           </p>
         </div>
@@ -138,7 +129,7 @@ export default function Partners() {
         </CardHeader>
         <CardContent>
           {partners.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-muted-foreground">
               No partners found
             </div>
           ) : (

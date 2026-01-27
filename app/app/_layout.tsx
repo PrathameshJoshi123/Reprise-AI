@@ -14,15 +14,24 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === "(auth)";
     const inPartnerTabs = segments[0] === "(tabs)";
     const inAgentTabs = segments[0] === "(agent-tabs)";
+    const atRoot = segments.length === 0;
 
     if (!isAuthenticated) {
-      // Not authenticated - allow home and auth screens
+      // Not authenticated - redirect to home if trying to access protected routes
       if (inPartnerTabs || inAgentTabs) {
         router.replace("/");
       }
+      // If at root or auth pages, allow it
     } else if (isAuthenticated && user) {
       // Authenticated - route based on userType
-      if (inAuthGroup) {
+      if (atRoot) {
+        // At root while authenticated, redirect to appropriate dashboard
+        if (userType === "partner") {
+          router.replace("/(tabs)");
+        } else if (userType === "agent") {
+          router.replace("/(agent-tabs)");
+        }
+      } else if (inAuthGroup) {
         // Already logged in, redirect to appropriate dashboard
         if (userType === "partner") {
           router.replace("/(tabs)");
@@ -30,14 +39,14 @@ function RootLayoutNav() {
           router.replace("/(agent-tabs)");
         }
       } else if (inPartnerTabs && userType !== "partner") {
-        // Partner trying to access agent dashboard
+        // Wrong user type trying to access partner dashboard
         router.replace("/(agent-tabs)");
       } else if (inAgentTabs && userType !== "agent") {
-        // Agent trying to access partner dashboard
+        // Wrong user type trying to access agent dashboard
         router.replace("/(tabs)");
       }
     }
-  }, [isAuthenticated, isLoading, segments, user]);
+  }, [isAuthenticated, isLoading, segments, user, userType]);
 
   if (isLoading) {
     return (

@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Button } from "./ui/button";
+import { useAuth } from "../context/AuthContext";
 
 interface HeaderProps {
   showLoginButtons?: boolean;
@@ -19,19 +21,41 @@ export default function Header({
   additionalContent,
 }: HeaderProps) {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout();
+    } else {
+      logout();
+      navigate("/");
+    }
+  };
+
+  // Determine if we should show logout based on auth state or prop
+  const shouldShowLogout = showLogout || !!user;
+  const shouldShowLoginButtons = showLoginButtons && !user;
+  const displayName = userName || user?.name;
 
   return (
-    <header className="bg-white shadow-sm border-b">
+    <motion.header
+      className="bg-white shadow-sm border-b"
+      initial={{ y: -100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
           <div className="flex items-center space-x-4">
-            <div
+            <motion.div
               className="flex items-center space-x-4 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => navigate("/")}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
-              <div className="text-2xl font-bold text-blue-600">RepriseAI</div>
+              <div className="text-2xl font-bold text-blue-600">CashNow</div>
               <div className="text-lg text-gray-600">Partner Portal</div>
-            </div>
+            </motion.div>
             {pageTitle && (
               <>
                 <div className="text-gray-300">|</div>
@@ -39,9 +63,9 @@ export default function Header({
                   <div className="text-xl font-semibold text-gray-800">
                     {pageTitle}
                   </div>
-                  {userName && (
+                  {displayName && (
                     <div className="text-sm text-gray-500">
-                      Welcome, {userName}
+                      Welcome, {displayName}
                     </div>
                   )}
                 </div>
@@ -50,12 +74,12 @@ export default function Header({
           </div>
           <div className="flex items-center space-x-4">
             {additionalContent}
-            {showLogout && onLogout && (
-              <Button variant="destructive" onClick={onLogout}>
+            {shouldShowLogout && (
+              <Button variant="destructive" onClick={handleLogout}>
                 Logout
               </Button>
             )}
-            {showLoginButtons && !showLogout && (
+            {shouldShowLoginButtons && (
               <>
                 <Button
                   variant="outline"
@@ -74,6 +98,6 @@ export default function Header({
           </div>
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 }
