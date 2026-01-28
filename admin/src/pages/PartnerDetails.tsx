@@ -23,8 +23,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
-import { CheckCircle, XCircle, AlertCircle, ArrowLeft } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  ArrowLeft,
+  Lock,
+  Unlock,
+} from "lucide-react";
 import { toast } from "sonner";
+import PartnerHoldModal from "../components/PartnerHoldModal";
+import LiftPartnerHoldModal from "../components/LiftPartnerHoldModal";
+
+interface HoldStatus {
+  is_on_hold: boolean;
+  hold_details?: {
+    reason: string;
+    hold_date: string;
+    lift_date: string | null;
+  };
+  message: string;
+}
 
 interface PartnerDetails {
   partner: {
@@ -74,11 +93,14 @@ export default function PartnerDetails() {
   const [details, setDetails] = useState<PartnerDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [holdStatus, setHoldStatus] = useState<HoldStatus | null>(null);
 
   // Dialog states
   const [approveDialog, setApproveDialog] = useState(false);
   const [rejectDialog, setRejectDialog] = useState(false);
   const [clarifyDialog, setClarifyDialog] = useState(false);
+  const [holdModalOpen, setHoldModalOpen] = useState(false);
+  const [liftModalOpen, setLiftModalOpen] = useState(false);
 
   const [approvalNotes, setApprovalNotes] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
@@ -94,6 +116,14 @@ export default function PartnerDetails() {
         `/admin/partners/${id}/verification-details`,
       );
       setDetails(response.data);
+
+      // Fetch hold status
+      try {
+        const holdResponse = await api.get(`/admin/partners/${id}/hold-status`);
+        setHoldStatus(holdResponse.data);
+      } catch (error) {
+        console.error("Failed to fetch hold status:", error);
+      }
     } catch (error) {
       console.error("Failed to fetch partner details:", error);
       toast.error("Failed to load partner details");
@@ -180,7 +210,12 @@ export default function PartnerDetails() {
     );
   }
 
-  const { partner, serviceable_pincodes, verification_history, agents = [] } = details;
+  const {
+    partner,
+    serviceable_pincodes,
+    verification_history,
+    agents = [],
+  } = details;
 
   return (
     <div className="space-y-6">
@@ -204,20 +239,70 @@ export default function PartnerDetails() {
               <CardTitle>{partner.full_name}</CardTitle>
               <CardDescription>{partner.email}</CardDescription>
             </div>
-            <Badge
-              variant={
-                partner.verification_status === "approved"
-                  ? "default"
-                  : partner.verification_status === "rejected"
-                    ? "destructive"
-                    : "secondary"
-              }
-            >
-              {partner.verification_status.replace(/_/g, " ").toUpperCase()}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge
+                variant={
+                  partner.verification_status === "approved"
+                    ? "default"
+                    : partner.verification_status === "rejected"
+                      ? "destructive"
+                      : "secondary"
+                }
+              >
+                {partner.verification_status.replace(/_/g, " ").toUpperCase()}
+              </Badge>
+              {holdStatus?.is_on_hold && (
+                <Badge
+                  variant="destructive"
+                  className="bg-red-100 text-red-800"
+                >
+                  <Lock className="w-3 h-3 mr-1" />
+                  ON HOLD
+                </Badge>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Hold Status Alert */}
+          {holdStatus?.is_on_hold && holdStatus.hold_details && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold text-red-900">
+                    Partner is on Hold
+                  </p>
+                  <p className="text-sm text-red-700 mt-1">
+                    <strong>Reason:</strong> {holdStatus.hold_details.reason}
+                  </p>
+                  {holdStatus.hold_details.lift_date && (
+                    <p className="text-sm text-red-700 mt-1">
+                      <strong>Auto-Lift Date:</strong>{" "}
+                      {new Date(
+                        holdStatus.hold_details.lift_date,
+                      ).toLocaleString()}
+                    </p>
+                  )}
+                  {!holdStatus.hold_details.lift_date && (
+                    <p className="text-sm text-red-700 mt-1">
+                      <strong>Hold Type:</strong> Indefinite (requires manual
+                      lift)
+                    </p>
+                  )}
+                  <Button
+                    size="sm"
+                    className="mt-3 bg-green-600 hover:bg-green-700"
+                    onClick={() => setLiftModalOpen(true)}
+                  >
+                    <Unlock className="w-3 h-3 mr-2" />
+                    Lift Hold
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label className="text-muted-foreground">Phone</Label>
@@ -423,6 +508,38 @@ export default function PartnerDetails() {
           </Card>
         )}
 
+      {/* Hold/Lift Partner Card */}
+      {partner.verification_status === "approved" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Partner Hold Management</CardTitle>
+            <CardDescription>
+              Place or lift hold on partner for rule violations
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex gap-4">
+            {holdStatus?.is_on_hold ? (
+              <Button
+                onClick={() => setLiftModalOpen(true)}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+              >
+                <Unlock className="h-4 w-4" />
+                Lift Hold
+              </Button>
+            ) : (
+              <Button
+                onClick={() => setHoldModalOpen(true)}
+                variant="destructive"
+                className="flex items-center gap-2"
+              >
+                <Lock className="h-4 w-4" />
+                Place On Hold
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Approve Dialog */}
       <AlertDialog open={approveDialog} onOpenChange={setApproveDialog}>
         <AlertDialogContent>
@@ -519,6 +636,35 @@ export default function PartnerDetails() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Partner Hold Modal */}
+      {details && (
+        <>
+          <PartnerHoldModal
+            open={holdModalOpen}
+            partnerId={partner.id}
+            partnerName={partner.full_name}
+            onClose={() => setHoldModalOpen(false)}
+            onHoldPlaced={() => {
+              setHoldModalOpen(false);
+              fetchPartnerDetails();
+            }}
+          />
+          {holdStatus?.is_on_hold && (
+            <LiftPartnerHoldModal
+              open={liftModalOpen}
+              partnerId={partner.id}
+              partnerName={partner.full_name}
+              holdReason={holdStatus.hold_details?.reason || ""}
+              onClose={() => setLiftModalOpen(false)}
+              onHoldLifted={() => {
+                setLiftModalOpen(false);
+                fetchPartnerDetails();
+              }}
+            />
+          )}
+        </>
+      )}
     </div>
   );
 }

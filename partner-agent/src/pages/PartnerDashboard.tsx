@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { Button } from "../components/ui/button";
 import Header from "../components/Header";
+import { HoldNotificationBanner } from "../components/HoldNotificationBanner";
 import {
   Card,
   CardContent,
@@ -326,6 +327,12 @@ export default function PartnerDashboard() {
       />
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
         <div className="container mx-auto px-4 py-6">
+          {user?.is_on_hold && (
+            <HoldNotificationBanner
+              reason={user.hold_reason}
+              liftDate={user.hold_lift_date}
+            />
+          )}
           {/* Custom Tabs */}
           <div className="mb-6">
             <div className="flex gap-2 p-1 bg-white rounded-lg shadow-sm border border-gray-200 w-fit">

@@ -19,6 +19,7 @@ import StatusBadge from "../../components/StatusBadge";
 import EmptyState from "../../components/EmptyState";
 import SchedulePickupModal from "../../components/SchedulePickupModal";
 import CompletePickupModal from "../../components/CompletePickupModal";
+import HoldNotificationBanner from "../../components/HoldNotificationBanner";
 
 export default function AgentDashboardScreen() {
   const { user, logout } = useAuth();
@@ -106,6 +107,14 @@ export default function AgentDashboardScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* Hold Notification Banner */}
+      {user?.is_on_hold && (
+        <HoldNotificationBanner
+          reason={user.hold_reason}
+          liftDate={user.hold_lift_date}
+        />
+      )}
+
       {/* Header */}
       <View style={styles.header}>
         <View>

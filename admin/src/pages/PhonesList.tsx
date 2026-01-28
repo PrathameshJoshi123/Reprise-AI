@@ -312,139 +312,143 @@ export default function PhonesList() {
           </form>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Brand</TableHead>
-                <TableHead>Series</TableHead>
-                <TableHead>Model</TableHead>
-                <TableHead>Storage</TableHead>
-                <TableHead className="text-right">RAM (GB)</TableHead>
-                <TableHead className="text-right">
-                  Internal Storage (GB)
-                </TableHead>
-                <TableHead className="text-right">Original Price</TableHead>
-                <TableHead className="text-right">Selling Price</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {phones.length === 0 ? (
+          <div className="w-full overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell
-                    colSpan={9}
-                    className="text-center text-muted-foreground"
-                  >
-                    {searchTerm
-                      ? "No phones found matching your search"
-                      : "No phones found"}
-                  </TableCell>
+                  <TableHead>Brand</TableHead>
+                  <TableHead>Series</TableHead>
+                  <TableHead>Model</TableHead>
+                  <TableHead>Storage</TableHead>
+                  <TableHead className="text-right">RAM (GB)</TableHead>
+                  <TableHead className="text-right">
+                    Internal Storage (GB)
+                  </TableHead>
+                  <TableHead className="text-right">Original Price</TableHead>
+                  <TableHead className="text-right">Selling Price</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ) : (
-                phones.map((phone) => (
-                  <TableRow key={phone.id}>
-                    <TableCell className="font-medium">{phone.Brand}</TableCell>
-                    <TableCell>{phone.Series}</TableCell>
-                    <TableCell>{phone.Model}</TableCell>
-                    <TableCell>{phone.Storage_Raw}</TableCell>
-                    <TableCell className="text-right">
-                      {phone.RAM_GB ?? "N/A"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {phone.Internal_Storage_GB}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {phone.Original_Price
-                        ? `₹${phone.Original_Price.toLocaleString()}`
-                        : "N/A"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      ₹{phone.Selling_Price.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditDialog(phone)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openDeleteDialog(phone)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+              </TableHeader>
+              <TableBody>
+                {phones.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={9}
+                      className="text-center text-muted-foreground"
+                    >
+                      {searchTerm
+                        ? "No phones found matching your search"
+                        : "No phones found"}
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  phones.map((phone) => (
+                    <TableRow key={phone.id}>
+                      <TableCell className="font-medium">
+                        {phone.Brand}
+                      </TableCell>
+                      <TableCell>{phone.Series}</TableCell>
+                      <TableCell>{phone.Model}</TableCell>
+                      <TableCell>{phone.Storage_Raw}</TableCell>
+                      <TableCell className="text-right">
+                        {phone.RAM_GB ?? "N/A"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {phone.Internal_Storage_GB}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {phone.Original_Price
+                          ? `₹${phone.Original_Price.toLocaleString()}`
+                          : "N/A"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        ₹{phone.Selling_Price.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(phone)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDeleteDialog(phone)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
 
-          {/* Pagination Controls */}
-          {phones.length > 0 && (
-            <div className="flex items-center justify-between mt-6">
-              <div className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to{" "}
-                {Math.min(startIndex + itemsPerPage, totalPhones)} of{" "}
-                {totalPhones} phones
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Previous
-                </Button>
-                <div className="flex items-center gap-2">
-                  {Array.from({ length: Math.min(5, totalPages) }).map(
-                    (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      return (
-                        <Button
-                          key={pageNum}
-                          variant={
-                            pageNum === currentPage ? "default" : "outline"
-                          }
-                          size="sm"
-                          onClick={() => setCurrentPage(pageNum)}
-                        >
-                          {pageNum}
-                        </Button>
-                      );
-                    },
-                  )}
+            {/* Pagination Controls */}
+            {phones.length > 0 && (
+              <div className="flex items-center justify-between mt-6">
+                <div className="text-sm text-muted-foreground">
+                  Showing {startIndex + 1} to{" "}
+                  {Math.min(startIndex + itemsPerPage, totalPhones)} of{" "}
+                  {totalPhones} phones
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCurrentPage(Math.min(totalPages, currentPage + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    {Array.from({ length: Math.min(5, totalPages) }).map(
+                      (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={
+                              pageNum === currentPage ? "default" : "outline"
+                            }
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      },
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setCurrentPage(Math.min(totalPages, currentPage + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
 
