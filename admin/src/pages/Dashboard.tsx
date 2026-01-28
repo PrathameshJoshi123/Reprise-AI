@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import api from "../lib/api";
-import { formatCurrency } from "../lib/utils";
+import { formatCurrency, formatCredits } from "../lib/utils";
 import {
   Card,
   CardContent,
@@ -111,7 +111,7 @@ export default function Dashboard() {
     },
     {
       title: "Credits in Circulation",
-      value: formatCurrency(stats.credits_in_circulation),
+      value: formatCredits(stats.credits_in_circulation),
       icon: DollarSign,
       color: "text-amber-600",
       bgColor: "bg-amber-50",

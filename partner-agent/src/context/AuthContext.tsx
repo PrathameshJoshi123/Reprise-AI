@@ -7,6 +7,9 @@ interface User {
   name: string;
   type: "partner" | "agent";
   credit_balance?: number;
+  is_on_hold?: boolean;
+  hold_reason?: string;
+  hold_lift_date?: string;
 }
 
 interface AuthContextType {

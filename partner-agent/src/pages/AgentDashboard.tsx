@@ -5,6 +5,7 @@ import api from "../lib/api";
 import { formatPrice } from "../lib/utils";
 import { Button } from "../components/ui/button";
 import Header from "../components/Header";
+import { HoldNotificationBanner } from "../components/HoldNotificationBanner";
 import {
   Card,
   CardContent,
@@ -558,6 +559,12 @@ export default function AgentDashboard() {
       <div className="min-h-screen bg-gray-50">
         {/* Main Content */}
         <div className="container mx-auto px-4 py-8">
+          {user?.is_on_hold && (
+            <HoldNotificationBanner
+              reason={user.hold_reason}
+              liftDate={user.hold_lift_date}
+            />
+          )}
           <Tabs defaultValue="current" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6 bg-white p-1 border">
               <TabsTrigger
