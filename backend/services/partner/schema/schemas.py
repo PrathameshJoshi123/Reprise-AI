@@ -161,16 +161,6 @@ class AgentOrderSummary(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class AcceptOrderRequest(BaseModel):
-    """Schema for agent accepting an order"""
-    notes: Optional[str] = None
-
-
-class RejectOrderRequest(BaseModel):
-    """Schema for agent rejecting an order"""
-    rejection_reason: str = Field(..., min_length=10, max_length=500)
-
-
 class SchedulePickupRequest(BaseModel):
     """Schema for scheduling pickup"""
     scheduled_date: str  # YYYY-MM-DD format

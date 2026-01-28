@@ -31,7 +31,6 @@ import {
   Package,
   IndianRupee,
   CheckCircle2,
-  XCircle,
   Eye,
 } from "lucide-react";
 
@@ -150,7 +149,6 @@ export default function AgentDashboard() {
             .toLowerCase()
             .replace(/ /g, "_");
           return (
-            normalizedStatus === "assigned_to_agent" ||
             normalizedStatus === "accepted_by_agent" ||
             normalizedStatus === "pickup_scheduled"
           );
@@ -173,36 +171,6 @@ export default function AgentDashboard() {
       console.error("Failed to fetch orders:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleAcceptOrder = async (orderId: number) => {
-    setActionLoading(true);
-    try {
-      await api.post(`/agent/orders/${orderId}/accept`);
-      await fetchOrders();
-      alert("Order accepted successfully!");
-    } catch (error: any) {
-      alert(error.response?.data?.detail || "Failed to accept order");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleRejectOrder = async (orderId: number) => {
-    if (!confirm("Are you sure you want to reject this order?")) {
-      return;
-    }
-
-    setActionLoading(true);
-    try {
-      await api.post(`/agent/orders/${orderId}/reject`);
-      await fetchOrders();
-      alert("Order rejected");
-    } catch (error: any) {
-      alert(error.response?.data?.detail || "Failed to reject order");
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -263,7 +231,6 @@ export default function AgentDashboard() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      assigned_to_agent: "bg-amber-100 text-amber-800 border border-amber-200",
       accepted_by_agent: "bg-green-100 text-green-800 border border-green-200",
       pickup_scheduled: "bg-blue-100 text-blue-800 border border-blue-200",
       pickup_completed:
@@ -411,29 +378,6 @@ export default function AgentDashboard() {
 
             {showActions && (
               <div className="flex gap-2 pt-2 border-t">
-                {order.status === "assigned_to_agent" && (
-                  <>
-                    <Button
-                      size="sm"
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                      onClick={() => handleAcceptOrder(order.id!)}
-                      disabled={actionLoading}
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                      Accept
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
-                      onClick={() => handleRejectOrder(order.id!)}
-                      disabled={actionLoading}
-                    >
-                      <XCircle className="w-3.5 h-3.5 mr-1" />
-                      Reject
-                    </Button>
-                  </>
-                )}
                 {(order.status === "accepted_by_agent" ||
                   order.status === "pickup_scheduled") && (
                   <Button
@@ -442,7 +386,9 @@ export default function AgentDashboard() {
                     onClick={() => setSelectedOrder(order)}
                   >
                     <Eye className="w-3.5 h-3.5 mr-1" />
-                    View Details
+                    {order.status === "accepted_by_agent"
+                      ? "Schedule Pickup"
+                      : "View Details"}
                   </Button>
                 )}
               </div>

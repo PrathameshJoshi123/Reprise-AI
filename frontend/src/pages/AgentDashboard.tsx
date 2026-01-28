@@ -90,18 +90,9 @@ export default function AgentDashboard() {
   });
 
   // Mutation for accepting orders (invalidate both myOrders and nearbyOrders)
-  const acceptOrderMutation = useMutation({
-    mutationFn: (orderId: number) =>
-      api.post(`/sell-phone/orders/${orderId}/accept`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["agentMyOrders"] });
-      queryClient.invalidateQueries({ queryKey: ["nearbyOrders"] });
-    },
-  });
+  // REMOVED: acceptOrderMutation - orders auto-accept on assignment now
 
-  const handleAcceptOrder = (orderId: number) => {
-    acceptOrderMutation.mutate(orderId);
-  };
+  // REMOVED: handleAcceptOrder - no longer needed
 
   // Filter myOrders for the list based on selectedFilter, and combine with nearbyOrders for "all"
   let filteredOrders = myOrders.filter((order) =>
@@ -360,18 +351,7 @@ export default function AgentDashboard() {
                       </div>
 
                       <div className="flex gap-2">
-                        {order.status === "pending" && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleAcceptOrder(order.id)}
-                            disabled={acceptOrderMutation.isPending}
-                            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                          >
-                            {acceptOrderMutation.isPending
-                              ? "Accepting..."
-                              : "Accept Order"}
-                          </Button>
-                        )}
+                        {/* REMOVED: Accept Order button - orders auto-accept on assignment */}
                         <Button
                           size="sm"
                           variant="outline"
