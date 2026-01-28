@@ -537,15 +537,16 @@ def assign_order_to_agent(
     order.agent_name = agent.full_name
     order.agent_phone = agent.phone
     order.agent_email = agent.email
-    order.status = "assigned_to_agent"
+    order.status = "accepted_by_agent"
     order.assigned_at = datetime.utcnow()
+    order.accepted_at = datetime.utcnow()
     
     # Create status history
     create_status_history(
         db=db,
         order_id=order_id,
         from_status="lead_purchased",
-        to_status="assigned_to_agent",
+        to_status="accepted_by_agent",
         changed_by_user_type="partner",
         changed_by_user_id=current_partner.id,
         notes=f"Assigned to agent {agent.full_name} (ID: {agent_id})"

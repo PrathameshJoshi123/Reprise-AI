@@ -114,10 +114,7 @@ export default function AgentDashboard() {
 
   useEffect(() => {
     if (selectedOrder) {
-      if (
-        selectedOrder.status === "assigned_to_agent" ||
-        selectedOrder.status === "accepted_by_agent"
-      ) {
+      if (selectedOrder.status === "accepted_by_agent") {
         setScheduleForm({
           scheduled_date: "",
           scheduled_time: "",
@@ -152,7 +149,6 @@ export default function AgentDashboard() {
             .toLowerCase()
             .replace(/ /g, "_");
           return (
-            normalizedStatus === "assigned_to_agent" ||
             normalizedStatus === "accepted_by_agent" ||
             normalizedStatus === "pickup_scheduled"
           );
@@ -235,7 +231,6 @@ export default function AgentDashboard() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      assigned_to_agent: "bg-amber-100 text-amber-800 border border-amber-200",
       accepted_by_agent: "bg-green-100 text-green-800 border border-green-200",
       pickup_scheduled: "bg-blue-100 text-blue-800 border border-blue-200",
       pickup_completed:
@@ -383,8 +378,7 @@ export default function AgentDashboard() {
 
             {showActions && (
               <div className="flex gap-2 pt-2 border-t">
-                {(order.status === "assigned_to_agent" ||
-                  order.status === "accepted_by_agent" ||
+                {(order.status === "accepted_by_agent" ||
                   order.status === "pickup_scheduled") && (
                   <Button
                     size="sm"
@@ -392,7 +386,7 @@ export default function AgentDashboard() {
                     onClick={() => setSelectedOrder(order)}
                   >
                     <Eye className="w-3.5 h-3.5 mr-1" />
-                    {order.status === "assigned_to_agent"
+                    {order.status === "accepted_by_agent"
                       ? "Schedule Pickup"
                       : "View Details"}
                   </Button>
@@ -604,8 +598,7 @@ export default function AgentDashboard() {
                 </div>
 
                 {/* Conditional Form */}
-                {(selectedOrder.status === "assigned_to_agent" ||
-                  selectedOrder.status === "accepted_by_agent") && (
+                {selectedOrder.status === "accepted_by_agent" && (
                   <div className="space-y-4 pt-4 border-t">
                     <div className="flex items-center gap-2 mb-2">
                       <Calendar className="w-4 h-4 text-gray-600" />
@@ -803,8 +796,7 @@ export default function AgentDashboard() {
                 )}
 
                 <div className="flex gap-3 pt-4 border-t">
-                  {(selectedOrder.status === "assigned_to_agent" ||
-                    selectedOrder.status === "accepted_by_agent") && (
+                  {selectedOrder.status === "accepted_by_agent" && (
                     <Button
                       className="flex-1 bg-blue-600 hover:bg-blue-700"
                       size="lg"

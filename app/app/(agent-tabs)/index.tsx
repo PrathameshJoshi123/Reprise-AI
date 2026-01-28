@@ -93,9 +93,7 @@ export default function AgentDashboardScreen() {
   };
 
   const currentOrders = orders.filter((o) =>
-    ["assigned_to_agent", "accepted_by_agent", "pickup_scheduled"].includes(
-      o.status,
-    ),
+    ["accepted_by_agent", "pickup_scheduled"].includes(o.status),
   );
 
   if (loading) {
@@ -124,15 +122,6 @@ export default function AgentDashboardScreen() {
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{currentOrders.length}</Text>
           <Text style={styles.statLabel}>Current Orders</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>
-            {
-              currentOrders.filter((o) => o.status === "assigned_to_agent")
-                .length
-            }
-          </Text>
-          <Text style={styles.statLabel}>To Schedule</Text>
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>
@@ -436,30 +425,6 @@ const styles = StyleSheet.create({
   orderActions: {
     flexDirection: "row",
     marginTop: 12,
-  },
-  acceptButton: {
-    flex: 1,
-    backgroundColor: "#16a34a",
-    borderRadius: 8,
-    padding: 12,
-    alignItems: "center",
-    marginRight: 8,
-  },
-  acceptButtonText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  rejectButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: "#f3f4f6",
-  },
-  rejectButtonText: {
-    color: "#dc2626",
-    fontSize: 14,
-    fontWeight: "600",
   },
   scheduleButton: {
     flex: 1,
