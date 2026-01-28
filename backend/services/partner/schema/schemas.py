@@ -183,3 +183,23 @@ class ProcessPaymentRequest(BaseModel):
     payment_method: str = Field(..., description="Cash/UPI/Bank Transfer/Cheque")
     transaction_id: Optional[str] = None
     payment_notes: Optional[str] = None
+
+
+class ReschedulePickupRequest(BaseModel):
+    """Schema for rescheduling pickup"""
+    new_date: str  # YYYY-MM-DD format
+    new_time: str  # HH:MM format
+    reschedule_reason: str = Field(..., min_length=5, max_length=500)
+    notes: Optional[str] = None
+
+
+class CancelPickupRequest(BaseModel):
+    """Schema for canceling pickup"""
+    cancellation_reason: str = Field(..., min_length=10, max_length=500)
+    notes: Optional[str] = None
+
+
+class AgentLocationUpdate(BaseModel):
+    """Schema for updating agent location"""
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)

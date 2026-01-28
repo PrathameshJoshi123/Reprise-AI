@@ -23,6 +23,13 @@ import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import {
   Calendar,
   Clock,
   MapPin,
@@ -32,6 +39,9 @@ import {
   IndianRupee,
   CheckCircle2,
   Eye,
+  PhoneCall,
+  Map,
+  XCircle,
 } from "lucide-react";
 
 interface Order {
@@ -78,6 +88,10 @@ export default function AgentDashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [selectedAction, setSelectedAction] = useState<string>("");
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [callInProgress, setCallInProgress] = useState(false);
+  const [callEnded, setCallEnded] = useState(false);
   const [pickupForm, setPickupForm] = useState({
     actual_condition: "",
     final_offered_price: 0,
@@ -88,6 +102,16 @@ export default function AgentDashboard() {
   const [scheduleForm, setScheduleForm] = useState({
     scheduled_date: "",
     scheduled_time: "",
+    notes: "",
+  });
+  const [rescheduleForm, setRescheduleForm] = useState({
+    new_date: "",
+    new_time: "",
+    reschedule_reason: "",
+    notes: "",
+  });
+  const [cancelForm, setCancelForm] = useState({
+    cancellation_reason: "",
     notes: "",
   });
 
@@ -224,6 +248,101 @@ export default function AgentDashboard() {
     }
   };
 
+  const handleCallCustomer = () => {
+    setCallInProgress(true);
+  };
+
+  const handleEndCall = () => {
+    setCallInProgress(false);
+    setCallEnded(true);
+  };
+
+  const handleViewMap = (order: Order) => {
+    const getPickupAddress = () =>
+      order.pickup_address ||
+      `${order.pickup_address_line || ""}, ${order.pickup_city || ""}, ${order.pickup_state || ""} - ${order.pickup_pincode || ""}`.trim();
+
+    const address = encodeURIComponent(getPickupAddress());
+    // Open Google Maps with directions to customer address
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&destination=${address}`,
+      "_blank",
+    );
+  };
+
+  const handleActionSelect = (action: string) => {
+    setSelectedAction(action);
+    setShowActionModal(true);
+  };
+
+  const handleReschedulePickup = async () => {
+    if (
+      !rescheduleForm.new_date ||
+      !rescheduleForm.new_time ||
+      !rescheduleForm.reschedule_reason
+    ) {
+      alert("Please fill in all required fields");
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      await api.post(
+        `/agent/orders/${selectedOrder!.id}/reschedule-pickup`,
+        rescheduleForm,
+      );
+      await fetchOrders();
+      setShowActionModal(false);
+      setSelectedOrder(null);
+      setRescheduleForm({
+        new_date: "",
+        new_time: "",
+        reschedule_reason: "",
+        notes: "",
+      });
+      alert("Pickup rescheduled successfully!");
+    } catch (error: any) {
+      alert(error.response?.data?.detail || "Failed to reschedule pickup");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCancelPickup = async () => {
+    if (!cancelForm.cancellation_reason) {
+      alert("Please provide a cancellation reason");
+      return;
+    }
+
+    if (
+      !confirm(
+        "Are you sure you want to cancel this pickup? The order will be returned to the partner.",
+      )
+    ) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      await api.post(
+        `/agent/orders/${selectedOrder!.id}/cancel-pickup`,
+        cancelForm,
+      );
+      await fetchOrders();
+      setShowActionModal(false);
+      setSelectedOrder(null);
+      setCancelForm({
+        cancellation_reason: "",
+        notes: "",
+      });
+      alert("Pickup cancelled successfully!");
+    } catch (error: any) {
+      alert(error.response?.data?.detail || "Failed to cancel pickup");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     navigate("/");
@@ -343,7 +462,7 @@ export default function AgentDashboard() {
                 </div>
               </div>
 
-              {getPickupDate() && (
+              {getPickupDate() && order.status === "pickup_scheduled" && (
                 <div className="flex items-start gap-2 p-2.5 bg-gray-50 rounded-md border">
                   <Calendar className="w-4 h-4 text-gray-500 mt-0.5" />
                   <div className="flex-1">
@@ -377,19 +496,48 @@ export default function AgentDashboard() {
             </div>
 
             {showActions && (
-              <div className="flex gap-2 pt-2 border-t">
-                {(order.status === "accepted_by_agent" ||
-                  order.status === "pickup_scheduled") && (
+              <div className="space-y-2 pt-2 border-t">
+                {order.status === "accepted_by_agent" && (
                   <Button
                     size="sm"
-                    className="flex-1 bg-blue-600 hover:bg-blue-700"
-                    onClick={() => setSelectedOrder(order)}
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setSelectedOrder(order);
+                      setCallInProgress(false);
+                      setCallEnded(false);
+                    }}
                   >
                     <Eye className="w-3.5 h-3.5 mr-1" />
-                    {order.status === "accepted_by_agent"
-                      ? "Schedule Pickup"
-                      : "View Details"}
+                    View Details & Take Action
                   </Button>
+                )}
+                {order.status === "pickup_scheduled" && (
+                  <>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1 bg-blue-600 hover:bg-blue-700"
+                        onClick={() => handleViewMap(order)}
+                      >
+                        <Map className="w-3.5 h-3.5 mr-1" />
+                        View Map
+                      </Button>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        setCallInProgress(false);
+                        setCallEnded(false);
+                      }}
+                    >
+                      <Eye className="w-3.5 h-3.5 mr-1" />
+                      View Details & Actions
+                    </Button>
+                  </>
                 )}
               </div>
             )}
@@ -487,12 +635,55 @@ export default function AgentDashboard() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
               <CardHeader className="bg-gray-50 border-b sticky top-0 z-10">
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-xl">Order Details</CardTitle>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <CardTitle className="text-xl mb-3">
+                      Order Details
+                    </CardTitle>
+                    {/* Call and Map Buttons */}
+                    <div className="flex gap-2">
+                      {!callInProgress && !callEnded && (
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={handleCallCustomer}
+                        >
+                          <PhoneCall className="w-3.5 h-3.5 mr-1" />
+                          Call Customer
+                        </Button>
+                      )}
+                      {callInProgress && (
+                        <Button
+                          size="sm"
+                          className="bg-red-600 hover:bg-red-700"
+                          onClick={handleEndCall}
+                        >
+                          <PhoneCall className="w-3.5 h-3.5 mr-1" />
+                          End Call
+                        </Button>
+                      )}
+                      {selectedOrder.status === "pickup_scheduled" && (
+                        <Button
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700"
+                          onClick={() => handleViewMap(selectedOrder)}
+                        >
+                          <Map className="w-3.5 h-3.5 mr-1" />
+                          View Map
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setSelectedOrder(null)}
+                    onClick={() => {
+                      setSelectedOrder(null);
+                      setShowActionModal(false);
+                      setSelectedAction("");
+                      setCallInProgress(false);
+                      setCallEnded(false);
+                    }}
                   >
                     ✕
                   </Button>
@@ -597,31 +788,232 @@ export default function AgentDashboard() {
                   </div>
                 </div>
 
-                {/* Conditional Form */}
-                {selectedOrder.status === "accepted_by_agent" && (
+                {/* Conditional Forms Based on Action */}
+                {selectedOrder.status === "accepted_by_agent" &&
+                  showActionModal &&
+                  selectedAction === "schedule" && (
+                    <div className="space-y-4 pt-4 border-t">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Calendar className="w-4 h-4 text-gray-600" />
+                        <h3 className="font-semibold text-base text-gray-900">
+                          Schedule Pickup
+                        </h3>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="scheduled_date"
+                          className="text-gray-700 font-medium text-sm"
+                        >
+                          Pickup Date *
+                        </Label>
+                        <Input
+                          id="scheduled_date"
+                          type="date"
+                          value={scheduleForm.scheduled_date}
+                          onChange={(e) =>
+                            setScheduleForm((prev) => ({
+                              ...prev,
+                              scheduled_date: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="scheduled_time"
+                          className="text-gray-700 font-medium text-sm"
+                        >
+                          Pickup Time *
+                        </Label>
+                        <Input
+                          id="scheduled_time"
+                          type="time"
+                          value={scheduleForm.scheduled_time}
+                          onChange={(e) =>
+                            setScheduleForm((prev) => ({
+                              ...prev,
+                              scheduled_time: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="schedule_notes"
+                          className="text-gray-700 font-medium text-sm"
+                        >
+                          Notes (Optional)
+                        </Label>
+                        <Textarea
+                          id="schedule_notes"
+                          value={scheduleForm.notes}
+                          onChange={(e) =>
+                            setScheduleForm((prev) => ({
+                              ...prev,
+                              notes: e.target.value,
+                            }))
+                          }
+                          placeholder="Any notes for scheduling"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                {selectedOrder.status === "pickup_scheduled" &&
+                  showActionModal &&
+                  selectedAction === "pickup" && (
+                    <div className="space-y-4 pt-4 border-t">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle2 className="w-4 h-4 text-gray-600" />
+                        <h3 className="font-semibold text-base text-gray-900">
+                          Complete Pickup Details
+                        </h3>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="actual_condition"
+                          className="text-gray-700 font-medium text-sm"
+                        >
+                          Actual Condition *
+                        </Label>
+                        <select
+                          id="actual_condition"
+                          className="w-full p-2 border rounded-md"
+                          value={pickupForm.actual_condition}
+                          onChange={(e) =>
+                            setPickupForm((prev) => ({
+                              ...prev,
+                              actual_condition: e.target.value,
+                            }))
+                          }
+                        >
+                          <option value="">Select condition</option>
+                          <option value="Excellent">Excellent</option>
+                          <option value="Good">Good</option>
+                          <option value="Fair">Fair</option>
+                          <option value="Poor">Poor</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="final_offered_price"
+                          className="text-gray-700 font-medium text-sm"
+                        >
+                          Final Offered Price *
+                        </Label>
+                        <Input
+                          id="final_offered_price"
+                          type="number"
+                          value={pickupForm.final_offered_price}
+                          onChange={(e) =>
+                            setPickupForm((prev) => ({
+                              ...prev,
+                              final_offered_price:
+                                parseFloat(e.target.value) || 0,
+                            }))
+                          }
+                          placeholder="Enter final price"
+                        />
+                      </div>
+
+                      <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-md border">
+                        <input
+                          type="checkbox"
+                          id="customer_accepted"
+                          className="w-4 h-4 rounded"
+                          checked={pickupForm.customer_accepted}
+                          onChange={(e) =>
+                            setPickupForm((prev) => ({
+                              ...prev,
+                              customer_accepted: e.target.checked,
+                            }))
+                          }
+                        />
+                        <Label
+                          htmlFor="customer_accepted"
+                          className="text-gray-700 font-medium text-sm cursor-pointer"
+                        >
+                          Customer accepted the offer
+                        </Label>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="pickup_notes"
+                          className="text-gray-700 font-medium text-sm"
+                        >
+                          Pickup Notes (Optional)
+                        </Label>
+                        <Textarea
+                          id="pickup_notes"
+                          value={pickupForm.pickup_notes}
+                          onChange={(e) =>
+                            setPickupForm((prev) => ({
+                              ...prev,
+                              pickup_notes: e.target.value,
+                            }))
+                          }
+                          placeholder="Any additional notes about the pickup"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="payment_method"
+                          className="text-gray-700 font-medium text-sm"
+                        >
+                          Payment Method (Optional)
+                        </Label>
+                        <select
+                          id="payment_method"
+                          className="w-full p-2 border rounded-md"
+                          value={pickupForm.payment_method}
+                          onChange={(e) =>
+                            setPickupForm((prev) => ({
+                              ...prev,
+                              payment_method: e.target.value,
+                            }))
+                          }
+                        >
+                          <option value="">Select payment method</option>
+                          <option value="Cash">Cash</option>
+                          <option value="UPI">UPI</option>
+                          <option value="Bank Transfer">Bank Transfer</option>
+                          <option value="Cheque">Cheque</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                {showActionModal && selectedAction === "reschedule" && (
                   <div className="space-y-4 pt-4 border-t">
                     <div className="flex items-center gap-2 mb-2">
-                      <Calendar className="w-4 h-4 text-gray-600" />
+                      <Calendar className="w-4 h-4 text-amber-600" />
                       <h3 className="font-semibold text-base text-gray-900">
-                        Schedule Pickup
+                        Reschedule Pickup
                       </h3>
                     </div>
 
                     <div className="space-y-2">
                       <Label
-                        htmlFor="scheduled_date"
+                        htmlFor="new_date"
                         className="text-gray-700 font-medium text-sm"
                       >
-                        Pickup Date
+                        New Pickup Date *
                       </Label>
                       <Input
-                        id="scheduled_date"
+                        id="new_date"
                         type="date"
-                        value={scheduleForm.scheduled_date}
+                        value={rescheduleForm.new_date}
                         onChange={(e) =>
-                          setScheduleForm((prev) => ({
+                          setRescheduleForm((prev) => ({
                             ...prev,
-                            scheduled_date: e.target.value,
+                            new_date: e.target.value,
                           }))
                         }
                       />
@@ -629,19 +1021,19 @@ export default function AgentDashboard() {
 
                     <div className="space-y-2">
                       <Label
-                        htmlFor="scheduled_time"
+                        htmlFor="new_time"
                         className="text-gray-700 font-medium text-sm"
                       >
-                        Pickup Time
+                        New Pickup Time *
                       </Label>
                       <Input
-                        id="scheduled_time"
+                        id="new_time"
                         type="time"
-                        value={scheduleForm.scheduled_time}
+                        value={rescheduleForm.new_time}
                         onChange={(e) =>
-                          setScheduleForm((prev) => ({
+                          setRescheduleForm((prev) => ({
                             ...prev,
-                            scheduled_time: e.target.value,
+                            new_time: e.target.value,
                           }))
                         }
                       />
@@ -649,188 +1041,295 @@ export default function AgentDashboard() {
 
                     <div className="space-y-2">
                       <Label
-                        htmlFor="schedule_notes"
+                        htmlFor="reschedule_reason"
                         className="text-gray-700 font-medium text-sm"
                       >
-                        Notes (Optional)
+                        Reason for Rescheduling *
                       </Label>
                       <Textarea
-                        id="schedule_notes"
-                        value={scheduleForm.notes}
+                        id="reschedule_reason"
+                        value={rescheduleForm.reschedule_reason}
                         onChange={(e) =>
-                          setScheduleForm((prev) => ({
+                          setRescheduleForm((prev) => ({
+                            ...prev,
+                            reschedule_reason: e.target.value,
+                          }))
+                        }
+                        placeholder="Please provide a reason for rescheduling"
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="reschedule_notes"
+                        className="text-gray-700 font-medium text-sm"
+                      >
+                        Additional Notes (Optional)
+                      </Label>
+                      <Textarea
+                        id="reschedule_notes"
+                        value={rescheduleForm.notes}
+                        onChange={(e) =>
+                          setRescheduleForm((prev) => ({
                             ...prev,
                             notes: e.target.value,
                           }))
                         }
-                        placeholder="Any notes for scheduling"
+                        placeholder="Any additional notes"
                       />
                     </div>
                   </div>
                 )}
 
-                {selectedOrder.status === "pickup_scheduled" && (
+                {showActionModal && selectedAction === "cancel" && (
                   <div className="space-y-4 pt-4 border-t">
                     <div className="flex items-center gap-2 mb-2">
-                      <CheckCircle2 className="w-4 h-4 text-gray-600" />
+                      <XCircle className="w-4 h-4 text-red-600" />
                       <h3 className="font-semibold text-base text-gray-900">
-                        Complete Pickup Details
+                        Cancel Pickup
                       </h3>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="actual_condition"
-                        className="text-gray-700 font-medium text-sm"
-                      >
-                        Actual Condition
-                      </Label>
-                      <select
-                        id="actual_condition"
-                        className="w-full p-2 border rounded-md"
-                        value={pickupForm.actual_condition}
-                        onChange={(e) =>
-                          setPickupForm((prev) => ({
-                            ...prev,
-                            actual_condition: e.target.value,
-                          }))
-                        }
-                      >
-                        <option value="">Select condition</option>
-                        <option value="Excellent">Excellent</option>
-                        <option value="Good">Good</option>
-                        <option value="Fair">Fair</option>
-                        <option value="Poor">Poor</option>
-                      </select>
+                    <div className="bg-red-50 p-3 rounded-md border border-red-200">
+                      <p className="text-sm text-red-800">
+                        <strong>Warning:</strong> Canceling this pickup will
+                        return the order to the partner for reassignment.
+                      </p>
                     </div>
 
                     <div className="space-y-2">
                       <Label
-                        htmlFor="final_offered_price"
+                        htmlFor="cancellation_reason"
                         className="text-gray-700 font-medium text-sm"
                       >
-                        Final Offered Price
-                      </Label>
-                      <Input
-                        id="final_offered_price"
-                        type="number"
-                        value={pickupForm.final_offered_price}
-                        onChange={(e) =>
-                          setPickupForm((prev) => ({
-                            ...prev,
-                            final_offered_price:
-                              parseFloat(e.target.value) || 0,
-                          }))
-                        }
-                        placeholder="Enter final price"
-                      />
-                    </div>
-
-                    <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-md border">
-                      <input
-                        type="checkbox"
-                        id="customer_accepted"
-                        className="w-4 h-4 rounded"
-                        checked={pickupForm.customer_accepted}
-                        onChange={(e) =>
-                          setPickupForm((prev) => ({
-                            ...prev,
-                            customer_accepted: e.target.checked,
-                          }))
-                        }
-                      />
-                      <Label
-                        htmlFor="customer_accepted"
-                        className="text-gray-700 font-medium text-sm cursor-pointer"
-                      >
-                        Customer accepted the offer
-                      </Label>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="pickup_notes"
-                        className="text-gray-700 font-medium text-sm"
-                      >
-                        Pickup Notes (Optional)
+                        Reason for Cancellation *
                       </Label>
                       <Textarea
-                        id="pickup_notes"
-                        value={pickupForm.pickup_notes}
+                        id="cancellation_reason"
+                        value={cancelForm.cancellation_reason}
                         onChange={(e) =>
-                          setPickupForm((prev) => ({
+                          setCancelForm((prev) => ({
                             ...prev,
-                            pickup_notes: e.target.value,
+                            cancellation_reason: e.target.value,
                           }))
                         }
-                        placeholder="Any additional notes about the pickup"
+                        placeholder="Please provide a detailed reason for canceling this pickup"
+                        rows={3}
                       />
                     </div>
 
                     <div className="space-y-2">
                       <Label
-                        htmlFor="payment_method"
+                        htmlFor="cancel_notes"
                         className="text-gray-700 font-medium text-sm"
                       >
-                        Payment Method (Optional)
+                        Additional Notes (Optional)
                       </Label>
-                      <select
-                        id="payment_method"
-                        className="w-full p-2 border rounded-md"
-                        value={pickupForm.payment_method}
+                      <Textarea
+                        id="cancel_notes"
+                        value={cancelForm.notes}
                         onChange={(e) =>
-                          setPickupForm((prev) => ({
+                          setCancelForm((prev) => ({
                             ...prev,
-                            payment_method: e.target.value,
+                            notes: e.target.value,
                           }))
                         }
-                      >
-                        <option value="">Select payment method</option>
-                        <option value="Cash">Cash</option>
-                        <option value="UPI">UPI</option>
-                        <option value="Bank Transfer">Bank Transfer</option>
-                        <option value="Cheque">Cheque</option>
-                      </select>
+                        placeholder="Any additional notes"
+                      />
                     </div>
                   </div>
                 )}
 
                 <div className="flex gap-3 pt-4 border-t">
-                  {selectedOrder.status === "accepted_by_agent" && (
-                    <Button
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
-                      size="lg"
-                      onClick={handleSchedulePickup}
-                      disabled={
-                        actionLoading ||
-                        !scheduleForm.scheduled_date ||
-                        !scheduleForm.scheduled_time
-                      }
-                    >
-                      {actionLoading ? "Processing..." : "Schedule Pickup"}
-                    </Button>
+                  {selectedOrder.status === "accepted_by_agent" &&
+                    !showActionModal &&
+                    !callEnded && (
+                      <div className="text-center w-full py-4 text-gray-500 text-sm">
+                        Please call the customer first to discuss the pickup
+                      </div>
+                    )}
+                  {selectedOrder.status === "accepted_by_agent" &&
+                    !showActionModal &&
+                    callEnded && (
+                      <>
+                        <div className="flex-1">
+                          <Label className="text-gray-700 font-medium text-sm mb-2 block">
+                            Choose action after call:
+                          </Label>
+                          <Select onValueChange={handleActionSelect}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select action..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="schedule">
+                                PickUp (Schedule Pickup)
+                              </SelectItem>
+                              <SelectItem value="cancel">Cancel</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          onClick={() => {
+                            setSelectedOrder(null);
+                            setSelectedAction("");
+                            setCallInProgress(false);
+                            setCallEnded(false);
+                          }}
+                          className="mt-7"
+                        >
+                          Close
+                        </Button>
+                      </>
+                    )}
+                  {selectedOrder.status === "accepted_by_agent" &&
+                    showActionModal &&
+                    selectedAction === "schedule" && (
+                      <>
+                        <Button
+                          className="flex-1 bg-blue-600 hover:bg-blue-700"
+                          size="lg"
+                          onClick={handleSchedulePickup}
+                          disabled={
+                            actionLoading ||
+                            !scheduleForm.scheduled_date ||
+                            !scheduleForm.scheduled_time
+                          }
+                        >
+                          {actionLoading ? "Processing..." : "Confirm Schedule"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          onClick={() => {
+                            setShowActionModal(false);
+                            setSelectedAction("");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    )}
+                  {selectedOrder.status === "pickup_scheduled" &&
+                    !showActionModal && (
+                      <>
+                        <div className="flex-1">
+                          <Label className="text-gray-700 font-medium text-sm mb-2 block">
+                            Choose Action
+                          </Label>
+                          <Select onValueChange={handleActionSelect}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select action..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pickup">
+                                Complete Pickup
+                              </SelectItem>
+                              <SelectItem value="reschedule">
+                                Reschedule Pickup
+                              </SelectItem>
+                              <SelectItem value="cancel">
+                                Cancel Pickup
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          onClick={() => {
+                            setSelectedOrder(null);
+                            setSelectedAction("");
+                          }}
+                          className="mt-7"
+                        >
+                          Close
+                        </Button>
+                      </>
+                    )}
+                  {selectedOrder.status === "pickup_scheduled" &&
+                    showActionModal &&
+                    selectedAction === "pickup" && (
+                      <>
+                        <Button
+                          className="flex-1 bg-green-600 hover:bg-green-700"
+                          size="lg"
+                          onClick={handleCompletePickup}
+                          disabled={
+                            actionLoading ||
+                            !pickupForm.actual_condition ||
+                            pickupForm.final_offered_price <= 0
+                          }
+                        >
+                          {actionLoading ? "Processing..." : "Confirm Pickup"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          onClick={() => {
+                            setShowActionModal(false);
+                            setSelectedAction("");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    )}
+                  {showActionModal && selectedAction === "reschedule" && (
+                    <>
+                      <Button
+                        className="flex-1 bg-amber-600 hover:bg-amber-700"
+                        size="lg"
+                        onClick={handleReschedulePickup}
+                        disabled={
+                          actionLoading ||
+                          !rescheduleForm.new_date ||
+                          !rescheduleForm.new_time ||
+                          !rescheduleForm.reschedule_reason
+                        }
+                      >
+                        {actionLoading ? "Processing..." : "Confirm Reschedule"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        onClick={() => {
+                          setShowActionModal(false);
+                          setSelectedAction("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </>
                   )}
-                  {selectedOrder.status === "pickup_scheduled" && (
-                    <Button
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                      size="lg"
-                      onClick={handleCompletePickup}
-                      disabled={
-                        actionLoading ||
-                        !pickupForm.actual_condition ||
-                        pickupForm.final_offered_price <= 0
-                      }
-                    >
-                      {actionLoading ? "Processing..." : "Complete Pickup"}
-                    </Button>
+                  {showActionModal && selectedAction === "cancel" && (
+                    <>
+                      <Button
+                        className="flex-1 bg-red-600 hover:bg-red-700"
+                        size="lg"
+                        onClick={handleCancelPickup}
+                        disabled={
+                          actionLoading || !cancelForm.cancellation_reason
+                        }
+                      >
+                        {actionLoading
+                          ? "Processing..."
+                          : "Confirm Cancellation"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        onClick={() => {
+                          setShowActionModal(false);
+                          setSelectedAction("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </>
                   )}
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() => setSelectedOrder(null)}
-                  >
-                    Close
-                  </Button>
                 </div>
               </CardContent>
             </Card>
