@@ -2,10 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, load_only
 from sqlalchemy import func, desc
 from typing import Optional, List
+from datetime import datetime, timezone
 from backend.shared.db.connections import get_db
 from backend.services.auth import models as auth_models, utils as auth_utils
 from backend.services.sell_phone.schema import models as sell_models
 from backend.services.partner.schema.models import Partner, PartnerServiceablePincode
+from backend.services.partner import utils as partner_utils
 from backend.services.admin.schema.models import (
     Admin, PartnerVerificationHistory, CreditPlan, 
     PartnerCreditTransaction, AdminCreditConfiguration
@@ -28,6 +30,10 @@ from backend.services.admin.schema.schemas import (
     PhoneListOut, PhoneListCreate, PhoneListUpdate, PhoneListPaginatedOut,
     # Legacy
     AdminUserCreate, AdminUserUpdate, AdminUserOut, AdminOrderOut,
+    AdminOrderPaginatedOut, OrderSortBy, SortOrder,
+)
+from backend.services.partner.schema.schemas import (
+    PartnerHoldCreate, PartnerHoldOut, PartnerHoldStatus, LiftPartnerHoldRequest
 )
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -287,6 +293,91 @@ def reject_partner(
         "partner_id": partner_id,
         "verification_status": partner.verification_status
     }
+
+
+# ============================================================================
+# PARTNER HOLD MANAGEMENT
+# ============================================================================
+
+@router.post("/partners/{partner_id}/hold", response_model=PartnerHoldOut)
+def place_partner_hold(
+    partner_id: int,
+    payload: PartnerHoldCreate,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """
+    Place a partner on hold for rule violations.
+    Partner cannot access leads or agents cannot perform actions while on hold.
+    """
+    try:
+        hold = partner_utils.place_partner_hold(
+            db=db,
+            partner_id=partner_id,
+            reason=payload.reason,
+            lift_date=payload.lift_date,
+            admin_id=current_admin.id
+        )
+        return hold
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/partners/{partner_id}/hold-status", response_model=PartnerHoldStatus)
+def get_partner_hold_status(
+    partner_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """
+    Get current hold status of a partner.
+    """
+    partner = db.query(Partner).filter(Partner.id == partner_id).first()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Partner not found")
+    
+    hold = partner_utils.get_partner_hold_details(db, partner_id)
+    
+    if not hold:
+        return PartnerHoldStatus(
+            is_on_hold=False,
+            hold_details=None,
+            message="Partner is not on hold"
+        )
+    
+    return PartnerHoldStatus(
+        is_on_hold=True,
+        hold_details=hold,
+        message=f"Partner on hold until {hold.lift_date}" if hold.lift_date else "Partner on indefinite hold"
+    )
+
+
+@router.post("/partners/{partner_id}/lift-hold", response_model=dict)
+def lift_partner_hold_endpoint(
+    partner_id: int,
+    payload: LiftPartnerHoldRequest,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """
+    Lift a hold from a partner.
+    """
+    try:
+        hold = partner_utils.lift_partner_hold(
+            db=db,
+            partner_id=partner_id,
+            lift_reason=payload.lift_reason,
+            admin_id=current_admin.id
+        )
+        return {
+            "status": "success",
+            "message": "Partner hold lifted successfully",
+            "partner_id": partner_id,
+            "hold_id": hold.id,
+            "lifted_at": hold.lifted_at
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ============================================================================
@@ -696,16 +787,24 @@ def delete_user(
     db.commit()
     return {"message": "User deleted successfully"}
 
-@router.get("/orders", response_model=list[AdminOrderOut])
+@router.get("/orders", response_model=AdminOrderPaginatedOut)
 def list_orders(
-    status: str = None,  # Optional filter by order status
+    status: Optional[str] = Query(None, description="Filter by order status"),
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page"),
+    sort_by: OrderSortBy = Query(OrderSortBy.created_at, description="Sort field"),
+    sort_order: SortOrder = Query(SortOrder.desc, description="Sort order (asc/desc)"),
+    start_date: Optional[str] = Query(None, description="Filter orders from this date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="Filter orders until this date (YYYY-MM-DD)"),
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(admin_utils.get_current_admin),
 ):
     """
-    List orders — only load fields required by the admin UI to avoid fetching everything.
+    List orders with pagination, sorting, and date range filtering.
+    Supports filtering by status and date range.
     """
-    from sqlalchemy import case
+    from datetime import datetime, timedelta
+    
     query = db.query(
         sell_models.Order.id,
         sell_models.Order.phone_name,
@@ -718,12 +817,49 @@ def list_orders(
     ).outerjoin(
         Partner, sell_models.Order.partner_id == Partner.id
     )
-    if status:
+    
+    # Apply status filter if provided
+    if status and status != "all":
         query = query.filter(sell_models.Order.status == status)
-    results = query.order_by(sell_models.Order.created_at.desc()).all()
+    
+    # Apply date range filters
+    if start_date:
+        try:
+            start_datetime = datetime.strptime(start_date, "%Y-%m-%d")
+            query = query.filter(sell_models.Order.created_at >= start_datetime)
+        except ValueError:
+            pass  # Invalid date format, skip filter
+    
+    if end_date:
+        try:
+            end_datetime = datetime.strptime(end_date, "%Y-%m-%d")
+            # Include entire end date by adding 1 day and excluding it
+            end_datetime = end_datetime + timedelta(days=1)
+            query = query.filter(sell_models.Order.created_at < end_datetime)
+        except ValueError:
+            pass  # Invalid date format, skip filter
+    
+    # Get total count before pagination
+    total = query.count()
+    
+    # Apply sorting
+    sort_column = {
+        OrderSortBy.created_at: sell_models.Order.created_at,
+        OrderSortBy.quoted_price: sell_models.Order.quoted_price,
+        OrderSortBy.status: sell_models.Order.status,
+    }[sort_by]
+    
+    if sort_order == SortOrder.asc:
+        query = query.order_by(sort_column.asc())
+    else:
+        query = query.order_by(sort_column.desc())
+    
+    # Apply pagination
+    offset = (page - 1) * limit
+    results = query.offset(offset).limit(limit).all()
     
     # Convert to dict format for Pydantic
-    return [
+    items = [
         {
             "id": r.id,
             "phone_name": r.phone_name,
@@ -736,6 +872,19 @@ def list_orders(
         }
         for r in results
     ]
+    
+    # Calculate pagination metadata
+    total_pages = (total + limit - 1) // limit  # Ceiling division
+    has_more = page < total_pages
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": total_pages,
+        "has_more": has_more,
+    }
 
 
 # ============================================================================

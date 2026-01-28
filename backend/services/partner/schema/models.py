@@ -50,6 +50,36 @@ class PartnerServiceablePincode(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class PartnerHold(Base):
+    """
+    Track partner holds for rule violations.
+    When a partner is on hold, they cannot access leads or agents cannot perform actions.
+    """
+    __tablename__ = "partner_holds"
+
+    id = Column(Integer, primary_key=True, index=True)
+    partner_id = Column(Integer, ForeignKey("partners.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Hold reason
+    reason = Column(Text, nullable=False)
+    
+    # Hold timing
+    hold_date = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    lift_date = Column(DateTime(timezone=True), nullable=True)  # NULL means admin must lift manually
+    
+    # Admin who placed the hold
+    placed_by_admin_id = Column(Integer, nullable=True)
+    
+    # Lifted details
+    is_active = Column(Boolean, default=True, index=True)
+    lifted_by_admin_id = Column(Integer, nullable=True)
+    lift_reason = Column(Text, nullable=True)
+    lifted_at = Column(DateTime(timezone=True), nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class Agent(Base):
     """
     Agents who work for partners to complete pickups.

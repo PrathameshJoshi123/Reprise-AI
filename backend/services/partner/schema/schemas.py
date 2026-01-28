@@ -4,6 +4,46 @@ from datetime import datetime
 
 
 # ================================
+# PARTNER HOLD SCHEMAS
+# ================================
+
+class PartnerHoldCreate(BaseModel):
+    """Schema for creating a partner hold"""
+    reason: str = Field(..., min_length=10, max_length=1000)
+    lift_date: Optional[datetime] = Field(None, description="Date when hold should auto-lift. If null, admin must lift manually")
+    admin_decides_lift: bool = Field(False, description="If true, admin will decide when to lift. lift_date should be null")
+
+
+class PartnerHoldOut(BaseModel):
+    """Schema for partner hold response"""
+    id: int
+    partner_id: int
+    reason: str
+    hold_date: datetime
+    lift_date: Optional[datetime]
+    is_active: bool
+    placed_by_admin_id: Optional[int]
+    lifted_by_admin_id: Optional[int]
+    lift_reason: Optional[str]
+    lifted_at: Optional[datetime]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PartnerHoldStatus(BaseModel):
+    """Schema for partner hold status check"""
+    is_on_hold: bool
+    hold_details: Optional[PartnerHoldOut] = None
+    message: str
+
+
+class LiftPartnerHoldRequest(BaseModel):
+    """Schema for lifting a partner hold"""
+    lift_reason: str = Field(..., min_length=5, max_length=500)
+
+
+# ================================
 # PARTNER SCHEMAS
 # ================================
 
@@ -49,6 +89,9 @@ class PartnerCreditNameOut(BaseModel):
     """Schema for partner credit and name only"""
     full_name: str
     credit_balance: float
+    is_on_hold: bool = False
+    hold_reason: Optional[str] = None
+    hold_lift_date: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 
@@ -118,8 +161,11 @@ class AgentOut(BaseModel):
 
 
 class AgentNameOut(BaseModel):
-    """Schema for agent name only"""
+    """Schema for agent name and hold status"""
     full_name: str
+    is_on_hold: bool = False
+    hold_reason: Optional[str] = None
+    hold_lift_date: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 

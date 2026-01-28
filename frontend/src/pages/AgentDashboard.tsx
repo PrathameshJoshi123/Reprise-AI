@@ -49,7 +49,7 @@ export default function AgentDashboard() {
   const { user, isLoggedIn } = useAuth();
   const queryClient = useQueryClient();
   const [selectedFilter, setSelectedFilter] = useState<
-    "all" | "pending" | "accepted" | "completed"
+    "all" | "accepted_by_agent" | "pickup_scheduled"
   >("all");
 
   useEffect(() => {
@@ -105,10 +105,19 @@ export default function AgentDashboard() {
   // Compute stats from myOrders
   const stats = {
     total: myOrders.length,
-    pendingPickups: myOrders.filter((o) => o.status === "accepted").length, // accepted but pickup pending
-    completed: myOrders.filter((o) => o.status === "completed").length,
+    pendingPickups: myOrders.filter(
+      (o) =>
+        o.status === "accepted_by_agent" || o.status === "pickup_scheduled",
+    ).length,
+    completed: myOrders.filter(
+      (o) =>
+        o.status === "pickup_completed" || o.status === "payment_processed",
+    ).length,
     earnings: myOrders
-      .filter((o) => o.status === "completed")
+      .filter(
+        (o) =>
+          o.status === "pickup_completed" || o.status === "payment_processed",
+      )
       .reduce((sum, o) => sum + (o.quoted_price ?? 0) * 0.05, 0),
   };
 
@@ -131,11 +140,11 @@ export default function AgentDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "pending":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "accepted":
+      case "accepted_by_agent":
+      case "pickup_scheduled":
         return "bg-blue-100 text-blue-700 border-blue-200";
-      case "completed":
+      case "pickup_completed":
+      case "payment_processed":
         return "bg-green-100 text-green-700 border-green-200";
       default:
         return "bg-gray-100 text-gray-700 border-gray-200";
@@ -255,9 +264,8 @@ export default function AgentDashboard() {
           <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
             {[
               { value: "all", label: "All Orders" },
-              { value: "pending", label: "Pending" },
-              { value: "accepted", label: "Accepted" },
-              { value: "completed", label: "Completed" },
+              { value: "accepted_by_agent", label: "Accepted" },
+              { value: "pickup_scheduled", label: "Scheduled" },
             ].map((filter) => (
               <button
                 key={filter.value}

@@ -56,11 +56,11 @@ export default function PartnerDashboard() {
   const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<
-    "locked" | "purchased" | "accepted" | "completed"
-  >("locked");
-  const [lockedDeals, setLockedDeals] = useState<Lead[]>([]);
-  const [purchasedOrders, setPurchasedOrders] = useState<Lead[]>([]);
-  const [acceptedLeads, setAcceptedLeads] = useState<Lead[]>([]);
+    "lead_locked" | "lead_purchased" | "accepted_by_agent" | "pickup_completed"
+  >("lead_locked");
+  const [leadLockedDeals, setLeadLockedDeals] = useState<Lead[]>([]);
+  const [leadPurchasedOrders, setLeadPurchasedOrders] = useState<Lead[]>([]);
+  const [acceptedByAgentLeads, setAcceptedByAgentLeads] = useState<Lead[]>([]);
   const [completedOrders, setCompletedOrders] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -85,16 +85,16 @@ export default function PartnerDashboard() {
     setLoading(true);
     try {
       const lockedResponse = await api.get("/partner/locked-deals");
-      setLockedDeals(lockedResponse.data || []);
+      setLeadLockedDeals(lockedResponse.data || []);
 
       const response = await api.get("/partner/orders");
       const orders: Lead[] = response.data;
 
-      setPurchasedOrders(
+      setLeadPurchasedOrders(
         orders.filter((order) => order.status === "lead_purchased"),
       );
 
-      setAcceptedLeads(
+      setAcceptedByAgentLeads(
         orders.filter(
           (order) =>
             order.status === "assigned_to_agent" ||
@@ -331,22 +331,22 @@ export default function PartnerDashboard() {
             <div className="flex gap-2 p-1 bg-white rounded-lg shadow-sm border border-gray-200 w-fit">
               {[
                 {
-                  key: "locked",
+                  key: "lead_locked",
                   label: "Locked Deals",
-                  count: lockedDeals.length,
+                  count: leadLockedDeals.length,
                 },
                 {
-                  key: "purchased",
+                  key: "lead_purchased",
                   label: "Purchased",
-                  count: purchasedOrders.length,
+                  count: leadPurchasedOrders.length,
                 },
                 {
-                  key: "accepted",
+                  key: "accepted_by_agent",
                   label: "In Progress",
-                  count: acceptedLeads.length,
+                  count: acceptedByAgentLeads.length,
                 },
                 {
-                  key: "completed",
+                  key: "pickup_completed",
                   label: "Completed",
                   count: completedOrders.length,
                 },
@@ -389,9 +389,9 @@ export default function PartnerDashboard() {
           </div>
 
           <AnimatePresence mode="wait">
-            {activeTab === "locked" && (
+            {activeTab === "lead_locked" && (
               <motion.div
-                key="locked"
+                key="lead_locked"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
@@ -401,7 +401,7 @@ export default function PartnerDashboard() {
                   <div className="text-center py-12">
                     <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
                   </div>
-                ) : lockedDeals.length === 0 ? (
+                ) : leadLockedDeals.length === 0 ? (
                   <Card className="border-dashed">
                     <CardContent className="py-12 text-center">
                       <p className="text-gray-500 mb-4">
@@ -414,7 +414,7 @@ export default function PartnerDashboard() {
                   </Card>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {lockedDeals.map((lead) => (
+                    {leadLockedDeals.map((lead) => (
                       <motion.div
                         key={lead.id}
                         layout
@@ -521,9 +521,9 @@ export default function PartnerDashboard() {
               </motion.div>
             )}
 
-            {activeTab === "purchased" && (
+            {activeTab === "lead_purchased" && (
               <motion.div
-                key="purchased"
+                key="lead_purchased"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
@@ -533,7 +533,7 @@ export default function PartnerDashboard() {
                   <div className="text-center py-12">
                     <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
                   </div>
-                ) : purchasedOrders.length === 0 ? (
+                ) : leadPurchasedOrders.length === 0 ? (
                   <Card className="border-dashed">
                     <CardContent className="py-12 text-center">
                       <p className="text-gray-500 mb-4">
@@ -546,7 +546,7 @@ export default function PartnerDashboard() {
                   </Card>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {purchasedOrders.map((lead) => (
+                    {leadPurchasedOrders.map((lead) => (
                       <motion.div
                         key={lead.id}
                         layout
@@ -675,9 +675,9 @@ export default function PartnerDashboard() {
               </motion.div>
             )}
 
-            {activeTab === "accepted" && (
+            {activeTab === "accepted_by_agent" && (
               <motion.div
-                key="accepted"
+                key="accepted_by_agent"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
@@ -687,7 +687,7 @@ export default function PartnerDashboard() {
                   <div className="text-center py-12">
                     <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
                   </div>
-                ) : acceptedLeads.length === 0 ? (
+                ) : acceptedByAgentLeads.length === 0 ? (
                   <Card className="border-dashed">
                     <CardContent className="py-12 text-center">
                       <p className="text-gray-500">No orders in progress</p>
@@ -695,7 +695,7 @@ export default function PartnerDashboard() {
                   </Card>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {acceptedLeads.map((lead) => (
+                    {acceptedByAgentLeads.map((lead) => (
                       <LeadCard key={lead.id} lead={lead} />
                     ))}
                   </div>
@@ -703,9 +703,9 @@ export default function PartnerDashboard() {
               </motion.div>
             )}
 
-            {activeTab === "completed" && (
+            {activeTab === "pickup_completed" && (
               <motion.div
-                key="completed"
+                key="pickup_completed"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}

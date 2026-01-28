@@ -42,12 +42,22 @@ def agent_login(
 
 @router.get("/me", response_model=partner_schemas.AgentNameOut)
 def get_current_agent_profile(
+    db: Session = Depends(get_db),
     current_agent: Agent = Depends(auth_utils.get_current_agent),
 ):
     """
-    Get current agent's profile.
+    Get current agent's profile with partner hold status.
     """
-    return partner_schemas.AgentNameOut(full_name=current_agent.full_name)
+    # Check if agent's partner is on hold
+    hold = partner_utils.get_partner_hold_details(db, current_agent.partner_id)
+    is_on_hold = hold is not None
+    
+    return partner_schemas.AgentNameOut(
+        full_name=current_agent.full_name,
+        is_on_hold=is_on_hold,
+        hold_reason=hold.reason if hold else None,
+        hold_lift_date=hold.lift_date if hold else None
+    )
 
 
 # ================================
@@ -178,6 +188,13 @@ def schedule_pickup(
     When partner assigns an order to agent, agent must complete the order.
     No accept/reject allowed - agent directly schedules pickup.
     """
+    # Check if agent's partner is on hold
+    if partner_utils.check_partner_on_hold(db, current_agent.partner_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your partner account is on hold. You cannot schedule pickups at this time. Contact your partner administrator."
+        )
+    
     order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
     
     # Validate order status - agent can schedule from assigned_to_agent status
@@ -233,6 +250,13 @@ def complete_pickup(
     Complete the pickup process.
     Records actual condition, final price, and customer acceptance.
     """
+    # Check if agent's partner is on hold
+    if partner_utils.check_partner_on_hold(db, current_agent.partner_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your partner account is on hold. You cannot complete pickups at this time. Contact your partner administrator."
+        )
+    
     order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
     
     if not payload:
@@ -303,6 +327,13 @@ def process_payment(
     Process payment for a completed pickup.
     Only available if customer accepted the offer.
     """
+    # Check if agent's partner is on hold
+    if partner_utils.check_partner_on_hold(db, current_agent.partner_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your partner account is on hold. You cannot process payments at this time. Contact your partner administrator."
+        )
+    
     order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
     
     # Validate order status
@@ -364,6 +395,13 @@ def reschedule_pickup(
     """
     Reschedule a pickup that was previously scheduled.
     """
+    # Check if agent's partner is on hold
+    if partner_utils.check_partner_on_hold(db, current_agent.partner_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your partner account is on hold. You cannot reschedule pickups at this time. Contact your partner administrator."
+        )
+    
     order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
     
     # Validate order status
@@ -418,6 +456,13 @@ def cancel_pickup(
     """
     Cancel a pickup. Returns order to partner for reassignment.
     """
+    # Check if agent's partner is on hold
+    if partner_utils.check_partner_on_hold(db, current_agent.partner_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your partner account is on hold. You cannot cancel pickups at this time. Contact your partner administrator."
+        )
+    
     order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
     
     # Validate order status

@@ -49,6 +49,13 @@ def partner_purchase_credits(
 
     Body: { "plan_id": int, "payment_method": str, "payment_transaction_id": Optional[str] }
     """
+    # Check if partner is on hold
+    if partner_utils.check_partner_on_hold(db, current_partner.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is on hold. You cannot purchase credits at this time. Contact support for details."
+        )
+    
     plan_id = payload.get("plan_id")
     payment_method = payload.get("payment_method", "manual")
     payment_transaction_id = payload.get("payment_transaction_id")
@@ -168,15 +175,23 @@ def partner_login(
 
 @router.get("/me", response_model=partner_schemas.PartnerCreditNameOut)
 def get_partner_profile(
+    db: Session = Depends(get_db),
     current_partner: Partner = Depends(auth_utils.get_current_partner),
 ):
     """
-    Get current partner profile.
+    Get current partner profile with hold status.
     Requires authentication.
     """
+    # Check if partner is on hold
+    hold = partner_utils.get_partner_hold_details(db, current_partner.id)
+    is_on_hold = hold is not None
+    
     return partner_schemas.PartnerCreditNameOut(
         full_name=current_partner.full_name,
-        credit_balance=current_partner.credit_balance
+        credit_balance=current_partner.credit_balance,
+        is_on_hold=is_on_hold,
+        hold_reason=hold.reason if hold else None,
+        hold_lift_date=hold.lift_date if hold else None
     )
 
 
@@ -193,6 +208,13 @@ def create_agent(
     """
     Create a new agent for the current partner.
     """
+    # Check if partner is on hold
+    if partner_utils.check_partner_on_hold(db, current_partner.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is on hold. You cannot create new agents at this time. Contact support for details."
+        )
+    
     try:
         agent = partner_utils.create_agent(
             db=db,
@@ -509,6 +531,13 @@ def assign_order_to_agent(
     """
     Assign a purchased order to an agent.
     """
+    # Check if partner is on hold
+    if partner_utils.check_partner_on_hold(db, current_partner.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is on hold. You cannot assign orders at this time. Contact support for details."
+        )
+    
     # Validate partner owns this order
     order = partner_utils.validate_partner_order_access(db, current_partner.id, order_id)
     
@@ -574,6 +603,13 @@ def reassign_order_to_agent(
     """
     Reassign an order to a different agent.
     """
+    # Check if partner is on hold
+    if partner_utils.check_partner_on_hold(db, current_partner.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is on hold. You cannot reassign orders at this time. Contact support for details."
+        )
+    
     # Validate partner owns this order
     order = partner_utils.validate_partner_order_access(db, current_partner.id, order_id)
     
