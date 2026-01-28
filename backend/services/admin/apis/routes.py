@@ -2,10 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, load_only
 from sqlalchemy import func, desc
 from typing import Optional, List
+from datetime import datetime, timezone
 from backend.shared.db.connections import get_db
 from backend.services.auth import models as auth_models, utils as auth_utils
 from backend.services.sell_phone.schema import models as sell_models
 from backend.services.partner.schema.models import Partner, PartnerServiceablePincode
+from backend.services.partner import utils as partner_utils
 from backend.services.admin.schema.models import (
     Admin, PartnerVerificationHistory, CreditPlan, 
     PartnerCreditTransaction, AdminCreditConfiguration
@@ -29,6 +31,9 @@ from backend.services.admin.schema.schemas import (
     # Legacy
     AdminUserCreate, AdminUserUpdate, AdminUserOut, AdminOrderOut,
     AdminOrderPaginatedOut, OrderSortBy, SortOrder,
+)
+from backend.services.partner.schema.schemas import (
+    PartnerHoldCreate, PartnerHoldOut, PartnerHoldStatus, LiftPartnerHoldRequest
 )
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -288,6 +293,91 @@ def reject_partner(
         "partner_id": partner_id,
         "verification_status": partner.verification_status
     }
+
+
+# ============================================================================
+# PARTNER HOLD MANAGEMENT
+# ============================================================================
+
+@router.post("/partners/{partner_id}/hold", response_model=PartnerHoldOut)
+def place_partner_hold(
+    partner_id: int,
+    payload: PartnerHoldCreate,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """
+    Place a partner on hold for rule violations.
+    Partner cannot access leads or agents cannot perform actions while on hold.
+    """
+    try:
+        hold = partner_utils.place_partner_hold(
+            db=db,
+            partner_id=partner_id,
+            reason=payload.reason,
+            lift_date=payload.lift_date,
+            admin_id=current_admin.id
+        )
+        return hold
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/partners/{partner_id}/hold-status", response_model=PartnerHoldStatus)
+def get_partner_hold_status(
+    partner_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """
+    Get current hold status of a partner.
+    """
+    partner = db.query(Partner).filter(Partner.id == partner_id).first()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Partner not found")
+    
+    hold = partner_utils.get_partner_hold_details(db, partner_id)
+    
+    if not hold:
+        return PartnerHoldStatus(
+            is_on_hold=False,
+            hold_details=None,
+            message="Partner is not on hold"
+        )
+    
+    return PartnerHoldStatus(
+        is_on_hold=True,
+        hold_details=hold,
+        message=f"Partner on hold until {hold.lift_date}" if hold.lift_date else "Partner on indefinite hold"
+    )
+
+
+@router.post("/partners/{partner_id}/lift-hold", response_model=dict)
+def lift_partner_hold_endpoint(
+    partner_id: int,
+    payload: LiftPartnerHoldRequest,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """
+    Lift a hold from a partner.
+    """
+    try:
+        hold = partner_utils.lift_partner_hold(
+            db=db,
+            partner_id=partner_id,
+            lift_reason=payload.lift_reason,
+            admin_id=current_admin.id
+        )
+        return {
+            "status": "success",
+            "message": "Partner hold lifted successfully",
+            "partner_id": partner_id,
+            "hold_id": hold.id,
+            "lifted_at": hold.lifted_at
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ============================================================================
