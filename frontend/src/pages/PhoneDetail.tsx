@@ -51,7 +51,7 @@ export default function PhoneDetail() {
     queryKey: ["phone", phoneId],
     queryFn: async () => {
       const API_URL = (
-        import.meta.env.API_BASE_URL || "http://localhost:8000"
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
       ).replace(/\/$/, "");
       const response = await fetch(`${API_URL}/sell-phone/phones/${phoneId}`);
       if (!response.ok) throw new Error("Failed to fetch phone");
@@ -68,7 +68,7 @@ export default function PhoneDetail() {
     queryKey: ["phoneVariants", phoneId],
     queryFn: async () => {
       const API_URL = (
-        import.meta.env.API_BASE_URL || "http://localhost:8000"
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
       ).replace(/\/$/, "");
       const response = await fetch(
         `${API_URL}/sell-phone/phones/${phoneId}/variants`,
@@ -719,7 +719,6 @@ export default function PhoneDetail() {
                         decided by the agent on visit
                       </p>
                     </div>
-
 
                     <Button
                       onClick={() => {
