@@ -168,29 +168,6 @@ export default function PartnerDetails() {
     }
   };
 
-  const handleRequestClarification = async () => {
-    if (!clarificationMessage.trim()) {
-      toast.error("Please provide a message");
-      return;
-    }
-    setActionLoading(true);
-    try {
-      await api.post(`/admin/partners/${id}/request-clarification`, {
-        message: clarificationMessage,
-      });
-      toast.success("Clarification requested");
-      setClarifyDialog(false);
-      setClarificationMessage("");
-      await fetchPartnerDetails();
-    } catch (error: any) {
-      toast.error(
-        error.response?.data?.detail || "Failed to request clarification",
-      );
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -488,14 +465,7 @@ export default function PartnerDetails() {
                 <CheckCircle className="h-4 w-4" />
                 Approve Partner
               </Button>
-              <Button
-                onClick={() => setClarifyDialog(true)}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <AlertCircle className="h-4 w-4" />
-                Request Clarification
-              </Button>
+
               <Button
                 onClick={() => setRejectDialog(true)}
                 variant="destructive"
@@ -542,10 +512,12 @@ export default function PartnerDetails() {
 
       {/* Approve Dialog */}
       <AlertDialog open={approveDialog} onOpenChange={setApproveDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-white border-gray-200 shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve Partner</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+              Approve Partner
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600">
               This will approve the partner and grant them access to the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -571,10 +543,12 @@ export default function PartnerDetails() {
 
       {/* Reject Dialog */}
       <AlertDialog open={rejectDialog} onOpenChange={setRejectDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-white border-gray-200 shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Reject Application</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-2xl font-bold bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">
+              Reject Application
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600">
               Please provide a reason for rejection. This will be visible to the
               partner.
             </AlertDialogDescription>
@@ -599,39 +573,6 @@ export default function PartnerDetails() {
               className="bg-red-600 hover:bg-red-700"
             >
               {actionLoading ? "Rejecting..." : "Reject"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Clarification Dialog */}
-      <AlertDialog open={clarifyDialog} onOpenChange={setClarifyDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Request Clarification</AlertDialogTitle>
-            <AlertDialogDescription>
-              Request additional information or documents from the partner.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-2">
-            <Label>Message to Partner *</Label>
-            <Textarea
-              value={clarificationMessage}
-              onChange={(e) => setClarificationMessage(e.target.value)}
-              placeholder="What additional information do you need?"
-              rows={4}
-              required
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={actionLoading}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleRequestClarification}
-              disabled={actionLoading}
-            >
-              {actionLoading ? "Sending..." : "Send Request"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

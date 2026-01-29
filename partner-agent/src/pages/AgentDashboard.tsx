@@ -342,11 +342,14 @@ export default function AgentDashboard() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      accepted_by_agent: "bg-green-100 text-green-800 border border-green-200",
-      pickup_completed:
-        "bg-purple-100 text-purple-800 border border-purple-200",
+      accepted_by_agent: "bg-blue-100 text-blue-800 border border-blue-200",
+      pickup_completed: "bg-green-100 text-green-800 border border-green-200",
       payment_processed:
         "bg-emerald-100 text-emerald-800 border border-emerald-200",
+      pickup_completed_declined:
+        "bg-orange-100 text-orange-800 border border-orange-200",
+      cancelled: "bg-red-100 text-red-800 border border-red-200",
+      completed: "bg-green-100 text-green-800 border border-green-200",
     };
     return colors[status] || "bg-gray-100 text-gray-800 border border-gray-200";
   };
@@ -490,16 +493,14 @@ export default function AgentDashboard() {
               <div className="space-y-2 pt-2 border-t">
                 {order.status === "accepted_by_agent" && (
                   <>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        className="bg-blue-600 hover:bg-blue-700"
-                        onClick={() => handleViewMap(order)}
-                      >
-                        <MapIcon className="w-3.5 h-3.5 mr-1" />
-                        View Map
-                      </Button>
-                    </div>
+                    <Button
+                      size="sm"
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      onClick={() => handleViewMap(order)}
+                    >
+                      <MapIcon className="w-3.5 h-3.5 mr-1" />
+                      View Map
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
@@ -781,40 +782,61 @@ export default function AgentDashboard() {
                     !showActionModal &&
                     callEnded && (
                       <>
-                        <div className="flex-1">
-                          <Label className="text-gray-700 font-medium text-sm mb-2 block">
-                            Choose action after call:
+                        <div className="w-full space-y-3">
+                          <Label className="text-gray-900 font-semibold text-sm block">
+                            📋 Choose action after call:
                           </Label>
-                          <Select onValueChange={handleActionSelect}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select action..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pickup">
-                                Complete Pickup
-                              </SelectItem>
-                              <SelectItem value="reschedule">
-                                Reschedule
-                              </SelectItem>
-                              <SelectItem value="cancel">
-                                Cancel (Customer Not Interested)
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex gap-3">
+                            <div className="flex-1">
+                              <Select onValueChange={handleActionSelect}>
+                                <SelectTrigger className="w-full h-11 bg-white border-2 border-blue-300 hover:border-blue-400 focus:border-blue-500 text-gray-900 font-medium text-base rounded-md shadow-sm">
+                                  <SelectValue placeholder="Select an action..." />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white border-2 border-blue-300 shadow-lg rounded-md">
+                                  <SelectItem
+                                    value="pickup"
+                                    className="py-3 px-3 text-base font-medium cursor-pointer hover:bg-green-50 focus:bg-green-50"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                                      <span>Complete Pickup</span>
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem
+                                    value="reschedule"
+                                    className="py-3 px-3 text-base font-medium cursor-pointer hover:bg-blue-50 focus:bg-blue-50"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <Calendar className="w-5 h-5 text-blue-600" />
+                                      <span>Reschedule</span>
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem
+                                    value="cancel"
+                                    className="py-3 px-3 text-base font-medium cursor-pointer hover:bg-red-50 focus:bg-red-50"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <XCircle className="w-5 h-5 text-red-600" />
+                                      <span>Cancel (Not Interested)</span>
+                                    </div>
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <Button
+                              size="lg"
+                              onClick={() => {
+                                setSelectedOrder(null);
+                                setSelectedAction("");
+                                setCallInProgress(false);
+                                setCallEnded(false);
+                              }}
+                              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium"
+                            >
+                              Close
+                            </Button>
+                          </div>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="lg"
-                          onClick={() => {
-                            setSelectedOrder(null);
-                            setSelectedAction("");
-                            setCallInProgress(false);
-                            setCallEnded(false);
-                          }}
-                          className="mt-7"
-                        >
-                          Close
-                        </Button>
                       </>
                     )}
                   {showActionModal && (

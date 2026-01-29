@@ -164,10 +164,12 @@ export default function PickupDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white border-gray-200 shadow-2xl">
         <DialogHeader>
-          <DialogTitle>Pickup Details - Order #{orderId}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+            Pickup Details - Order #{orderId}
+          </DialogTitle>
+          <DialogDescription className="text-gray-600">
             Complete inspection form and photos captured by agent
           </DialogDescription>
         </DialogHeader>

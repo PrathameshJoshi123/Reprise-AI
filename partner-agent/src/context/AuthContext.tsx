@@ -13,10 +13,16 @@ interface User {
   hold_lift_date?: string;
 }
 
+interface HoldInfo {
+  reason: string;
+  liftDate?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   userType: "partner" | "agent" | null;
   loading: boolean;
+  holdInfo: HoldInfo | null;
   login: (
     email: string,
     password: string,
@@ -35,6 +41,7 @@ interface AuthContextType {
   ) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  clearHoldInfo: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,6 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<User | null>(null);
   const [userType, setUserType] = useState<"partner" | "agent" | null>(null);
   const [loading, setLoading] = useState(true);
+  const [holdInfo, setHoldInfo] = useState<HoldInfo | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -67,10 +75,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const name = data.full_name ?? data.fullName ?? data.name ?? data.email;
       setUser({ ...data, type, name });
       setUserType(type);
-    } catch (error) {
+      setHoldInfo(null);
+    } catch (error: any) {
       console.error("Failed to fetch user:", error);
+      // Check if error is 403 (account on hold)
+      if (error.response?.status === 403) {
+        const holdData = error.response?.data;
+        setHoldInfo({
+          reason: holdData?.detail || "Your account has been placed on hold",
+          liftDate: holdData?.hold_lift_date,
+        });
+        // Keep token but mark user as on hold
+        return;
+      }
       localStorage.removeItem("token");
       localStorage.removeItem("userType");
+      setHoldInfo(null);
     } finally {
       setLoading(false);
     }
@@ -81,13 +101,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     password: string,
     type: "partner" | "agent",
   ) => {
-    const endpoint = type === "partner" ? "/partner/login" : "/agent/login";
-    const response = await api.post(endpoint, { email, password });
+    try {
+      const endpoint = type === "partner" ? "/partner/login" : "/agent/login";
+      const response = await api.post(endpoint, { email, password });
 
-    localStorage.setItem("token", response.data.access_token);
-    localStorage.setItem("userType", type);
-    setUserType(type);
-    await fetchUser(type);
+      localStorage.setItem("token", response.data.access_token);
+      localStorage.setItem("userType", type);
+      setUserType(type);
+      await fetchUser(type);
+    } catch (error: any) {
+      // Check if error is 403 (account on hold)
+      if (error.response?.status === 403) {
+        const holdData = error.response?.data;
+        setHoldInfo({
+          reason: holdData?.detail || "Your account has been placed on hold",
+          liftDate: holdData?.hold_lift_date,
+        });
+        // Store the type so we know which portal tried to login
+        setUserType(type);
+        return;
+      }
+      throw error;
+    }
   };
 
   const signup = async (
@@ -124,6 +159,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem("userType");
     setUser(null);
     setUserType(null);
+    setHoldInfo(null);
+  };
+
+  const clearHoldInfo = () => {
+    setHoldInfo(null);
   };
 
   const refreshUser = async () => {
@@ -134,7 +174,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <AuthContext.Provider
-      value={{ user, userType, loading, login, signup, logout, refreshUser }}
+      value={{
+        user,
+        userType,
+        loading,
+        holdInfo,
+        login,
+        signup,
+        logout,
+        refreshUser,
+        clearHoldInfo,
+      }}
     >
       {children}
     </AuthContext.Provider>
