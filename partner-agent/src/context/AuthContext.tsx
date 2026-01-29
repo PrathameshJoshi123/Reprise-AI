@@ -5,6 +5,7 @@ interface User {
   id: number;
   email: string;
   name: string;
+  phone?: string;
   type: "partner" | "agent";
   credit_balance?: number;
   is_on_hold?: boolean;

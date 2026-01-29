@@ -189,7 +189,9 @@ def get_partner_profile(
     is_on_hold = hold is not None
     
     return partner_schemas.PartnerCreditNameOut(
+        email=current_partner.email,
         full_name=current_partner.full_name,
+        phone=current_partner.phone,
         credit_balance=current_partner.credit_balance,
         is_on_hold=is_on_hold,
         hold_reason=hold.reason if hold else None,
@@ -200,6 +202,75 @@ def get_partner_profile(
 # ================================
 # AGENT MANAGEMENT ENDPOINTS (FOR PARTNERS)
 # ================================
+
+@router.post("/self-assign-as-agent", response_model=partner_schemas.PartnerSelfAssignResponse, status_code=201)
+def partner_self_assign_as_agent(
+    payload: partner_schemas.PartnerSelfAssignRequest,
+    db: Session = Depends(get_db),
+    current_partner: Partner = Depends(auth_utils.get_current_partner),
+):
+    """
+    Partner self-assigns themselves as an agent.
+    Creates a new agent record for the partner so they can login to the agent portal.
+    Uses partner's existing password if not provided (same credentials for both portals).
+    """
+    # Check if partner is on hold
+    if partner_utils.check_partner_on_hold(db, current_partner.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is on hold. You cannot self-assign as an agent at this time. Contact support for details."
+        )
+    
+    try:
+        # Use partner's details if not provided (all fields default to partner's info)
+        agent_email = payload.email or current_partner.email
+        agent_full_name = payload.full_name or current_partner.full_name
+        agent_phone = payload.phone or current_partner.phone
+        
+        # If no password provided, create agent with partner's existing hashed password
+        # This allows them to use the same credentials for both portals
+        agent_password = payload.password
+        
+        if agent_password:
+            # If a password is provided, use it (it will be hashed by create_agent)
+            agent = partner_utils.create_agent(
+                db=db,
+                partner_id=current_partner.id,
+                email=agent_email,
+                phone=agent_phone,
+                password=agent_password,
+                full_name=agent_full_name,
+                employee_id=payload.employee_id
+            )
+        else:
+            # If no password provided, create agent with same password as partner
+            # This way they use the same credentials
+            agent = partner_utils.create_agent_with_existing_password(
+                db=db,
+                partner_id=current_partner.id,
+                email=agent_email,
+                phone=agent_phone,
+                full_name=agent_full_name,
+                employee_id=payload.employee_id,
+                partner_hashed_password=current_partner.hashed_password
+            )
+        
+        db.commit()
+        db.refresh(agent)
+        
+        return partner_schemas.PartnerSelfAssignResponse(
+            agent_id=agent.id,
+            partner_id=agent.partner_id,
+            email=agent.email,
+            phone=agent.phone,
+            full_name=agent.full_name,
+            is_active=agent.is_active,
+            created_at=agent.created_at,
+            message="You have successfully self-assigned as an agent. You can now login to the agent portal using your partner account credentials."
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
 
 @router.post("/agents", response_model=partner_schemas.AgentOut, status_code=201)
 def create_agent(

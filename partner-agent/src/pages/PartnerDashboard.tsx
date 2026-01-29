@@ -346,6 +346,13 @@ export default function PartnerDashboard() {
                 Marketplace
               </Button>
               <Button
+                variant="default"
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => navigate("/partner/agents")}
+              >
+                Self-Assign Agent
+              </Button>
+              <Button
                 variant="outline"
                 onClick={() => navigate("/partner/agents")}
               >

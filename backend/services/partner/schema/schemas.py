@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -87,7 +87,9 @@ class PartnerOut(BaseModel):
 
 class PartnerCreditNameOut(BaseModel):
     """Schema for partner credit and name only"""
+    email: str
     full_name: str
+    phone: Optional[str] = None
     credit_balance: float
     is_on_hold: bool = False
     hold_reason: Optional[str] = None
@@ -249,3 +251,41 @@ class AgentLocationUpdate(BaseModel):
     """Schema for updating agent location"""
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
+
+
+# ================================
+# PARTNER SELF-ASSIGNMENT SCHEMAS
+# ================================
+
+class PartnerSelfAssignRequest(BaseModel):
+    """Schema for partner self-assigning as an agent"""
+    email: Optional[EmailStr] = Field(None, description="Email for agent login (defaults to partner email)")
+    phone: Optional[str] = Field(None, min_length=10, max_length=15, description="Phone number for agent (defaults to partner phone)")
+    password: Optional[str] = Field(None, min_length=8, description="Password for agent login (defaults to partner password)")
+    full_name: Optional[str] = Field(None, description="Agent full name (defaults to partner name)")
+    employee_id: Optional[str] = Field(None, description="Optional employee ID")
+    
+    @field_validator('email', 'phone', 'password', 'full_name', 'employee_id', mode='before')
+    @classmethod
+    def empty_string_to_none(cls, v):
+        """Convert empty strings to None so they won't trigger validation"""
+        if isinstance(v, str) and v.strip() == '':
+            return None
+        return v
+    
+    class Config:
+        # Allow empty strings to be treated as None
+        validate_assignment = True
+
+class PartnerSelfAssignResponse(BaseModel):
+    """Response for partner self-assignment"""
+    agent_id: int
+    partner_id: int
+    email: str
+    phone: str
+    full_name: str
+    is_active: bool
+    created_at: datetime
+    message: str
+
+    model_config = {"from_attributes": True}

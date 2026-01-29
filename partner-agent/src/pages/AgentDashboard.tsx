@@ -42,6 +42,7 @@ import {
   CheckCircle2,
   Eye,
   PhoneCall,
+  Map as MapIcon,
   XCircle,
 } from "lucide-react";
 
@@ -246,6 +247,19 @@ export default function AgentDashboard() {
   const handleEndCall = () => {
     setCallInProgress(false);
     setCallEnded(true);
+  };
+
+  const handleViewMap = (order: Order) => {
+    const getPickupAddress = () =>
+      order.pickup_address ||
+      `${order.pickup_address_line || ""}, ${order.pickup_city || ""}, ${order.pickup_state || ""} - ${order.pickup_pincode || ""}`.trim();
+
+    const address = encodeURIComponent(getPickupAddress());
+    // Open Google Maps with directions to customer address
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&destination=${address}`,
+      "_blank",
+    );
   };
 
   const handleActionSelect = (action: string) => {
@@ -475,19 +489,31 @@ export default function AgentDashboard() {
             {showActions && (
               <div className="space-y-2 pt-2 border-t">
                 {order.status === "accepted_by_agent" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      setSelectedOrder(order);
-                      setCallInProgress(false);
-                      setCallEnded(false);
-                    }}
-                  >
-                    <Eye className="w-3.5 h-3.5 mr-1" />
-                    View Details & Take Action
-                  </Button>
+                  <>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700"
+                        onClick={() => handleViewMap(order)}
+                      >
+                        <MapIcon className="w-3.5 h-3.5 mr-1" />
+                        View Map
+                      </Button>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        setCallInProgress(false);
+                        setCallEnded(false);
+                      }}
+                    >
+                      <Eye className="w-3.5 h-3.5 mr-1" />
+                      View Details & Take Action
+                    </Button>
+                  </>
                 )}
               </div>
             )}

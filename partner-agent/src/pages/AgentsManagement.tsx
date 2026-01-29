@@ -27,10 +27,19 @@ interface Agent {
 
 export default function AgentsManagement() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showSelfAssignForm, setShowSelfAssignForm] = useState(false);
+  const [selfAssignLoading, setSelfAssignLoading] = useState(false);
+  const [selfAssignFormData, setSelfAssignFormData] = useState({
+    email: user?.email || "",
+    phone: user?.phone || "",
+    password: "",
+    full_name: user?.name || "",
+    employee_id: "",
+  });
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
@@ -40,10 +49,31 @@ export default function AgentsManagement() {
   });
   const [formLoading, setFormLoading] = useState(false);
 
+  // Initialize selfAssignFormData with user details when component mounts
+  useEffect(() => {
+    if (user) {
+      setSelfAssignFormData({
+        email: user.email || "",
+        phone: user.phone || "",
+        password: "",
+        full_name: user.name || "",
+        employee_id: "",
+      });
+    }
+  }, [user]);
+
   useEffect(() => {
     fetchAgents();
   }, []);
 
+  // Check if partner has already self-assigned as an agent (case-insensitive comparison)
+  const hasSelfAssigned = user?.email
+    ? agents.some(
+        (agent) => agent.email.toLowerCase() === user.email.toLowerCase(),
+      )
+    : false;
+    
+    console.log(user?.email, agents, hasSelfAssigned);
   const fetchAgents = async () => {
     try {
       const response = await api.get("/partner/agents");
@@ -52,6 +82,35 @@ export default function AgentsManagement() {
       console.error("Failed to fetch agents:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSelfAssignAsAgent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSelfAssignLoading(true);
+
+    try {
+      const response = await api.post(
+        "/partner/self-assign-as-agent",
+        selfAssignFormData,
+      );
+      setSelfAssignFormData({
+        email: "",
+        phone: "",
+        password: "",
+        full_name: "",
+        employee_id: "",
+      });
+      setShowSelfAssignForm(false);
+      await fetchAgents();
+      alert(
+        response.data?.message ||
+          "Successfully self-assigned as an agent! You can now login to the agent portal.",
+      );
+    } catch (error: any) {
+      alert(error.response?.data?.detail || "Failed to self-assign as agent");
+    } finally {
+      setSelfAssignLoading(false);
     }
   };
 
@@ -120,6 +179,161 @@ export default function AgentsManagement() {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* Self-Assign as Agent Section */}
+        <div className="mb-8">
+          <Card className="relative overflow-hidden border-2 border-green-300 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg">
+            {/* Decorative Spots */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-green-100 rounded-full -mr-16 -mt-16 opacity-30" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-emerald-100 rounded-full -ml-12 -mb-12 opacity-30" />
+
+            <CardHeader className="relative z-10 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                    Self-Assign as Agent
+                  </CardTitle>
+                  <CardDescription className="text-gray-600 mt-2">
+                    Become an agent yourself and handle pickups directly. You'll
+                    be able to login to the agent portal and manage orders.
+                  </CardDescription>
+                </div>
+                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center text-white text-2xl shadow-md">
+                  👤
+                </div>
+              </div>
+            </CardHeader>
+
+            {hasSelfAssigned ? (
+              <CardContent className="relative z-10 py-6">
+                <div className="bg-green-50 border border-green-300 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="text-3xl">✓</div>
+                    <div>
+                      <p className="font-semibold text-green-800">
+                        Already Self-Assigned as Agent
+                      </p>
+                      <p className="text-sm text-green-700 mt-1">
+                        You've successfully created your agent account. You can
+                        now login to the agent portal with your partner
+                        credentials.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            ) : !showSelfAssignForm ? (
+              <CardContent className="relative z-10 py-6">
+                <Button
+                  onClick={() => setShowSelfAssignForm(true)}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-md hover:shadow-lg transition-all text-white"
+                >
+                  ✓ Self-Assign as Agent
+                </Button>
+              </CardContent>
+            ) : (
+              <CardContent className="relative z-10">
+                <form onSubmit={handleSelfAssignAsAgent} className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <div className="text-sm text-blue-700">
+                      <p className="font-medium mb-2">
+                        ✓ Your Partner Details (Auto-filled)
+                      </p>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-blue-600">Email:</span>
+                          <span className="font-medium text-gray-700">
+                            {selfAssignFormData.email}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-blue-600">Name:</span>
+                          <span className="font-medium text-gray-700">
+                            {selfAssignFormData.full_name}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-blue-600">Phone:</span>
+                          <span className="font-medium text-gray-700">
+                            {selfAssignFormData.phone}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                      <p className="text-sm text-green-700 font-medium">
+                        💡 Tip: Leave password empty to use your partner account
+                        password. This way you'll use the same credentials for
+                        both portals!
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="sa_password">
+                        Agent Password (Optional)
+                      </Label>
+                      <Input
+                        id="sa_password"
+                        type="password"
+                        placeholder="Leave empty to use your partner password"
+                        value={selfAssignFormData.password}
+                        onChange={(e) =>
+                          setSelfAssignFormData({
+                            ...selfAssignFormData,
+                            password: e.target.value,
+                          })
+                        }
+                      />
+                      <p className="text-xs text-gray-500">
+                        If you want a different password, enter one here
+                        (minimum 8 characters)
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="sa_employee_id">
+                        Employee ID (Optional)
+                      </Label>
+                      <Input
+                        id="sa_employee_id"
+                        placeholder="e.g., EMP-001"
+                        value={selfAssignFormData.employee_id}
+                        onChange={(e) =>
+                          setSelfAssignFormData({
+                            ...selfAssignFormData,
+                            employee_id: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      type="submit"
+                      disabled={selfAssignLoading}
+                      className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-md hover:shadow-lg transition-all text-white"
+                    >
+                      {selfAssignLoading
+                        ? "Processing..."
+                        : "✓ Self-Assign as Agent"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowSelfAssignForm(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            )}
+          </Card>
+        </div>
+
         {/* Add Agent Button */}
         <div className="mb-6">
           <Button

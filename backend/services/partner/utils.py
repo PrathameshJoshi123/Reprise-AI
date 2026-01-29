@@ -193,6 +193,56 @@ def create_agent(
     return agent
 
 
+def create_agent_with_existing_password(
+    db: Session,
+    partner_id: int,
+    email: str,
+    phone: str,
+    full_name: str,
+    partner_hashed_password: str,
+    employee_id: str = None
+) -> Agent:
+    """
+    Create a new agent for a partner using the partner's existing hashed password.
+    This allows the agent to use the same credentials as the partner.
+    
+    Args:
+        db: Database session
+        partner_id: ID of the partner who owns this agent
+        email: Agent email (must be unique)
+        phone: Agent phone number
+        full_name: Agent's full name
+        partner_hashed_password: Partner's hashed password (from partner account)
+        employee_id: Optional employee ID
+        
+    Returns:
+        Created Agent object
+        
+    Raises:
+        ValueError: If email already exists
+    """
+    # Check if email already exists
+    existing = db.query(Agent).filter(Agent.email == email).first()
+    if existing:
+        raise ValueError(f"Agent with email {email} already exists")
+    
+    # Create agent with partner's hashed password
+    agent = Agent(
+        partner_id=partner_id,
+        email=email,
+        phone=phone,
+        hashed_password=partner_hashed_password,
+        full_name=full_name,
+        employee_id=employee_id,
+        is_active=True
+    )
+    
+    db.add(agent)
+    db.flush()
+    
+    return agent
+
+
 def authenticate_agent(db: Session, email: str, password: str) -> Agent:
     """
     Authenticate an agent by email and password.
