@@ -35,6 +35,7 @@ interface AuthContextType {
     address?: string,
     latitude?: number | null,
     longitude?: number | null,
+    pincode?: string,
   ) => Promise<boolean>;
   logout: () => void;
 }
@@ -117,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     address?: string,
     latitude?: number | null,
     longitude?: number | null,
+    pincode?: string,
   ): Promise<boolean> => {
     try {
       const payload = {
@@ -128,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         address,
         latitude,
         longitude,
+        pincode,
       };
       const res = await api.post("/auth/signup", payload);
       if (res.status !== 201 && res.status !== 200) return false;

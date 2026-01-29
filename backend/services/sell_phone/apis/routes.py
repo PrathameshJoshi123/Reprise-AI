@@ -48,18 +48,28 @@ def get_phones_list(
     phones = query.offset((page - 1) * limit).limit(limit).all()
     total_pages = ceil(total / limit)
     
-    return {
-        "phones": [{
+    result_phones = []
+    for phone in phones:
+        # Get the highest variant price for this phone model
+        highest_variant = db.query(func.max(PhoneList.Selling_Price)).filter(
+            PhoneList.Brand == phone.Brand,
+            PhoneList.Model == phone.Model
+        ).scalar()
+        
+        result_phones.append({
             "id": phone.id,
             "Brand": phone.Brand,
             "Series": phone.Series,
             "Model": phone.Model,
             "Storage_Raw": phone.Storage_Raw,
             "Original_Price": phone.Original_Price,
-            "Selling_Price": phone.Selling_Price,
+            "Selling_Price": highest_variant or phone.Selling_Price,
             "RAM_GB": phone.RAM_GB,
             "Internal_Storage_GB": phone.Internal_Storage_GB
-        } for phone in phones],
+        })
+    
+    return {
+        "phones": result_phones,
         "page": page,
         "limit": limit,
         "total": total,
@@ -71,6 +81,13 @@ def get_phone(phone_id: int, db: Session = Depends(get_db)):
     phone = db.query(PhoneList).filter(PhoneList.id == phone_id).first()
     if not phone:
         raise HTTPException(status_code=404, detail="Phone not found")
+    
+    # Get the highest variant price for this phone model
+    highest_variant = db.query(func.max(PhoneList.Selling_Price)).filter(
+        PhoneList.Brand == phone.Brand,
+        PhoneList.Model == phone.Model
+    ).scalar()
+    
     return {
         "id": phone.id,
         "Brand": phone.Brand,
@@ -78,7 +95,7 @@ def get_phone(phone_id: int, db: Session = Depends(get_db)):
         "Model": phone.Model,
         "Storage_Raw": phone.Storage_Raw,
         "Original_Price": phone.Original_Price,
-        "Selling_Price": phone.Selling_Price,
+        "Selling_Price": highest_variant or phone.Selling_Price,
         "RAM_GB": phone.RAM_GB,
         "Internal_Storage_GB": phone.Internal_Storage_GB
     }
@@ -132,7 +149,29 @@ def create_order(
 	Create an order linked to current authenticated user.
 	Uses the provided quoted price as the AI estimated price.
 	Automatically distributes as lead to partners if pincode is serviceable.
+	
+	PINCODE VALIDATION:
+	- Pincode must be serviceable by at least one partner
+	- Non-serviceable pincodes will be rejected with appropriate error message
 	"""
+	# Validate pincode is provided
+	if not payload.pincode or len(payload.pincode.strip()) != 6:
+		raise HTTPException(
+			status_code=400, 
+			detail="Invalid pincode format. Must be 6 digits."
+		)
+	
+	# Check pincode serviceability using utility function
+	serviceable_partners = get_serviceable_partners(db, payload.pincode)
+	is_serviceable = serviceable_partners > 0
+	
+	# BLOCK order creation if pincode is not serviceable
+	if not is_serviceable:
+		raise HTTPException(
+			status_code=400,
+			detail="Cannot create orders in this pincode area. Please try a different pincode."
+		)
+	
 	# Use quoted_price as ai_estimated_price
 	quoted_price = payload.quoted_price or 0
 	
@@ -183,19 +222,11 @@ def create_order(
 		# Payment method
 		payment_method=payload.payment_method,
 		
-		# Initial status
-		status="lead_created",
+		# Initial status - set to available_for_partners since we validated serviceability above
+		status="available_for_partners",
 
 	)
 		# (No coordinates stored for pickup anymore)
-	
-	# Check if pincode is serviceable by any partners (returns count)
-	serviceable_partners = get_serviceable_partners(db, order.pincode)
-	is_serviceable = serviceable_partners > 0
-	
-	# Set appropriate status based on serviceability
-	if is_serviceable:
-		order.status = "available_for_partners"
 	
 	db.add(order)
 	db.flush()  # Get order.id before creating history
@@ -314,6 +345,11 @@ def get_available_leads(
 	Get available leads in partner's serviceable pincodes.
 	Shows leads that are not locked or purchased by others.
 	"""
+	# Check if partner is on hold
+	from backend.services.partner import utils as partner_utils
+	if partner_utils.check_partner_on_hold(db, current_partner.id):
+		return []  # Return empty list instead of raising error for better UX
+	
 	# Get partner's serviceable pincodes
 	serviceable_pincodes = db.query(PartnerServiceablePincode.pincode).filter(
 		PartnerServiceablePincode.partner_id == current_partner.id,
@@ -467,6 +503,14 @@ def lock_lead(
 	Lock a lead for exclusive viewing. Race-condition safe.
 	Lock expires after configured duration (default 15 minutes).
 	"""
+	# Check if partner is on hold
+	from backend.services.partner import utils as partner_utils
+	if partner_utils.check_partner_on_hold(db, current_partner.id):
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail="Your account is on hold. You cannot access leads at this time. Contact support for details."
+		)
+	
 	# Get order
 	order = db.query(Order).filter(Order.id == order_id).first()
 	if not order:
@@ -619,6 +663,14 @@ def purchase_lead(
 	Purchase a locked lead by deducting credits from partner account.
 	Race-condition safe with SELECT FOR UPDATE on partner credits.
 	"""
+	# Check if partner is on hold
+	from backend.services.partner import utils as partner_utils
+	if partner_utils.check_partner_on_hold(db, current_partner.id):
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail="Your account is on hold. You cannot purchase leads at this time. Contact support for details."
+		)
+	
 	# Verify active lock owned by this partner
 	expire_lock_if_needed(db, order_id)
 	active_lock = db.query(LeadLock).filter(

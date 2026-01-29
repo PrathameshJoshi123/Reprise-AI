@@ -17,6 +17,9 @@ export interface Partner {
   gst_number: string | null;
   pan_number: string;
   is_verified: boolean;
+  is_on_hold: boolean;
+  hold_reason?: string;
+  hold_lift_date?: string;
   created_at: string;
 }
 
@@ -30,6 +33,9 @@ export interface Agent {
   employee_id: string | null;
   partner_id: number;
   is_active: boolean;
+  is_on_hold?: boolean; // Agent's partner may be on hold
+  hold_reason?: string; // Reason partner is on hold
+  hold_lift_date?: string; // Date when partner hold will be lifted
   created_at: string;
   credit_balance?: number; // Agents don't have credits, but optional for User type compatibility
 }
@@ -44,15 +50,14 @@ export interface Order {
   partner_id: number | null;
   agent_id: number | null;
   specs: string;
-  estimated_value : number;
+  estimated_value: number;
   pickup_schedule_time: string;
   pickup_schedule_date: string;
-  pickup_address : string;
+  pickup_address: string;
   payment_mode: string;
   phone: number;
   customer: string;
   ai_estimated_price: number;
-
 
   // Phone details - backend uses these names
   phone_name: string;

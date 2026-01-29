@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { formatPrice } from "../lib/utils";
 import { Button } from "../components/ui/button";
-import Header from "../components/Header";
 import {
   Card,
   CardContent,
@@ -12,23 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "../components/ui/tabs";
+
 import { Badge } from "../components/ui/badge";
-import { Label } from "../components/ui/label";
-import { Input } from "../components/ui/input";
-import { Textarea } from "../components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/ui/select";
+
 import {
   Calendar,
   Clock,
@@ -38,11 +23,19 @@ import {
   Package,
   IndianRupee,
   CheckCircle2,
-  XCircle,
   Eye,
   PhoneCall,
   Map,
+  XCircle,
 } from "lucide-react";
+import Header from "@/components/Header";
+import { HoldNotificationBanner } from "@/components/HoldNotificationBanner";
+import { Tabs } from "@radix-ui/react-tabs";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Order {
   id?: number;
@@ -173,7 +166,6 @@ export default function AgentDashboard() {
             .toLowerCase()
             .replace(/ /g, "_");
           return (
-            normalizedStatus === "assigned_to_agent" ||
             normalizedStatus === "accepted_by_agent" ||
             normalizedStatus === "pickup_scheduled"
           );
@@ -196,36 +188,6 @@ export default function AgentDashboard() {
       console.error("Failed to fetch orders:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleAcceptOrder = async (orderId: number) => {
-    setActionLoading(true);
-    try {
-      await api.post(`/agent/orders/${orderId}/accept`);
-      await fetchOrders();
-      alert("Order accepted successfully!");
-    } catch (error: any) {
-      alert(error.response?.data?.detail || "Failed to accept order");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleRejectOrder = async (orderId: number) => {
-    if (!confirm("Are you sure you want to reject this order?")) {
-      return;
-    }
-
-    setActionLoading(true);
-    try {
-      await api.post(`/agent/orders/${orderId}/reject`);
-      await fetchOrders();
-      alert("Order rejected");
-    } catch (error: any) {
-      alert(error.response?.data?.detail || "Failed to reject order");
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -381,7 +343,6 @@ export default function AgentDashboard() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      assigned_to_agent: "bg-amber-100 text-amber-800 border border-amber-200",
       accepted_by_agent: "bg-green-100 text-green-800 border border-green-200",
       pickup_scheduled: "bg-blue-100 text-blue-800 border border-blue-200",
       pickup_completed:
@@ -529,29 +490,6 @@ export default function AgentDashboard() {
 
             {showActions && (
               <div className="space-y-2 pt-2 border-t">
-                {order.status === "assigned_to_agent" && (
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                      onClick={() => handleAcceptOrder(order.id!)}
-                      disabled={actionLoading}
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                      Accept
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
-                      onClick={() => handleRejectOrder(order.id!)}
-                      disabled={actionLoading}
-                    >
-                      <XCircle className="w-3.5 h-3.5 mr-1" />
-                      Reject
-                    </Button>
-                  </div>
-                )}
                 {order.status === "accepted_by_agent" && (
                   <Button
                     size="sm"
@@ -613,6 +551,12 @@ export default function AgentDashboard() {
       <div className="min-h-screen bg-gray-50">
         {/* Main Content */}
         <div className="container mx-auto px-4 py-8">
+          {user?.is_on_hold && (
+            <HoldNotificationBanner
+              reason={user.hold_reason}
+              liftDate={user.hold_lift_date}
+            />
+          )}
           <Tabs defaultValue="current" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6 bg-white p-1 border">
               <TabsTrigger

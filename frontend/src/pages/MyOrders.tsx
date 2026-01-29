@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -19,7 +19,6 @@ import {
   Mail,
   Package,
   IndianRupee,
-  X,
 } from "lucide-react";
 import api from "@/lib/api";
 import { Link } from "react-router-dom";
@@ -31,7 +30,6 @@ const fetchOrders = async () => {
 
 export default function MyOrders() {
   const { user, token } = useAuth();
-  const queryClient = useQueryClient();
   const {
     data: orders,
     isLoading,
@@ -42,28 +40,8 @@ export default function MyOrders() {
     enabled: !!(token || localStorage.getItem("accessToken")),
   });
 
-  // Cancel order mutation
-  const cancelOrderMutation = useMutation({
-    mutationFn: async (orderId: number) => {
-      const res = await api.post(`/sell-phone/orders/${orderId}/cancel`, {
-        reason: "Cancelled by customer",
-      });
-      return res.data;
-    },
-    onSuccess: () => {
-      // Refresh orders list
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-    },
-    onError: (error: any) => {
-      alert(
-        `Failed to cancel order: ${error.response?.data?.detail || error.message}`,
-      );
-    },
-  });
-
   const getStatusColor = (status: string) => {
     const statusMap: Record<string, string> = {
-      // Customer-facing statuses
       lead_created: "bg-gray-100 text-gray-800 border-gray-200",
       available_for_partners: "bg-blue-100 text-blue-800 border-blue-200",
       lead_locked: "bg-purple-100 text-purple-800 border-purple-200",
@@ -75,10 +53,6 @@ export default function MyOrders() {
       pickup_completed_declined: "bg-red-100 text-red-800 border-red-200",
       payment_processed: "bg-emerald-100 text-emerald-800 border-emerald-200",
       cancelled: "bg-red-100 text-red-800 border-red-200",
-      // Legacy statuses (for backward compatibility)
-      pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-      accepted: "bg-blue-100 text-blue-800 border-blue-200",
-      completed: "bg-green-100 text-green-800 border-green-200",
     };
     return (
       statusMap[status] || "bg-yellow-100 text-yellow-800 border-yellow-200"
@@ -118,10 +92,6 @@ export default function MyOrders() {
       pickup_completed_declined: "Offer Declined",
       payment_processed: "Payment Complete",
       cancelled: "Cancelled",
-      // Legacy
-      pending: "Pending",
-      accepted: "Accepted",
-      completed: "Completed",
     };
 
     return (
@@ -131,20 +101,6 @@ export default function MyOrders() {
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(" ")
     );
-  };
-
-  const canCancelOrder = (status: string) => {
-    // Can cancel if not purchased by partner and not completed/cancelled
-    const nonCancellableStatuses = [
-      "lead_purchased",
-      "assigned_to_agent",
-      "accepted_by_agent",
-      "pickup_scheduled",
-      "pickup_completed",
-      "payment_processed",
-      "cancelled",
-    ];
-    return !nonCancellableStatuses.includes(status);
   };
 
   if (isLoading) {
@@ -416,32 +372,6 @@ export default function MyOrders() {
                           </>
                         )}
                     </CardContent>
-
-                    {/* Cancel Button */}
-                    {canCancelOrder(order.status) && (
-                      <div className="px-6 pb-4">
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => {
-                            if (
-                              window.confirm(
-                                "Are you sure you want to cancel this order?",
-                              )
-                            ) {
-                              cancelOrderMutation.mutate(order.id);
-                            }
-                          }}
-                          disabled={cancelOrderMutation.isPending}
-                          className="w-full"
-                        >
-                          <X size={16} className="mr-2" />
-                          {cancelOrderMutation.isPending
-                            ? "Cancelling..."
-                            : "Cancel Order"}
-                        </Button>
-                      </div>
-                    )}
                   </Card>
                 ))}
               </div>

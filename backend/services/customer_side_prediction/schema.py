@@ -1,10 +1,11 @@
 from pydantic import BaseModel
+from typing import Optional
 
 class PhoneDetails(BaseModel):
     brand: str
     model: str
-    ram_gb: int
-    storage_gb: int
+    ram_gb: Optional[int] = None
+    storage_gb: Optional[int] = None
     screen_condition: str  # e.g., "good", "cracked"
     device_turns_on: bool
     has_original_box: bool
@@ -12,7 +13,7 @@ class PhoneDetails(BaseModel):
 
 class PricePredictionRequest(BaseModel):
     phone_details: PhoneDetails
-    base_price: float  # Base price in INR
+    # base_price is always fetched from DB based on brand, model, ram_gb, storage_gb
 
 class PricePredictionResponse(BaseModel):
     predicted_price: float  # Predicted price in INR

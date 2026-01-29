@@ -5,4 +5,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export { formatCurrency, formatNumber, formatDateTime } from "./formatUtils";
+export {
+  formatCurrency,
+  formatCredits,
+  formatNumber,
+  formatDateTime,
+} from "./formatUtils";

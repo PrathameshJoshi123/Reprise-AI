@@ -2,10 +2,9 @@ import axios, { AxiosHeaders } from "axios";
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: (import.meta.env.API_BASE_URL || "http://localhost:8000").replace(
-    /\/$/,
-    "",
-  ), // Adjust as needed
+  baseURL: (
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+  ).replace(/\/$/, ""), // Adjust as needed
   headers: {
     "Content-Type": "application/json",
   },

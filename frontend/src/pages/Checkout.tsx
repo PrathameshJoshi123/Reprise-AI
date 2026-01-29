@@ -20,6 +20,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Check,
   ArrowLeft,
@@ -30,6 +31,7 @@ import {
   Sparkles,
   Shield,
   Clock,
+  AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
@@ -64,6 +66,12 @@ export default function Checkout() {
   const [pickupDateVal, setPickupDateVal] = useState("");
   const [pickupTimeVal, setPickupTimeVal] = useState("");
 
+  // Pincode validation state
+  const [pincodeValid, setPincodeValid] = useState(false);
+  const [pincodeChecking, setPincodeChecking] = useState(false);
+  const [pincodeError, setPincodeError] = useState("");
+  const [serviceableInfo, setServiceableInfo] = useState<any>(null);
+
   const [paymentMethod, setPaymentMethod] = useState("upi");
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -76,6 +84,51 @@ export default function Checkout() {
     phone: false,
     address: false,
   });
+
+  // Check pincode serviceability
+  const checkPincode = async (pin: string) => {
+    if (!pin || pin.length !== 6) {
+      setPincodeError("");
+      setPincodeValid(false);
+      setServiceableInfo(null);
+      return;
+    }
+
+    setPincodeChecking(true);
+    setPincodeError("");
+
+    try {
+      const response = await api.get(`/auth/check-pincode/${pin}`);
+      const data = response.data;
+
+      setServiceableInfo(data);
+      setPincodeValid(data.serviceable);
+
+      if (!data.serviceable) {
+        setPincodeError(
+          data.message ||
+            "Cannot create orders in this pincode area. Please try a different pincode.",
+        );
+      }
+    } catch (error) {
+      console.error("Pincode check failed:", error);
+      setPincodeError("Unable to verify pincode. Please try again.");
+      setPincodeValid(false);
+    } finally {
+      setPincodeChecking(false);
+    }
+  };
+
+  // Debounced pincode check
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (pincodeVal && pincodeVal.length === 6) {
+        checkPincode(pincodeVal);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [pincodeVal]);
 
   // Pre-fill fields if user is logged in
   useEffect(() => {
@@ -135,6 +188,29 @@ export default function Checkout() {
 
   const handleSubmitPayment = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate pincode before allowing order creation
+    if (!pincodeVal || pincodeVal.length !== 6) {
+      alert("Please enter a valid 6-digit pincode");
+      return;
+    }
+
+    // Check if pincode has been validated
+    if (!serviceableInfo) {
+      await checkPincode(pincodeVal);
+      // Wait for check to complete
+      return;
+    }
+
+    // Block order creation if pincode is not serviceable
+    if (!pincodeValid) {
+      alert(
+        pincodeError ||
+          "Cannot create orders in this pincode area. Please try a different pincode.",
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     const token = localStorage.getItem("accessToken");
 
@@ -486,11 +562,36 @@ export default function Checkout() {
                           <Input
                             id="pincode"
                             value={pincodeVal}
-                            onChange={(e) => setPincodeVal(e.target.value)}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, "");
+                              setPincodeVal(val);
+                            }}
+                            maxLength={6}
                             required
                             className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                             placeholder="400001"
                           />
+                          {pincodeChecking && pincodeVal.length === 6 && (
+                            <p className="text-sm text-blue-600">
+                              Checking pincode...
+                            </p>
+                          )}
+                          {pincodeValid && serviceableInfo && (
+                            <Alert className="bg-green-50 border-green-200">
+                              <AlertDescription className="text-green-800 text-sm">
+                                ✓ Great! {serviceableInfo.partner_count}{" "}
+                                partner(s) service your area
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                          {pincodeError && pincodeVal.length === 6 && (
+                            <Alert className="bg-amber-50 border-amber-200">
+                              <AlertTriangle className="h-4 w-4 text-amber-600" />
+                              <AlertDescription className="text-amber-800 text-sm">
+                                {pincodeError}
+                              </AlertDescription>
+                            </Alert>
+                          )}
                         </div>
                       </div>
 
@@ -549,6 +650,13 @@ export default function Checkout() {
                       <div className="pt-4 space-y-3">
                         <Button
                           type="submit"
+                          disabled={
+                            !pincodeVal ||
+                            pincodeVal.length !== 6 ||
+                            pincodeChecking ||
+                            !pincodeValid ||
+                            !serviceableInfo
+                          }
                           className="w-full h-12 text-base bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30"
                         >
                           Continue to Payment

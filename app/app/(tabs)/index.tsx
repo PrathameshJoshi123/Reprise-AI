@@ -14,6 +14,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback } from "react";
 import api from "../../lib/api";
+import HoldNotificationBanner from "../../components/HoldNotificationBanner";
 import "../../global.css";
 
 interface OrderStats {
@@ -132,6 +133,14 @@ export default function PartnerDashboard() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
+      {/* Hold Notification Banner */}
+      {user?.is_on_hold && (
+        <HoldNotificationBanner
+          reason={user.hold_reason}
+          liftDate={user.hold_lift_date}
+        />
+      )}
+
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}

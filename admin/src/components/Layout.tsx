@@ -108,8 +108,10 @@ export default function Layout() {
       </aside>
 
       {/* Main Content */}
-      <main className="ml-64 p-8">
-        <Outlet />
+      <main className="ml-64 p-6 overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

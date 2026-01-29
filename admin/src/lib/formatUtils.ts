@@ -10,6 +10,14 @@ export function formatCurrency(
   );
 }
 
+export function formatCredits(value: number | string | null | undefined) {
+  const num = Number(value ?? 0);
+  if (Number.isNaN(num)) return "◇0";
+  // Format with Indian locale for number formatting but with coin symbol ◇
+  const formatted = new Intl.NumberFormat("en-IN").format(num);
+  return `◇${formatted}`;
+}
+
 export function formatNumber(
   value: number | string | null | undefined,
   locale = "en-US",

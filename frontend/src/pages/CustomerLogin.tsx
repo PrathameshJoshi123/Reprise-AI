@@ -213,14 +213,15 @@ export default function CustomerLogin() {
       client.requestCode();
     };
 
-    // If this is signup flow, require pincode serviceability first.
+    // If this is signup flow, show pincode modal for optional pincode collection
+    // (pincode validation will be enforced at checkout time, not signup time)
     if (!isLogin) {
-      if (!pincode || pincode.length !== 6 || !pincodeValid) {
-        // prompt for pincode using a small modal
+      if (!pincode || pincode.length !== 6) {
+        // prompt for pincode using a modal
         setShowGooglePincodeModal(true);
         return;
       }
-      // pincode is present & valid — start oauth including pincode
+      // pincode is present — start oauth including pincode
       startGoogleWithPincode(pincode);
       return;
     }
@@ -349,7 +350,8 @@ export default function CustomerLogin() {
                       <Alert className="bg-amber-50 border-amber-200">
                         <AlertTriangle className="h-4 w-4 text-amber-600" />
                         <AlertDescription className="text-amber-800 text-sm">
-                          {pincodeError}
+                          Cannot create orders in this pincode area. Please try
+                          a different pincode.
                         </AlertDescription>
                       </Alert>
                     )}
@@ -401,10 +403,7 @@ export default function CustomerLogin() {
             <CardFooter className="flex flex-col gap-4">
               <Button
                 className="w-full bg-primary text-primary-foreground hover:brightness-95"
-                disabled={
-                  !isLogin &&
-                  (pincodeChecking || (!pincodeValid && pincode.length === 6))
-                }
+                disabled={!isLogin && pincodeChecking}
                 onClick={async () => {
                   try {
                     if (isLogin) {
@@ -451,17 +450,20 @@ export default function CustomerLogin() {
                         return;
                       }
 
-                      // Check pincode one final time
-                      if (!pincodeValid && !serviceableInfo) {
+                      // Check pincode one final time if not already checked
+                      if (!serviceableInfo) {
                         await checkPincode(pincode);
                       }
 
-                      // BLOCK signup if pincode not serviceable
+                      // ALLOW signup regardless of pincode serviceability
+                      // Show warning but allow user to proceed with non-serviceable pincode
                       if (!pincodeValid && serviceableInfo) {
-                        alert(
-                          "Sorry, we don't service your pincode yet. Please try a different pincode.",
+                        const proceed = window.confirm(
+                          "Cannot create orders in this pincode area. Please try a different pincode.",
                         );
-                        return;
+                        if (!proceed) {
+                          return;
+                        }
                       }
 
                       const signupEmail = identifier;
@@ -475,6 +477,7 @@ export default function CustomerLogin() {
                         address || undefined,
                         null,
                         null,
+                        pincode,
                       );
 
                       if (ok) {
@@ -569,7 +572,8 @@ export default function CustomerLogin() {
           <div className="bg-white rounded-lg p-6 w-96">
             <h3 className="text-lg font-semibold mb-2">Enter Pincode</h3>
             <p className="text-sm text-gray-600 mb-4">
-              We need your pincode to verify serviceability before signup.
+              Please enter your pincode. You can proceed even if we don't
+              service your area yet.
             </p>
             <input
               className="w-full border px-3 py-2 mb-3"
@@ -593,7 +597,8 @@ export default function CustomerLogin() {
               <Alert className="bg-amber-50 border-amber-200 mb-3">
                 <AlertTriangle className="h-4 w-4 text-amber-600" />
                 <AlertDescription className="text-amber-800 text-sm">
-                  {pincodeError}
+                  Cannot create orders in this pincode area. Please try a
+                  different pincode.
                 </AlertDescription>
               </Alert>
             )}
@@ -606,20 +611,20 @@ export default function CustomerLogin() {
               </Button>
               <Button
                 onClick={async () => {
-                  await checkPincode(pincode);
-                  if (pincodeValid) {
-                    setShowGooglePincodeModal(false);
-                    // start oauth now that pincode is valid
-                    // small timeout to allow modal to close visually
-                    setTimeout(() => {
-                      // reuse onGoogleLogin to start oauth — but we need a helper; call directly
-                      // init auth flow by simulating click: call onGoogleLogin again which will now see pincodeValid
-                      onGoogleLogin();
-                    }, 150);
+                  if (pincode.length !== 6) {
+                    alert("Please enter a valid 6-digit pincode");
+                    return;
                   }
+                  await checkPincode(pincode);
+                  setShowGooglePincodeModal(false);
+                  // Allow proceeding with both serviceable and non-serviceable pincodes
+                  // Validation will happen at checkout time
+                  setTimeout(() => {
+                    onGoogleLogin();
+                  }, 150);
                 }}
               >
-                Verify & Continue
+                Continue with Signup
               </Button>
             </div>
           </div>

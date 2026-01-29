@@ -2,6 +2,18 @@ from pydantic import BaseModel, EmailStr, validator
 from typing import Optional, List
 from datetime import datetime
 import re
+from enum import Enum
+
+
+class SortOrder(str, Enum):
+    asc = "asc"
+    desc = "desc"
+
+
+class OrderSortBy(str, Enum):
+    created_at = "created_at"
+    quoted_price = "quoted_price"
+    status = "status"
 
 
 # ============================================================================
@@ -256,6 +268,15 @@ class AdminOrderOut(BaseModel):
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
+
+class AdminOrderPaginatedOut(BaseModel):
+    items: List[AdminOrderOut]
+    total: int
+    page: int
+    limit: int
+    total_pages: int
+    has_more: bool
 
 
 # ============================================================================

@@ -9,6 +9,16 @@ class UserBase(BaseModel):
     address: Optional[str] = None
     # New: optional pincode for customer
     pincode: Optional[str] = None
+    
+    @validator('phone')
+    def validate_phone(cls, v):
+        """Validate phone number format (10 digits for India)"""
+        if v is not None and v.strip():
+            # Remove all non-digit characters for validation
+            digits_only = ''.join(filter(str.isdigit, v))
+            if len(digits_only) != 10:
+                raise ValueError('Phone number must contain exactly 10 digits')
+        return v.strip() if v else None
 
 class UserCreate(UserBase):
     password: str
