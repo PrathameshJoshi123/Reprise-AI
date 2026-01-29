@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
+import { handleApiError } from "../lib/errorHandler";
 import { Button } from "../components/ui/button";
 import Header from "../components/Header";
 import { HoldNotificationBanner } from "../components/HoldNotificationBanner";
@@ -84,6 +85,7 @@ export default function PartnerDashboard() {
       setAgents(response.data || []);
     } catch (error) {
       console.error("Failed to fetch agents:", error);
+      handleApiError(error);
     }
   };
 
@@ -118,6 +120,7 @@ export default function PartnerDashboard() {
       );
     } catch (error) {
       console.error("Failed to fetch data:", error);
+      handleApiError(error);
     } finally {
       setLoading(false);
     }
@@ -134,7 +137,7 @@ export default function PartnerDashboard() {
       setShowBuyModal(true);
     } catch (err) {
       console.error("Failed to load credit plans:", err);
-      alert("Unable to load credit plans");
+      handleApiError(err);
     }
   };
 
@@ -152,7 +155,7 @@ export default function PartnerDashboard() {
       await fetchAllData();
     } catch (err: any) {
       console.error("Purchase failed:", err);
-      alert(err.response?.data?.detail || "Failed to purchase credits");
+      handleApiError(err, "purchase");
     } finally {
       setPurchaseLoading(false);
     }
@@ -168,7 +171,7 @@ export default function PartnerDashboard() {
       await fetchAllData();
     } catch (err: any) {
       console.error("Assignment failed:", err);
-      alert(err.response?.data?.detail || "Failed to assign agent");
+      handleApiError(err);
     }
   };
 
@@ -196,7 +199,7 @@ export default function PartnerDashboard() {
       await fetchAllData();
     } catch (err: any) {
       console.error("Purchase failed:", err);
-      alert(err.response?.data?.detail || "Failed to purchase lead");
+      handleApiError(err, "purchase");
     }
   };
 

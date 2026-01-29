@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { handleApiError } from "../lib/errorHandler";
 import { Button } from "../components/ui/button";
 import Header from "../components/Header";
 import { Card, CardContent } from "../components/ui/card";
@@ -73,6 +74,7 @@ export default function LeadDetail() {
       setAgents(agentsRes.data.filter((a: Agent) => a.is_active));
     } catch (error) {
       console.error("Failed to fetch data:", error);
+      handleApiError(error);
     } finally {
       setLoading(false);
     }
@@ -92,7 +94,7 @@ export default function LeadDetail() {
       await fetchData();
       alert("Agent assigned successfully!");
     } catch (error: any) {
-      alert(error.response?.data?.detail || "Failed to assign agent");
+      handleApiError(error);
     } finally {
       setActionLoading(false);
     }

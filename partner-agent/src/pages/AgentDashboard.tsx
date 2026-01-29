@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { formatPrice } from "../lib/utils";
+import { handleApiError } from "../lib/errorHandler";
 import { Button } from "../components/ui/button";
 import Header from "../components/Header";
 import { HoldNotificationBanner } from "../components/HoldNotificationBanner";
@@ -161,6 +162,7 @@ export default function AgentDashboard() {
       );
     } catch (error) {
       console.error("Failed to fetch orders:", error);
+      handleApiError(error);
     } finally {
       setLoading(false);
     }
@@ -218,10 +220,7 @@ export default function AgentDashboard() {
       alert("Pickup completed successfully!");
     } catch (error: any) {
       console.error("Error completing pickup:", error);
-      alert(
-        error.response?.data?.detail ||
-          "Failed to complete pickup. Please try again.",
-      );
+      handleApiError(error, "complete");
     } finally {
       setActionLoading(false);
     }
@@ -294,7 +293,7 @@ export default function AgentDashboard() {
       });
       alert("Pickup rescheduled successfully!");
     } catch (error: any) {
-      alert(error.response?.data?.detail || "Failed to reschedule pickup");
+      handleApiError(error);
     } finally {
       setActionLoading(false);
     }
@@ -329,7 +328,7 @@ export default function AgentDashboard() {
       });
       alert("Pickup cancelled. Order marked as cancelled.");
     } catch (error: any) {
-      alert(error.response?.data?.detail || "Failed to cancel pickup");
+      handleApiError(error);
     } finally {
       setActionLoading(false);
     }

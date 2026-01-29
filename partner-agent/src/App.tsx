@@ -9,6 +9,7 @@ import AgentsManagement from "./pages/AgentsManagement";
 import AgentLogin from "./pages/AgentLogin";
 import AgentDashboard from "./pages/AgentDashboard";
 import Home from "./pages/Home";
+import { Toaster } from "./components/ui/sonner";
 
 function ProtectedRoute({
   children,
@@ -146,6 +147,7 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <AppRoutes />
+        <Toaster />
       </AuthProvider>
     </BrowserRouter>
   );

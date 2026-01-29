@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import Header from "../components/Header";
 import { useAuth } from "../context/AuthContext";
 import api from "../lib/api";
+import { handleApiError } from "../lib/errorHandler";
 import {
   Card,
   CardHeader,
@@ -50,7 +51,7 @@ export default function Marketplace() {
       setLeads(res.data || []);
     } catch (err) {
       console.error("Failed to fetch leads", err);
-      alert("Failed to load leads");
+      handleApiError(err);
     } finally {
       setLoading(false);
     }
@@ -64,7 +65,7 @@ export default function Marketplace() {
       // Redirect to partner dashboard after locking
       navigate("/partner/dashboard");
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Failed to lock lead");
+      handleApiError(err);
     } finally {
       setActionLoading(false);
     }
@@ -78,7 +79,7 @@ export default function Marketplace() {
       await fetchLeads();
       alert("Lead purchased successfully");
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Failed to purchase lead");
+      handleApiError(err, "purchase");
     } finally {
       setActionLoading(false);
     }

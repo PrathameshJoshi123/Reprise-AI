@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import Header from "../components/Header";
 import { useAuth } from "../context/AuthContext";
 import api from "../lib/api";
+import { handleApiError } from "../lib/errorHandler";
 import {
   Card,
   CardHeader,
@@ -67,7 +68,7 @@ export default function LeadPurchaseConfirmation() {
       setLeadCost(estimatedCost);
     } catch (err: any) {
       console.error("Failed to fetch lead detail", err);
-      alert(err.response?.data?.detail || "Failed to load lead details");
+      handleApiError(err);
       navigate("/partner/marketplace");
     } finally {
       setLoading(false);
@@ -80,6 +81,7 @@ export default function LeadPurchaseConfirmation() {
       setCreditBalance(res.data.credit_balance || 0);
     } catch (err) {
       console.error("Failed to fetch partner profile", err);
+      handleApiError(err);
     }
   };
 
@@ -103,7 +105,7 @@ export default function LeadPurchaseConfirmation() {
       );
       navigate("/partner/dashboard");
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Failed to purchase lead");
+      handleApiError(err, "purchase");
     } finally {
       setPurchasing(false);
     }
@@ -118,7 +120,7 @@ export default function LeadPurchaseConfirmation() {
       alert("Lead unlocked successfully");
       navigate("/partner/marketplace");
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Failed to unlock lead");
+      handleApiError(err);
     }
   };
 

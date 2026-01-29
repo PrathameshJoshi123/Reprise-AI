@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import api from "../lib/api";
+import { handleApiError } from "../lib/errorHandler";
 
 interface User {
   id: number;
@@ -88,6 +89,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // Keep token but mark user as on hold
         return;
       }
+      // Handle other errors with toast
+      handleApiError(error, "auth");
       localStorage.removeItem("token");
       localStorage.removeItem("userType");
       setHoldInfo(null);
@@ -103,7 +106,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   ) => {
     try {
       const endpoint = type === "partner" ? "/partner/login" : "/agent/login";
-      const response = await api.post(endpoint, { email, password });
+      const response = await api.post(
+        endpoint,
+        { email, password },
+        {
+          headers: { "x-skip-auth-redirect": "true" },
+        },
+      );
 
       localStorage.setItem("token", response.data.access_token);
       localStorage.setItem("userType", type);
@@ -121,6 +130,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setUserType(type);
         return;
       }
+      // Handle other login errors with toast
+      handleApiError(error, "auth");
       throw error;
     }
   };
@@ -136,22 +147,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     pan_number: string,
     serviceable_pincodes: string[],
   ) => {
-    const response = await api.post("/partner/signup", {
-      full_name,
-      email,
-      password,
-      phone,
-      company_name,
-      business_address,
-      gst_number: gst_number || null,
-      pan_number,
-      serviceable_pincodes,
-    });
+    try {
+      const response = await api.post(
+        "/partner/signup",
+        {
+          full_name,
+          email,
+          password,
+          phone,
+          company_name,
+          business_address,
+          gst_number: gst_number || null,
+          pan_number,
+          serviceable_pincodes,
+        },
+        {
+          headers: { "x-skip-auth-redirect": "true" },
+        },
+      );
 
-    localStorage.setItem("token", response.data.access_token);
-    localStorage.setItem("userType", "partner");
-    setUserType("partner");
-    await fetchUser("partner");
+      localStorage.setItem("token", response.data.access_token);
+      localStorage.setItem("userType", "partner");
+      setUserType("partner");
+      await fetchUser("partner");
+    } catch (error: any) {
+      handleApiError(error, "auth");
+      throw error;
+    }
   };
 
   const logout = () => {

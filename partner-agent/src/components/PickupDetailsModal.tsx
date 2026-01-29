@@ -8,6 +8,7 @@ import {
 } from "./ui/dialog";
 import { Button } from "./ui/button";
 import api from "../lib/api";
+import { handleApiError } from "../lib/errorHandler";
 
 interface PickupDetailsModalProps {
   isOpen: boolean;
@@ -125,6 +126,7 @@ export default function PickupDetailsModal({
       setDetails(response.data);
       setActivePhotoIndex(0);
     } catch (err: any) {
+      handleApiError(err);
       setError(
         err.response?.data?.detail ||
           "Failed to fetch pickup details. Please try again.",

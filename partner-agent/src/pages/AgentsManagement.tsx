@@ -4,6 +4,7 @@ import api from "../lib/api";
 import { Button } from "../components/ui/button";
 import Header from "../components/Header";
 import { useAuth } from "../context/AuthContext";
+import { handleApiError } from "../lib/errorHandler";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import {
@@ -72,14 +73,15 @@ export default function AgentsManagement() {
         (agent) => agent.email.toLowerCase() === user.email.toLowerCase(),
       )
     : false;
-    
-    console.log(user?.email, agents, hasSelfAssigned);
+
+  console.log(user?.email, agents, hasSelfAssigned);
   const fetchAgents = async () => {
     try {
       const response = await api.get("/partner/agents");
       setAgents(response.data);
     } catch (error) {
       console.error("Failed to fetch agents:", error);
+      handleApiError(error);
     } finally {
       setLoading(false);
     }
@@ -108,7 +110,7 @@ export default function AgentsManagement() {
           "Successfully self-assigned as an agent! You can now login to the agent portal.",
       );
     } catch (error: any) {
-      alert(error.response?.data?.detail || "Failed to self-assign as agent");
+      handleApiError(error);
     } finally {
       setSelfAssignLoading(false);
     }
@@ -131,7 +133,7 @@ export default function AgentsManagement() {
       await fetchAgents();
       alert("Agent added successfully!");
     } catch (error: any) {
-      alert(error.response?.data?.detail || "Failed to add agent");
+      handleApiError(error);
     } finally {
       setFormLoading(false);
     }
@@ -147,7 +149,7 @@ export default function AgentsManagement() {
       await api.patch(`/partner/agents/${agentId}`, { is_active: newStatus });
       await fetchAgents();
     } catch (error: any) {
-      alert(error.response?.data?.detail || "Failed to update agent status");
+      handleApiError(error);
     }
   };
 
