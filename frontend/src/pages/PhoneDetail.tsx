@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -20,11 +20,17 @@ import { useQuery } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import { useAuth } from "@/context/AuthContext";
 
-const STEPS = [
+const BASE_STEPS = [
   { id: 1, name: "RAM", icon: HardDrive },
   { id: 2, name: "Storage", icon: HardDrive },
   { id: 3, name: "Condition", icon: Smartphone },
   { id: 4, name: "Final Quote", icon: DollarSign },
+];
+
+const APPLE_STEPS = [
+  { id: 1, name: "Storage", icon: HardDrive },
+  { id: 2, name: "Condition", icon: Smartphone },
+  { id: 3, name: "Final Quote", icon: DollarSign },
 ];
 
 export default function PhoneDetail() {
@@ -32,6 +38,8 @@ export default function PhoneDetail() {
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isApplePhone, setIsApplePhone] = useState(false);
+  const [STEPS, setSTEPS] = useState(BASE_STEPS);
 
   // Form state
   const [selectedRam, setSelectedRam] = useState("");
@@ -141,7 +149,7 @@ export default function PhoneDetail() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             phone_details: getPhoneDetailsForAPI(),
-            base_price: basePrice,
+            // base_price is now fetched from DB based on brand, model, ram_gb, storage_gb
           }),
         },
       );
@@ -150,7 +158,8 @@ export default function PhoneDetail() {
     },
     enabled:
       !!phoneData &&
-      currentStep === 4 &&
+      ((isApplePhone && currentStep === 3) ||
+        (!isApplePhone && currentStep === 4)) &&
       !!selectedRam &&
       !!selectedStorage &&
       !!selectedScreenCondition &&
@@ -161,6 +170,31 @@ export default function PhoneDetail() {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
+
+  // useEffect to detect Apple phones and set up accordingly
+  useEffect(() => {
+    if (phoneData) {
+      const isApple = phoneData.Brand?.toLowerCase() === "apple";
+      setIsApplePhone(isApple);
+
+      // Set STEPS based on brand
+      if (isApple) {
+        setSTEPS(APPLE_STEPS);
+      } else {
+        setSTEPS(BASE_STEPS);
+      }
+
+      // For Apple phones, auto-set RAM
+      if (isApple) {
+        // If RAM_GB exists in DB, use it; otherwise set to "na"
+        if (phoneData.RAM_GB && phoneData.RAM_GB > 0) {
+          setSelectedRam(`${phoneData.RAM_GB}gb`);
+        } else {
+          setSelectedRam("na");
+        }
+      }
+    }
+  }, [phoneData]);
 
   // Dynamically build options from variants (filter out null/invalid entries)
   const ramOptions =
@@ -236,12 +270,13 @@ export default function PhoneDetail() {
   const getPhoneDetailsForAPI = () => {
     // Updated to parse selectedRam dynamically
     const parseRam = (ram: string) => {
+      if (ram === "na") return null; // Apple phones have fixed RAM
       const match = ram.match(/^(\d+)gb$/i);
-      return match ? parseInt(match[1], 10) : 0;
+      return match ? parseInt(match[1], 10) : null;
     };
     const parseStorage = (storage: string) => {
       const match = storage.match(/^(\d+)gb$/i);
-      return match ? parseInt(match[1], 10) : storage === "1tb" ? 1024 : 0;
+      return match ? parseInt(match[1], 10) : storage === "1tb" ? 1024 : null;
     };
     return {
       brand: phone.brand,
@@ -256,19 +291,35 @@ export default function PhoneDetail() {
   };
 
   const canProceed = () => {
-    if (currentStep === 1) {
-      // Updated: If ramOptions exist, check selectedRam; else check customRamInput
-      return ramOptions.length > 0 ? selectedRam !== "" : customRamInput !== "";
+    if (isApplePhone) {
+      // Apple phone flow: Storage, Condition, Final Quote
+      if (currentStep === 1) return selectedStorage !== "";
+      if (currentStep === 2)
+        return (
+          selectedScreenCondition !== "" &&
+          deviceTurnsOn !== "" &&
+          hasOriginalBox !== "" &&
+          hasOriginalBill !== ""
+        );
+      return true;
+    } else {
+      // Non-Apple phone flow: RAM, Storage, Condition, Final Quote
+      if (currentStep === 1) {
+        // Updated: If ramOptions exist, check selectedRam; else check customRamInput
+        return ramOptions.length > 0
+          ? selectedRam !== ""
+          : customRamInput !== "";
+      }
+      if (currentStep === 2) return selectedStorage !== "";
+      if (currentStep === 3)
+        return (
+          selectedScreenCondition !== "" &&
+          deviceTurnsOn !== "" &&
+          hasOriginalBox !== "" &&
+          hasOriginalBill !== ""
+        );
+      return true;
     }
-    if (currentStep === 2) return selectedStorage !== "";
-    if (currentStep === 3)
-      return (
-        selectedScreenCondition !== "" &&
-        deviceTurnsOn !== "" &&
-        hasOriginalBox !== "" &&
-        hasOriginalBill !== ""
-      );
-    return true;
   };
 
   const progress = (currentStep / STEPS.length) * 100;
@@ -328,7 +379,7 @@ export default function PhoneDetail() {
 
                 {/* Question Title */}
                 <div className="mb-8">
-                  {currentStep === 1 && (
+                  {!isApplePhone && currentStep === 1 && (
                     <>
                       <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
                         What is your RAM?
@@ -338,7 +389,7 @@ export default function PhoneDetail() {
                       </p>
                     </>
                   )}
-                  {currentStep === 2 && (
+                  {isApplePhone && currentStep === 1 && (
                     <>
                       <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
                         Storage capacity?
@@ -348,7 +399,17 @@ export default function PhoneDetail() {
                       </p>
                     </>
                   )}
-                  {currentStep === 3 && (
+                  {!isApplePhone && currentStep === 2 && (
+                    <>
+                      <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
+                        Storage capacity?
+                      </h1>
+                      <p className="text-gray-600 text-lg">
+                        Select your device storage
+                      </p>
+                    </>
+                  )}
+                  {isApplePhone && currentStep === 2 && (
                     <>
                       <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
                         Device Condition?
@@ -358,7 +419,27 @@ export default function PhoneDetail() {
                       </p>
                     </>
                   )}
-                  {currentStep === 4 && (
+                  {!isApplePhone && currentStep === 3 && (
+                    <>
+                      <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
+                        Device Condition?
+                      </h1>
+                      <p className="text-gray-600 text-lg">
+                        Help us assess your device
+                      </p>
+                    </>
+                  )}
+                  {!isApplePhone && currentStep === 4 && (
+                    <>
+                      <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
+                        Your Final Quote
+                      </h1>
+                      <p className="text-gray-600 text-lg">
+                        Based on your selections
+                      </p>
+                    </>
+                  )}
+                  {isApplePhone && currentStep === 3 && (
                     <>
                       <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
                         Your Final Quote
@@ -389,11 +470,22 @@ export default function PhoneDetail() {
                       <div>
                         <h3 className="font-bold text-lg">{phone.name}</h3>
                         <p className="text-sm text-gray-600">{phone.brand}</p>
-                        {/* Safe dynamic RAM and Storage display */}
-                        <p className="text-sm text-gray-600 mt-1">
-                          RAM: {formatRamDisplay(selectedRam)} | Storage:{" "}
-                          {formatStorageDisplay(selectedStorage)}
-                        </p>
+                        {/* Safe dynamic RAM and Storage display - only show if not unknown */}
+                        {(formatRamDisplay(selectedRam) !== "unknown" ||
+                          formatStorageDisplay(selectedStorage) !==
+                            "unknown") && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            {formatRamDisplay(selectedRam) !== "unknown" &&
+                              `RAM: ${formatRamDisplay(selectedRam)}`}
+                            {formatRamDisplay(selectedRam) !== "unknown" &&
+                              formatStorageDisplay(selectedStorage) !==
+                                "unknown" &&
+                              " | "}
+                            {formatStorageDisplay(selectedStorage) !==
+                              "unknown" &&
+                              `Storage: ${formatStorageDisplay(selectedStorage)}`}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -404,7 +496,10 @@ export default function PhoneDetail() {
               <div>
                 <div className="flex items-center justify-end">
                   <div className="flex gap-3">
-                    {currentStep > 1 && currentStep < 4 && (
+                    {((isApplePhone && currentStep > 1 && currentStep < 3) ||
+                      (!isApplePhone &&
+                        currentStep > 1 &&
+                        currentStep < 4)) && (
                       <Button
                         variant="outline"
                         onClick={() => setCurrentStep(currentStep - 1)}
@@ -421,8 +516,9 @@ export default function PhoneDetail() {
             {/* Right Side - Options Panel */}
             <div className="flex flex-col justify-center">
               <div className="max-w-xl mx-auto w-full space-y-4">
-                {/* Step 1: RAM Selection */}
-                {currentStep === 1 &&
+                {/* Step 1: RAM Selection (Non-Apple phones only) */}
+                {!isApplePhone &&
+                  currentStep === 1 &&
                   (ramOptions.length > 0 ? (
                     // Existing radio group if options available
                     <RadioGroup
@@ -482,8 +578,9 @@ export default function PhoneDetail() {
                     </div>
                   ))}
 
-                {/* Step 2: Storage Selection */}
-                {currentStep === 2 && (
+                {/* Step 1 (Apple) OR Step 2 (Non-Apple): Storage Selection */}
+                {((!isApplePhone && currentStep === 2) ||
+                  (isApplePhone && currentStep === 1)) && (
                   <RadioGroup
                     value={selectedStorage}
                     onValueChange={setSelectedStorage}
@@ -520,8 +617,9 @@ export default function PhoneDetail() {
                   </RadioGroup>
                 )}
 
-                {/* Step 3: Condition Assessment */}
-                {currentStep === 3 && (
+                {/* Step 2 (Apple) OR Step 3 (Non-Apple): Condition Assessment */}
+                {((!isApplePhone && currentStep === 3) ||
+                  (isApplePhone && currentStep === 2)) && (
                   <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
                     {/* Screen Condition */}
                     <div>
@@ -691,8 +789,9 @@ export default function PhoneDetail() {
                   </div>
                 )}
 
-                {/* Step 4: Final Quote */}
-                {currentStep === 4 && (
+                {/* Step 3 (Apple) OR Step 4 (Non-Apple): Final Quote */}
+                {((!isApplePhone && currentStep === 4) ||
+                  (isApplePhone && currentStep === 3)) && (
                   <div className="space-y-6">
                     {/* Price Card */}
                     <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-8 text-white">
@@ -778,8 +877,9 @@ export default function PhoneDetail() {
                   </div>
                 )}
 
-                {/* Next Button for steps 1-3 */}
-                {currentStep < 4 && (
+                {/* Next Button for steps before final quote */}
+                {((isApplePhone && currentStep < 3) ||
+                  (!isApplePhone && currentStep < 4)) && (
                   <div className="flex justify-end pt-4">
                     <Button
                       onClick={() => setCurrentStep(currentStep + 1)}

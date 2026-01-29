@@ -48,18 +48,28 @@ def get_phones_list(
     phones = query.offset((page - 1) * limit).limit(limit).all()
     total_pages = ceil(total / limit)
     
-    return {
-        "phones": [{
+    result_phones = []
+    for phone in phones:
+        # Get the highest variant price for this phone model
+        highest_variant = db.query(func.max(PhoneList.Selling_Price)).filter(
+            PhoneList.Brand == phone.Brand,
+            PhoneList.Model == phone.Model
+        ).scalar()
+        
+        result_phones.append({
             "id": phone.id,
             "Brand": phone.Brand,
             "Series": phone.Series,
             "Model": phone.Model,
             "Storage_Raw": phone.Storage_Raw,
             "Original_Price": phone.Original_Price,
-            "Selling_Price": phone.Selling_Price,
+            "Selling_Price": highest_variant or phone.Selling_Price,
             "RAM_GB": phone.RAM_GB,
             "Internal_Storage_GB": phone.Internal_Storage_GB
-        } for phone in phones],
+        })
+    
+    return {
+        "phones": result_phones,
         "page": page,
         "limit": limit,
         "total": total,
@@ -71,6 +81,13 @@ def get_phone(phone_id: int, db: Session = Depends(get_db)):
     phone = db.query(PhoneList).filter(PhoneList.id == phone_id).first()
     if not phone:
         raise HTTPException(status_code=404, detail="Phone not found")
+    
+    # Get the highest variant price for this phone model
+    highest_variant = db.query(func.max(PhoneList.Selling_Price)).filter(
+        PhoneList.Brand == phone.Brand,
+        PhoneList.Model == phone.Model
+    ).scalar()
+    
     return {
         "id": phone.id,
         "Brand": phone.Brand,
@@ -78,7 +95,7 @@ def get_phone(phone_id: int, db: Session = Depends(get_db)):
         "Model": phone.Model,
         "Storage_Raw": phone.Storage_Raw,
         "Original_Price": phone.Original_Price,
-        "Selling_Price": phone.Selling_Price,
+        "Selling_Price": highest_variant or phone.Selling_Price,
         "RAM_GB": phone.RAM_GB,
         "Internal_Storage_GB": phone.Internal_Storage_GB
     }

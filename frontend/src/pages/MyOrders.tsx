@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -19,7 +19,6 @@ import {
   Mail,
   Package,
   IndianRupee,
-  X,
 } from "lucide-react";
 import api from "@/lib/api";
 import { Link } from "react-router-dom";
@@ -31,7 +30,6 @@ const fetchOrders = async () => {
 
 export default function MyOrders() {
   const { user, token } = useAuth();
-  const queryClient = useQueryClient();
   const {
     data: orders,
     isLoading,
@@ -40,25 +38,6 @@ export default function MyOrders() {
     queryKey: ["orders", token || localStorage.getItem("accessToken")],
     queryFn: fetchOrders,
     enabled: !!(token || localStorage.getItem("accessToken")),
-  });
-
-  // Cancel order mutation
-  const cancelOrderMutation = useMutation({
-    mutationFn: async (orderId: number) => {
-      const res = await api.post(`/sell-phone/orders/${orderId}/cancel`, {
-        reason: "Cancelled by customer",
-      });
-      return res.data;
-    },
-    onSuccess: () => {
-      // Refresh orders list
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-    },
-    onError: (error: any) => {
-      alert(
-        `Failed to cancel order: ${error.response?.data?.detail || error.message}`,
-      );
-    },
   });
 
   const getStatusColor = (status: string) => {
@@ -122,20 +101,6 @@ export default function MyOrders() {
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(" ")
     );
-  };
-
-  const canCancelOrder = (status: string) => {
-    // Can cancel if not purchased by partner and not completed/cancelled
-    const nonCancellableStatuses = [
-      "lead_purchased",
-      "assigned_to_agent",
-      "accepted_by_agent",
-      "pickup_scheduled",
-      "pickup_completed",
-      "payment_processed",
-      "cancelled",
-    ];
-    return !nonCancellableStatuses.includes(status);
   };
 
   if (isLoading) {
@@ -407,32 +372,6 @@ export default function MyOrders() {
                           </>
                         )}
                     </CardContent>
-
-                    {/* Cancel Button */}
-                    {canCancelOrder(order.status) && (
-                      <div className="px-6 pb-4">
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => {
-                            if (
-                              window.confirm(
-                                "Are you sure you want to cancel this order?",
-                              )
-                            ) {
-                              cancelOrderMutation.mutate(order.id);
-                            }
-                          }}
-                          disabled={cancelOrderMutation.isPending}
-                          className="w-full"
-                        >
-                          <X size={16} className="mr-2" />
-                          {cancelOrderMutation.isPending
-                            ? "Cancelling..."
-                            : "Cancel Order"}
-                        </Button>
-                      </div>
-                    )}
                   </Card>
                 ))}
               </div>

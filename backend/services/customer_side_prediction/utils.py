@@ -2,6 +2,79 @@ import os
 from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
+from sqlalchemy.orm import Session
+from sqlalchemy import and_
+
+def get_phone_price_from_db(
+    db: Session,
+    brand: str,
+    model: str,
+    ram_gb: int = None,
+    storage_gb: int = None
+) -> float:
+    """
+    Fetch phone price from database based on brand, model, and optionally RAM/Storage.
+    Brand and model are compulsory, RAM and storage are optional.
+    Returns the best matching phone price.
+    """
+    from backend.services.sell_phone.schema.models import PhoneList
+    
+    # Build query with brand and model (compulsory)
+    query = db.query(PhoneList).filter(
+        and_(
+            PhoneList.Brand.ilike(brand),
+            PhoneList.Model.ilike(model)
+        )
+    )
+    
+    # Add RAM filter if provided
+    if ram_gb is not None:
+        query = query.filter(PhoneList.RAM_GB == ram_gb)
+    
+    # Add Storage filter if provided
+    if storage_gb is not None:
+        query = query.filter(PhoneList.Internal_Storage_GB == storage_gb)
+    
+    # Get the phone with exact match on all provided specs
+    phone = query.first()
+    
+    # If exact match not found, try without storage
+    if not phone and storage_gb is not None:
+        query = db.query(PhoneList).filter(
+            and_(
+                PhoneList.Brand.ilike(brand),
+                PhoneList.Model.ilike(model)
+            )
+        )
+        if ram_gb is not None:
+            query = query.filter(PhoneList.RAM_GB == ram_gb)
+        phone = query.first()
+    
+    # If still not found, try without RAM
+    if not phone and ram_gb is not None:
+        query = db.query(PhoneList).filter(
+            and_(
+                PhoneList.Brand.ilike(brand),
+                PhoneList.Model.ilike(model)
+            )
+        )
+        if storage_gb is not None:
+            query = query.filter(PhoneList.Internal_Storage_GB == storage_gb)
+        phone = query.first()
+    
+    # If still not found, get any matching brand and model
+    if not phone:
+        phone = db.query(PhoneList).filter(
+            and_(
+                PhoneList.Brand.ilike(brand),
+                PhoneList.Model.ilike(model)
+            )
+        ).first()
+    
+    if not phone:
+        raise ValueError(f"Phone not found in database: {brand} {model}")
+    
+    return float(phone.Selling_Price)
 
 def get_mistral_chain():
     # Initialize MistralAI model via LangChain
@@ -20,12 +93,12 @@ You must follow ALL rules below with ZERO exceptions.
 CRITICAL ENFORCEMENT RULES
 ======================
 1. The provided Base Price is the ABSOLUTE MAXIMUM value.
-2. The final predicted_price MUST be LESS THAN OR EQUAL TO the Base Price.
+2. The final predicted_price MUST be LESS THAN the Base Price.
 3. You are STRICTLY FORBIDDEN from outputting any value higher than the Base Price.
 4. All calculations MUST start ONLY from the Base Price.
 5. You MUST NOT introduce, infer, assume, or reference any other price.
 6. You MUST NOT apply any positive adjustment, bonus, premium, or increase.
-7. If no deductions apply, predicted_price MUST be EXACTLY equal to the Base Price.
+7. If no deductions apply, predicted_price still MUST be LESS THAN the Base Price keep it 5% less.
 8. Violating ANY rule makes the output invalid.
 
 ======================
