@@ -331,14 +331,14 @@ export default function PartnerDashboard() {
         showLogout={true}
         onLogout={handleLogout}
         additionalContent={
-          <div className="flex items-center gap-4">
-            <div className="text-right">
+          <div className="flex flex-col md:flex-row items-center gap-4">
+            <div className="text-center md:text-right">
               <div className="text-sm text-gray-500">Credit Balance</div>
               <div className="text-xl font-bold text-green-600">
                 ◇{user?.credit_balance || 0}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" onClick={openBuyModal}>
                 Buy Credits
               </Button>
@@ -353,7 +353,7 @@ export default function PartnerDashboard() {
                 className="bg-green-600 hover:bg-green-700"
                 onClick={() => navigate("/partner/agents")}
               >
-                Self-Assign Agent
+                <span className="hidden sm:inline">Self-Assign </span>Agent
               </Button>
               <Button
                 variant="outline"

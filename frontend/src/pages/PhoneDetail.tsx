@@ -425,7 +425,7 @@ export default function PhoneDetail() {
                 <div className="mb-8">
                   {!isApplePhone && currentStep === 1 && (
                     <>
-                      <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
+                      <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
                         What is your RAM?
                       </h1>
                       <p className="text-gray-600 text-lg">
@@ -435,7 +435,7 @@ export default function PhoneDetail() {
                   )}
                   {isApplePhone && currentStep === 1 && (
                     <>
-                      <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
+                      <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
                         Storage capacity?
                       </h1>
                       <p className="text-gray-600 text-lg">
@@ -445,7 +445,7 @@ export default function PhoneDetail() {
                   )}
                   {!isApplePhone && currentStep === 2 && (
                     <>
-                      <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
+                      <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
                         Storage capacity?
                       </h1>
                       <p className="text-gray-600 text-lg">
@@ -455,7 +455,7 @@ export default function PhoneDetail() {
                   )}
                   {isApplePhone && currentStep === 2 && (
                     <>
-                      <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
+                      <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
                         Device Condition?
                       </h1>
                       <p className="text-gray-600 text-lg">
@@ -465,7 +465,7 @@ export default function PhoneDetail() {
                   )}
                   {!isApplePhone && currentStep === 3 && (
                     <>
-                      <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
+                      <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
                         Device Condition?
                       </h1>
                       <p className="text-gray-600 text-lg">
@@ -475,7 +475,7 @@ export default function PhoneDetail() {
                   )}
                   {!isApplePhone && currentStep === 4 && (
                     <>
-                      <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
+                      <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
                         Your Final Quote
                       </h1>
                       <p className="text-gray-600 text-lg">
@@ -485,7 +485,7 @@ export default function PhoneDetail() {
                   )}
                   {isApplePhone && currentStep === 3 && (
                     <>
-                      <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
+                      <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
                         Your Final Quote
                       </h1>
                       <p className="text-gray-600 text-lg">

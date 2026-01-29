@@ -336,7 +336,7 @@ export default function Checkout() {
                       )}
                     </div>
                     <p
-                      className={`text-sm mt-3 font-medium transition-colors ${
+                      className={`text-xs sm:text-sm mt-3 font-medium transition-colors ${
                         step >= index + 1 ? "text-gray-900" : "text-gray-400"
                       }`}
                     >

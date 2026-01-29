@@ -74,7 +74,7 @@ export default function Home() {
             </Badge>
           </motion.div>
           <motion.h1
-            className="text-5xl font-bold text-gray-900 mb-6"
+            className="text-4xl md:text-5xl font-bold text-gray-900 mb-6"
             variants={fadeInUp}
           >
             Maximize Your
@@ -91,7 +91,10 @@ export default function Home() {
             Connect with customers, manage agents, and grow your refurbished
             phone business with our comprehensive partner platform.
           </motion.p>
-          <motion.div className="flex gap-4 justify-center" variants={fadeInUp}>
+          <motion.div
+            className="flex flex-col sm:flex-row gap-4 justify-center"
+            variants={fadeInUp}
+          >
             <Button
               size="lg"
               onClick={() => navigate("/partner/login")}

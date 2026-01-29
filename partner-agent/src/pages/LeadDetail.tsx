@@ -174,10 +174,10 @@ export default function LeadDetail() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="grid grid-cols-10 gap-6 h-full"
+            className="grid grid-cols-1 lg:grid-cols-10 gap-6 h-full"
           >
             {/* Left Panel - Asset Summary (70%) */}
-            <div className="col-span-7">
+            <div className="lg:col-span-7">
               <Card className="shadow-lg h-full flex flex-col">
                 <CardContent className="p-8 flex-1 flex flex-col">
                   {/* Phone Details Header */}
@@ -301,7 +301,7 @@ export default function LeadDetail() {
                       <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
                         Customer Information
                       </h3>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
                             <svg
@@ -348,7 +348,7 @@ export default function LeadDetail() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-start gap-3 col-span-2">
+                        <div className="flex items-start gap-3 sm:col-span-2">
                           <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
                             <svg
                               className="w-5 h-5 text-orange-600"
@@ -389,7 +389,7 @@ export default function LeadDetail() {
             </div>
 
             {/* Right Panel - Action Sidebar (30%) */}
-            <div className="col-span-3 flex flex-col gap-6">
+            <div className="lg:col-span-3 flex flex-col gap-6">
               {/* Assigned Agent */}
               {lead.agent_name && (
                 <Card className="shadow-lg bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200">

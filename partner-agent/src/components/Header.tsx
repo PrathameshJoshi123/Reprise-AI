@@ -45,7 +45,7 @@ export default function Header({
       transition={{ duration: 0.6, ease: "easeOut" }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-4">
+        <div className="flex flex-col sm:flex-row justify-between items-center py-4 gap-4">
           <div className="flex items-center space-x-4">
             <motion.div
               className="flex items-center space-x-4 cursor-pointer hover:opacity-80 transition-opacity"
@@ -58,7 +58,7 @@ export default function Header({
             </motion.div>
             {pageTitle && (
               <>
-                <div className="text-gray-300">|</div>
+                <div className="text-gray-300 hidden sm:block">|</div>
                 <div>
                   <div className="text-xl font-semibold text-gray-800">
                     {pageTitle}
@@ -72,7 +72,7 @@ export default function Header({
               </>
             )}
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 flex-wrap justify-center sm:justify-end">
             {additionalContent}
             {shouldShowLogout && (
               <Button variant="destructive" onClick={handleLogout}>

@@ -102,7 +102,7 @@ export default function Index() {
               </motion.div>
 
               <motion.h1
-                className="text-4xl md:text-5xl font-bold mb-4 text-primary leading-tight"
+                className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-primary leading-tight"
                 variants={itemVariants}
               >
                 "Turn Your Old Phone Into Instant Cash"
@@ -118,7 +118,7 @@ export default function Index() {
               </motion.p>
 
               <motion.div
-                className="flex flex-wrap gap-4 mt-4"
+                className="flex flex-col sm:flex-row gap-4 justify-center"
                 variants={itemVariants}
               >
                 <Link to="/sell-phone">
@@ -149,7 +149,7 @@ export default function Index() {
 
           {/* Dual CTA Cards */}
           <motion.div
-            className="grid grid-cols-1 md:grid-cols-1 gap-8 max-w-5xl mx-auto"
+            className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto"
             initial="hidden"
             animate="visible"
             variants={containerVariants}
