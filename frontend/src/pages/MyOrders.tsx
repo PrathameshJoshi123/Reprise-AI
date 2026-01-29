@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
+import { useEffect } from "react";
 
 const fetchOrders = async () => {
   const res = await api.get("/sell-phone/my-orders");
@@ -39,6 +41,23 @@ export default function MyOrders() {
     queryFn: fetchOrders,
     enabled: !!(token || localStorage.getItem("accessToken")),
   });
+
+  // Show toast on error
+  useEffect(() => {
+    if (error) {
+      toast.error(
+        "We couldn't load your orders. Check your internet connection and try again.",
+        {
+          description: "A network or server error occurred.",
+          action: {
+            label: "Retry",
+            onClick: () => window.location.reload(),
+          },
+          duration: 8000,
+        },
+      );
+    }
+  }, [error]);
 
   const getStatusColor = (status: string) => {
     const statusMap: Record<string, string> = {

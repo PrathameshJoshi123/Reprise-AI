@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { Search, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import Autoplay from "embla-carousel-autoplay";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const BRANDS = [
   {
@@ -86,7 +87,29 @@ export default function SellPhone() {
       if (!response.ok) throw new Error("Failed to fetch phones");
       return response.json();
     },
+    retry: (failureCount, error) => {
+      // Don't retry on 4xx errors
+      if (error.message.includes("4")) return false;
+      return failureCount < 2;
+    },
   });
+
+  // Show toast on error
+  useEffect(() => {
+    if (error) {
+      toast.error(
+        "We couldn't load the phone listings. Check your internet connection and try again.",
+        {
+          description: "A network or server error occurred.",
+          action: {
+            label: "Retry",
+            onClick: () => window.location.reload(),
+          },
+          duration: 8000,
+        },
+      );
+    }
+  }, [error]);
 
   const phones = data?.phones || [];
   const totalPages = data?.total_pages || 1;
@@ -170,7 +193,6 @@ export default function SellPhone() {
             </form>
 
             {isLoading && <p>Loading phones...</p>}
-            {error && <p>Error loading phones: {error.message}</p>}
             {!isLoading && !error && (
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">

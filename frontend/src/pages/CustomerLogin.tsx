@@ -24,6 +24,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 export default function CustomerLogin() {
   const [isLogin, setIsLogin] = useState(true);
@@ -203,7 +204,10 @@ export default function CustomerLogin() {
             }
           } catch (err) {
             console.error("Google login failed:", err);
-            alert("Google authentication failed. Please try again.");
+            toast.error("Google authentication failed. Please try again.", {
+              description: "Could not complete sign-in or token exchange.",
+              duration: 5000,
+            });
           } finally {
             sessionStorage.removeItem("google_oauth_state");
             setGoogleProcessing(false);
@@ -233,7 +237,11 @@ export default function CustomerLogin() {
   // submit profile collected after Google signup
   const submitGoogleProfile = async () => {
     if (!googleProfilePhone && !googleProfileAddress) {
-      alert("Please provide phone or address to continue.");
+      toast.warning("Please provide phone or address to continue.", {
+        description:
+          "Additional information is required to complete your profile.",
+        duration: 5000,
+      });
       return;
     }
     try {
@@ -254,7 +262,10 @@ export default function CustomerLogin() {
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to save profile. Please try again.");
+      toast.error("Failed to save profile. Please try again.", {
+        description: "Could not update your profile information.",
+        duration: 5000,
+      });
     } finally {
       setGoogleProcessing(false);
     }
@@ -408,7 +419,13 @@ export default function CustomerLogin() {
                   try {
                     if (isLogin) {
                       if (!identifier.includes("@")) {
-                        alert("Please enter a valid email address to login.");
+                        toast.warning(
+                          "Please enter a valid email address to login.",
+                          {
+                            description: "Email format is required for login.",
+                            duration: 5000,
+                          },
+                        );
                         return;
                       }
                       const ok = await login(identifier, password, "customer");
@@ -425,7 +442,7 @@ export default function CustomerLogin() {
                           navigate("/");
                         }
                       } else {
-                        alert("Login failed. Please check your credentials.");
+                        // Login toast is already shown by AuthContext
                       }
                     } else {
                       // Validate required fields
@@ -436,17 +453,30 @@ export default function CustomerLogin() {
                         !identifier ||
                         !password
                       ) {
-                        alert("Please fill in all required fields");
+                        toast.warning("Please fill in all required fields", {
+                          description: "All fields marked with * are required.",
+                          duration: 5000,
+                        });
                         return;
                       }
 
                       if (!identifier.includes("@")) {
-                        alert("Please enter a valid email address for signup.");
+                        toast.warning(
+                          "Please enter a valid email address for signup.",
+                          {
+                            description:
+                              "Email format is required for account creation.",
+                            duration: 5000,
+                          },
+                        );
                         return;
                       }
 
                       if (pincode.length !== 6) {
-                        alert("Please enter a valid 6-digit pincode");
+                        toast.warning("Please enter a valid 6-digit pincode", {
+                          description: "Pincode must be exactly 6 digits.",
+                          duration: 5000,
+                        });
                         return;
                       }
 
@@ -493,14 +523,16 @@ export default function CustomerLogin() {
                           navigate("/");
                         }
                       } else {
-                        alert(
-                          "Signup failed. Email or phone may already be registered.",
-                        );
+                        // Signup toast is already shown by AuthContext
                       }
                     }
                   } catch (err) {
                     console.error(err);
-                    alert("An error occurred. Please try again.");
+                    toast.error("An error occurred. Please try again.", {
+                      description:
+                        "Something went wrong during authentication.",
+                      duration: 5000,
+                    });
                   }
                 }}
               >
@@ -612,7 +644,10 @@ export default function CustomerLogin() {
               <Button
                 onClick={async () => {
                   if (pincode.length !== 6) {
-                    alert("Please enter a valid 6-digit pincode");
+                    toast.warning("Please enter a valid 6-digit pincode", {
+                      description: "Pincode must be exactly 6 digits.",
+                      duration: 5000,
+                    });
                     return;
                   }
                   await checkPincode(pincode);

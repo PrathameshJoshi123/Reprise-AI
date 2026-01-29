@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
+import { toast } from "sonner";
 
 export function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -493,7 +494,11 @@ export function Header() {
                       setEditing(false);
                     } catch (err) {
                       console.error("Failed to save profile", err);
-                      alert("Failed to save profile. Please try again.");
+                      toast.error("Failed to save profile. Please try again.", {
+                        description:
+                          "Could not update your profile information.",
+                        duration: 5000,
+                      });
                     }
                   }}
                 >

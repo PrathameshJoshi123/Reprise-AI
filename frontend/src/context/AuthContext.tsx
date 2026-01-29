@@ -6,6 +6,7 @@ import {
   ReactNode,
 } from "react";
 import api from "../lib/api"; // Adjust the import based on your project structure
+import { toast } from "sonner";
 
 interface User {
   id: string;
@@ -104,7 +105,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("currentUser", JSON.stringify(mappedUser));
       setUser(mappedUser);
       return true;
-    } catch {
+    } catch (error: any) {
+      console.error("Login error:", error);
+      toast.error(
+        "Login failed. Please check your credentials and try again.",
+        {
+          description:
+            error.response?.data?.detail || "Invalid username or password.",
+          duration: 5000,
+        },
+      );
       return false;
     }
   };
@@ -133,11 +143,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         pincode,
       };
       const res = await api.post("/auth/signup", payload);
-      if (res.status !== 201 && res.status !== 200) return false;
+      if (res.status !== 201 && res.status !== 200) {
+        toast.error("Signup failed. Please try again.", {
+          description: res.data?.detail || "Unable to create account.",
+          duration: 5000,
+        });
+        return false;
+      }
       // auto-login after signup
       return await login(phone || email, password, role, name);
     } catch (error: any) {
       console.error("Signup error:", error.response?.data || error);
+      toast.error(
+        "Signup failed. Please check your information and try again.",
+        {
+          description:
+            error.response?.data?.detail || "Unable to create account.",
+          duration: 5000,
+        },
+      );
       return false;
     }
   };
@@ -190,6 +214,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("loginWithToken fetch fallback failed:", err2);
         localStorage.removeItem("accessToken");
         setToken(null);
+        toast.error("Authentication failed. Please sign in again.", {
+          description: "Could not verify your session.",
+          action: {
+            label: "Sign In",
+            onClick: () => (window.location.href = "/login"),
+          },
+          duration: 8000,
+        });
         return false;
       }
     }

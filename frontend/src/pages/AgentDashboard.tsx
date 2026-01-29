@@ -20,6 +20,7 @@ import {
   AlertCircle,
   Eye,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Order {
   id: number;
@@ -135,6 +136,23 @@ export default function AgentDashboard() {
     isUserLoading ||
     (selectedFilter === "all" && isNearbyLoading);
   const error = myOrdersError || (selectedFilter === "all" && nearbyError);
+
+  // Show toast on background refresh errors
+  useEffect(() => {
+    if (error) {
+      toast.info("Background sync failed — data may be stale.", {
+        description: "Failed to refresh orders data.",
+        action: {
+          label: "Retry now",
+          onClick: () =>
+            queryClient.invalidateQueries({
+              queryKey: ["agentMyOrders", "nearbyOrders"],
+            }),
+        },
+        duration: 6000,
+      });
+    }
+  }, [error, queryClient]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

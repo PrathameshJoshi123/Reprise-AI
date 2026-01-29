@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import api from "../lib/api";
-import { toast } from "sonner";
 import { showErrorToastWithRetry, showWarningToast } from "../lib/errorHandler";
 import { formatDateTime, formatCurrency } from "../lib/utils";
 import { getOrderStatusColor } from "../lib/badgeUtils";

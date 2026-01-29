@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
+import { toast } from "sonner";
 
 export default function OAuthCallback() {
   const navigate = useNavigate();
@@ -58,6 +59,14 @@ export default function OAuthCallback() {
           errorMessage = axiosError?.response?.data?.detail || errorMessage;
         }
         setError(errorMessage);
+        toast.error("Sign-in failed. Please try signing in again.", {
+          description: "Could not complete sign-in or token exchange.",
+          action: {
+            label: "Retry sign-in",
+            onClick: () => navigate("/login"),
+          },
+          duration: 8000,
+        });
         setTimeout(() => navigate("/login"), 3000);
       }
     };

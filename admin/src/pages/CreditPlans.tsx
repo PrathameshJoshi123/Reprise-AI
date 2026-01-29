@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
 import api from "../lib/api";
 import { toast } from "sonner";
 import { showErrorToastWithRetry, showSuccessToast } from "../lib/errorHandler";
-import { formatDateTime, formatCurrency } from "../lib/utils";
+import { formatCurrency } from "../lib/utils";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -32,7 +31,6 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import { Badge } from "../components/ui/badge";
-import { toast } from "sonner";
 import { Plus, Edit, Trash2, Settings } from "lucide-react";
 
 interface CreditPlan {

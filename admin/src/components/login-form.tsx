@@ -19,7 +19,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-  showErrorToastWithRetry,
   showSuccessToast,
   classifyError,
 } from "@/lib/errorHandler";
@@ -51,8 +50,6 @@ export function LoginForm({
       showSuccessToast("Welcome back!");
       navigate("/");
     } catch (err: any) {
-      const errorInfo = classifyError(err);
-
       // Show specific error message
       if (err.response?.status === 403) {
         const msg =
@@ -139,6 +136,7 @@ export function LoginForm({
                   id="password"
                   type="password"
                   required
+                  placeholder="*********"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />

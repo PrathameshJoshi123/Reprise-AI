@@ -3,7 +3,6 @@ import { useNavigate } from "react-router";
 import api from "../lib/api";
 import { formatCurrency, formatCredits } from "../lib/utils";
 import { showErrorToastWithRetry, showWarningToast } from "../lib/errorHandler";
-import { toast } from "sonner";
 import {
   Card,
   CardContent,

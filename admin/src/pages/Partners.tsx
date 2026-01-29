@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import api from "../lib/api";
-import { toast } from "sonner";
-import { showErrorToastWithRetry, showSuccessToast } from "../lib/errorHandler";
+import { showErrorToastWithRetry } from "../lib/errorHandler";
 import { formatDateTime, formatCurrency } from "../lib/utils";
 import { getPartnerStatusColor } from "../lib/badgeUtils";
 import { Button } from "../components/ui/button";

@@ -19,6 +19,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 const BASE_STEPS = [
   { id: 1, name: "RAM", icon: HardDrive },
@@ -70,6 +71,20 @@ export default function PhoneDetail() {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
+
+  // Show toast on phone fetch error
+  useEffect(() => {
+    if (error) {
+      toast.error("We couldn't load the phone details. Please try again.", {
+        description: "A network or server error occurred.",
+        action: {
+          label: "Retry",
+          onClick: () => window.location.reload(),
+        },
+        duration: 8000,
+      });
+    }
+  }, [error]);
 
   // Fetch phone variants
   const { data: variants } = useQuery({
@@ -171,7 +186,28 @@ export default function PhoneDetail() {
     refetchOnReconnect: false,
   });
 
-  // useEffect to detect Apple phones and set up accordingly
+  // Show toast on prediction error
+  useEffect(() => {
+    if (predictionError) {
+      toast.warning(
+        "We couldn't estimate a final price right now. You can continue to checkout, and an agent will confirm the price.",
+        {
+          description: "Price prediction service is currently unavailable.",
+          action: {
+            label: "Continue Anyway",
+            onClick: () => {
+              // Navigate to checkout with current data
+              localStorage.setItem("phoneData", JSON.stringify(phoneData));
+              navigate("/checkout");
+            },
+          },
+          duration: 8000,
+        },
+      );
+    }
+  }, [predictionError, phoneData, navigate]);
+
+  // Set up phone-specific state when phoneData loads
   useEffect(() => {
     if (phoneData) {
       const isApple = phoneData.Brand?.toLowerCase() === "apple";
@@ -219,7 +255,15 @@ export default function PhoneDetail() {
       }) || [];
 
   if (isLoading) return <p>Loading phone details...</p>;
-  if (error) return <p>Error loading phone: {error.message}</p>;
+  if (error)
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg mb-4">Phone not found or failed to load.</p>
+          <Button onClick={() => window.location.reload()}>Try Again</Button>
+        </div>
+      </div>
+    );
   if (!phoneData) return <p>Phone not found</p>;
 
   // Map DB fields to component structure
