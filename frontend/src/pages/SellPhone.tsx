@@ -213,7 +213,13 @@ export default function SellPhone() {
                               <p className="text-xs text-gray-500 mb-2">
                                 {phone.Brand}
                               </p>
-                              <div className="pt-2">
+                              <div className="pt-2 flex flex-col">
+                                <p className="text-sm font-bold text-green-600 mb-2">
+                                  ₹
+                                  {phone.Selling_Price?.toLocaleString(
+                                    "en-IN",
+                                  ) || "N/A"}
+                                </p>
                                 <div className="flex items-center justify-between gap-2">
                                   <Button
                                     size="sm"

@@ -8,11 +8,18 @@ router = APIRouter()
 # ensure tables exist
 Base.metadata.create_all(bind=engine)
 
-@router.post("/signup", response_model=schemas.UserOut, tags=["auth"])
+@router.post("/signup", response_model=schemas.UserRegistrationResponse, tags=["auth"])
 def signup(user_in: schemas.UserCreate, db: Session = Depends(utils.get_db)):
-    existing = db.query(models.User).filter(models.User.email == user_in.email).first()
-    if existing:
+    # Check for duplicate email
+    existing_email = db.query(models.User).filter(models.User.email == user_in.email).first()
+    if existing_email:
         raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Check for duplicate phone if provided
+    if user_in.phone:
+        existing_phone = db.query(models.User).filter(models.User.phone == user_in.phone).first()
+        if existing_phone:
+            raise HTTPException(status_code=400, detail="Phone number already registered")
     
     hashed = utils.get_password_hash(user_in.password)
     user = models.User(
@@ -134,6 +141,9 @@ def google_auth(payload: dict = Body(...), db: Session = Depends(get_db)):
     return an access token for the app.
 
     Expected body: { "auth_code": "..." }
+    
+    For signup flow, pincode is optional. If not provided, we'll allow signup anyway.
+    Pincode validation will be enforced at checkout time when creating orders.
     """
     auth_code = payload.get("auth_code")
     pincode = payload.get("pincode")
@@ -146,13 +156,9 @@ def google_auth(payload: dict = Body(...), db: Session = Depends(get_db)):
         # Exchange the auth code for an id_token
         id_token = utils.exchange_auth_code_for_id_token(auth_code)
 
-        # If signup flow requested, enforce pincode presence and serviceability
-        if signup_flag:
-            if not pincode:
-                raise HTTPException(status_code=400, detail="pincode is required for signup via Google")
-            svc = utils.check_pincode_serviceability(pincode, db)
-            if not svc["serviceable"]:
-                raise HTTPException(status_code=400, detail="Pincode not serviceable for signup")
+        # For signup flow, allow pincode to be optional (will validate at checkout)
+        # No longer blocking signup based on pincode serviceability
+        # Pincode validation is now only enforced at order creation time (checkout)
 
         # Verify id_token and create/get user (pass pincode for new user creation)
         user, created = utils.create_or_get_user_from_google(id_token, db, pincode=pincode)
@@ -213,6 +219,14 @@ def update_current_user(
     if payload.full_name is not None:
         user.full_name = payload.full_name
     if payload.phone is not None:
+        # Check for duplicate phone if changing it
+        if user.phone != payload.phone:
+            existing_phone = db.query(models.User).filter(
+                models.User.phone == payload.phone,
+                models.User.id != current_user.id
+            ).first()
+            if existing_phone:
+                raise HTTPException(status_code=400, detail="Phone number already registered")
         user.phone = payload.phone
     if payload.address is not None:
         user.address = payload.address
@@ -260,6 +274,14 @@ def update_user(user_id: int, payload: schemas.UserUpdate, current_user: models.
     if payload.full_name is not None:
         user.full_name = payload.full_name
     if payload.phone is not None:
+        # Check for duplicate phone if changing it
+        if user.phone != payload.phone:
+            existing_phone = db.query(models.User).filter(
+                models.User.phone == payload.phone,
+                models.User.id != user_id
+            ).first()
+            if existing_phone:
+                raise HTTPException(status_code=400, detail="Phone number already registered")
         user.phone = payload.phone
     # role change removed
     if payload.is_active is not None:
