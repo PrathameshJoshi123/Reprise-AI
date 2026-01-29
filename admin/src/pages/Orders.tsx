@@ -116,7 +116,6 @@ export default function Orders() {
       lead_purchased: "PURCHASED",
       accepted_by_agent: "AGENT ASSIGNED",
       assigned_to_agent: "AGENT REASSIGNED",
-      pickup_scheduled: "PICKUP SCHEDULED",
       pickup_completed: "PICKED UP",
       pickup_completed_declined: "PICKUP DECLINED",
       payment_processed: "PAYMENT PROCESSED",
@@ -188,7 +187,6 @@ export default function Orders() {
                   { value: "lead_purchased", label: "Purchased" },
                   { value: "accepted_by_agent", label: "Agent Assigned" },
                   { value: "assigned_to_agent", label: "Agent Reassigned" },
-                  { value: "pickup_scheduled", label: "Pickup Scheduled" },
                   { value: "pickup_completed", label: "Picked Up" },
                   {
                     value: "pickup_completed_declined",

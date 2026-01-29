@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,9 +7,9 @@ import {
   StyleSheet,
   Alert,
   Platform,
-} from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import api from '../lib/api';
+} from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import api from "../lib/api";
 
 interface SchedulePickupModalProps {
   visible: boolean;
@@ -34,19 +34,20 @@ export default function SchedulePickupModal({
     setScheduling(true);
     try {
       // Format date as YYYY-MM-DD
-      const pickupDate = date.toISOString().split('T')[0];
+      const pickupDate = date.toISOString().split("T")[0];
       // Format time as HH:MM
       const pickupTime = time.toTimeString().slice(0, 5);
 
-      await api.post(`/agent/orders/${orderId}/schedule-pickup`, {
-        scheduled_date: pickupDate,
-        scheduled_time: pickupTime,
-        notes: '',
+      await api.post(`/agent/orders/${orderId}/reschedule-pickup`, {
+        new_date: pickupDate,
+        new_time: pickupTime,
+        reschedule_reason: "Initial schedule",
+        notes: "",
       });
 
-      Alert.alert('Success', 'Pickup scheduled successfully!', [
+      Alert.alert("Success", "Pickup scheduled successfully!", [
         {
-          text: 'OK',
+          text: "OK",
           onPress: () => {
             onSuccess();
             onClose();
@@ -54,14 +55,22 @@ export default function SchedulePickupModal({
         },
       ]);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to schedule pickup');
+      Alert.alert(
+        "Error",
+        error.response?.data?.detail || "Failed to schedule pickup",
+      );
     } finally {
       setScheduling(false);
     }
   };
 
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
       <View style={styles.overlay}>
         <View style={styles.content}>
           <Text style={styles.title}>Schedule Pickup</Text>
@@ -69,18 +78,18 @@ export default function SchedulePickupModal({
           <View style={styles.section}>
             <Text style={styles.label}>Pickup Date</Text>
             {/* Web-specific Date Picker */}
-            {Platform.OS === 'web' ? (
+            {Platform.OS === "web" ? (
               <input
                 type="date"
-                value={date.toISOString().split('T')[0]}
-                min={new Date().toISOString().split('T')[0]} // Min date: today
+                value={date.toISOString().split("T")[0]}
+                min={new Date().toISOString().split("T")[0]} // Min date: today
                 style={{
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '16px',
-                  width: '100%',
-                  marginTop: '8px',
+                  padding: "10px",
+                  borderRadius: "8px",
+                  border: "1px solid #d1d5db",
+                  fontSize: "16px",
+                  width: "100%",
+                  marginTop: "8px",
                 }}
                 onChange={(e) => setDate(new Date(e.target.value))}
               />
@@ -90,15 +99,17 @@ export default function SchedulePickupModal({
                   style={styles.inputButton}
                   onPress={() => setShowDatePicker(true)}
                 >
-                  <Text style={styles.inputText}>{date.toLocaleDateString()}</Text>
+                  <Text style={styles.inputText}>
+                    {date.toLocaleDateString()}
+                  </Text>
                 </TouchableOpacity>
                 {showDatePicker && (
                   <DateTimePicker
                     value={date}
                     mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
                     onChange={(event, selectedDate) => {
-                      setShowDatePicker(Platform.OS === 'ios');
+                      setShowDatePicker(Platform.OS === "ios");
                       if (selectedDate) setDate(selectedDate);
                     }}
                     minimumDate={new Date()}
@@ -110,20 +121,20 @@ export default function SchedulePickupModal({
 
           <View style={styles.section}>
             <Text style={styles.label}>Pickup Time</Text>
-            {Platform.OS === 'web' ? (
+            {Platform.OS === "web" ? (
               <input
                 type="time"
                 value={time.toTimeString().slice(0, 5)}
                 style={{
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '16px',
-                  width: '100%',
-                  marginTop: '8px',
+                  padding: "10px",
+                  borderRadius: "8px",
+                  border: "1px solid #d1d5db",
+                  fontSize: "16px",
+                  width: "100%",
+                  marginTop: "8px",
                 }}
                 onChange={(e) => {
-                  const [hours, minutes] = e.target.value.split(':');
+                  const [hours, minutes] = e.target.value.split(":");
                   const newTime = new Date();
                   newTime.setHours(parseInt(hours), parseInt(minutes));
                   setTime(newTime);
@@ -136,16 +147,19 @@ export default function SchedulePickupModal({
                   onPress={() => setShowTimePicker(true)}
                 >
                   <Text style={styles.inputText}>
-                    {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {time.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </Text>
                 </TouchableOpacity>
                 {showTimePicker && (
                   <DateTimePicker
                     value={time}
                     mode="time"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
                     onChange={(event, selectedTime) => {
-                      setShowTimePicker(Platform.OS === 'ios');
+                      setShowTimePicker(Platform.OS === "ios");
                       if (selectedTime) setTime(selectedTime);
                     }}
                   />
@@ -159,12 +173,15 @@ export default function SchedulePickupModal({
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.confirmButton, scheduling && styles.confirmButtonDisabled]}
+              style={[
+                styles.confirmButton,
+                scheduling && styles.confirmButtonDisabled,
+              ]}
               onPress={handleSchedule}
               disabled={scheduling}
             >
               <Text style={styles.confirmButtonText}>
-                {scheduling ? 'Scheduling...' : 'Confirm'}
+                {scheduling ? "Scheduling..." : "Confirm"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -177,74 +194,74 @@ export default function SchedulePickupModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   content: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderRadius: 16,
     padding: 24,
-    width: '85%',
+    width: "85%",
     maxWidth: 400,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: "bold",
+    color: "#111827",
     marginBottom: 24,
-    textAlign: 'center',
+    textAlign: "center",
   },
   section: {
     marginBottom: 20,
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginBottom: 8,
   },
   inputButton: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: "#d1d5db",
     borderRadius: 8,
     padding: 14,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
   },
   inputText: {
     fontSize: 16,
-    color: '#111827',
+    color: "#111827",
   },
   actions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
     marginTop: 24,
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: "#f3f4f6",
     borderRadius: 8,
     padding: 14,
-    alignItems: 'center',
+    alignItems: "center",
   },
   cancelButtonText: {
-    color: '#374151',
+    color: "#374151",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   confirmButton: {
     flex: 1,
-    backgroundColor: '#2563eb',
+    backgroundColor: "#2563eb",
     borderRadius: 8,
     padding: 14,
-    alignItems: 'center',
+    alignItems: "center",
   },
   confirmButtonDisabled: {
-    backgroundColor: '#d1d5db',
+    backgroundColor: "#d1d5db",
   },
   confirmButtonText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

@@ -94,7 +94,7 @@ export default function AgentDashboardScreen() {
   };
 
   const currentOrders = orders.filter((o) =>
-    ["accepted_by_agent", "pickup_scheduled"].includes(o.status),
+    ["accepted_by_agent"].includes(o.status),
   );
 
   if (loading) {
@@ -131,15 +131,6 @@ export default function AgentDashboardScreen() {
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{currentOrders.length}</Text>
           <Text style={styles.statLabel}>Current Orders</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>
-            {
-              currentOrders.filter((o) => o.status === "pickup_scheduled")
-                .length
-            }
-          </Text>
-          <Text style={styles.statLabel}>Scheduled</Text>
         </View>
       </View>
 
@@ -265,14 +256,6 @@ function AgentOrderCard({
             onPress={() => orderIdentifier && onSchedule(orderIdentifier)}
           >
             <Text style={styles.scheduleButtonText}>Schedule Pickup</Text>
-          </TouchableOpacity>
-        )}
-        {order.status === "pickup_scheduled" && (
-          <TouchableOpacity
-            style={styles.completeButton}
-            onPress={() => orderIdentifier && onComplete(orderIdentifier)}
-          >
-            <Text style={styles.completeButtonText}>Complete Pickup</Text>
           </TouchableOpacity>
         )}
       </View>

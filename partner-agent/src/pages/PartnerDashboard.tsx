@@ -5,6 +5,7 @@ import api from "../lib/api";
 import { Button } from "../components/ui/button";
 import Header from "../components/Header";
 import { HoldNotificationBanner } from "../components/HoldNotificationBanner";
+import PickupDetailsModal from "../components/PickupDetailsModal";
 import {
   Card,
   CardContent,
@@ -67,6 +68,10 @@ export default function PartnerDashboard() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [assigningOrder, setAssigningOrder] = useState<number | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
+  const [showPickupDetailsModal, setShowPickupDetailsModal] = useState(false);
+  const [selectedOrderIdForPickup, setSelectedOrderIdForPickup] = useState<
+    number | null
+  >(null);
 
   useEffect(() => {
     fetchAllData();
@@ -99,8 +104,7 @@ export default function PartnerDashboard() {
         orders.filter(
           (order) =>
             order.status === "assigned_to_agent" ||
-            order.status === "accepted_by_agent" ||
-            order.status === "pickup_scheduled",
+            order.status === "accepted_by_agent",
         ),
       );
 
@@ -202,7 +206,6 @@ export default function PartnerDashboard() {
       partner_locked: "bg-purple-500",
       agent_assigned: "bg-yellow-500",
       agent_accepted: "bg-green-500",
-      pickup_scheduled: "bg-teal-500",
       pickup_completed: "bg-indigo-500",
       payment_processed: "bg-emerald-500",
     };
@@ -217,9 +220,11 @@ export default function PartnerDashboard() {
   const LeadCard = ({
     lead,
     showLockButton,
+    isCompleted,
   }: {
     lead: Lead;
     showLockButton?: boolean;
+    isCompleted?: boolean;
   }) => (
     <motion.div
       layout
@@ -267,22 +272,47 @@ export default function PartnerDashboard() {
           )}
 
           <div className="flex gap-2 pt-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex-1 text-xs h-8"
-              onClick={() => navigate(`/partner/lead/${lead.id}`)}
-            >
-              View Details
-            </Button>
-            {showLockButton && (
-              <Button
-                size="sm"
-                className="flex-1 text-xs h-8"
-                onClick={() => navigate(`/partner/lead/${lead.id}`)}
-              >
-                Lock Lead
-              </Button>
+            {isCompleted ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-xs h-8"
+                  onClick={() => navigate(`/partner/lead/${lead.id}`)}
+                >
+                  View Details
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 text-xs h-8 bg-blue-600 hover:bg-blue-700"
+                  onClick={() => {
+                    setSelectedOrderIdForPickup(lead.id);
+                    setShowPickupDetailsModal(true);
+                  }}
+                >
+                  Pickup Details
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-xs h-8"
+                  onClick={() => navigate(`/partner/lead/${lead.id}`)}
+                >
+                  View Details
+                </Button>
+                {showLockButton && (
+                  <Button
+                    size="sm"
+                    className="flex-1 text-xs h-8"
+                    onClick={() => navigate(`/partner/lead/${lead.id}`)}
+                  >
+                    Lock Lead
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </CardContent>
@@ -302,7 +332,7 @@ export default function PartnerDashboard() {
             <div className="text-right">
               <div className="text-sm text-gray-500">Credit Balance</div>
               <div className="text-xl font-bold text-green-600">
-                ₹{user?.credit_balance || 0}
+                ◇{user?.credit_balance || 0}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -731,7 +761,7 @@ export default function PartnerDashboard() {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {completedOrders.map((lead) => (
-                      <LeadCard key={lead.id} lead={lead} />
+                      <LeadCard key={lead.id} lead={lead} isCompleted={true} />
                     ))}
                   </div>
                 )}
@@ -740,6 +770,18 @@ export default function PartnerDashboard() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Pickup Details Modal */}
+      {selectedOrderIdForPickup && (
+        <PickupDetailsModal
+          isOpen={showPickupDetailsModal}
+          onClose={() => {
+            setShowPickupDetailsModal(false);
+            setSelectedOrderIdForPickup(null);
+          }}
+          orderId={selectedOrderIdForPickup}
+        />
+      )}
 
       {/* Buy Credits Modal */}
       {showBuyModal && (

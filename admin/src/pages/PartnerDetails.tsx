@@ -326,7 +326,7 @@ export default function PartnerDetails() {
             </div>
             <div>
               <Label className="text-muted-foreground">Credit Balance</Label>
-              <p className="font-medium">₹{partner.credit_balance}</p>
+              <p className="font-medium">◇{partner.credit_balance}</p>
             </div>
             <div>
               <Label className="text-muted-foreground">Applied On</Label>

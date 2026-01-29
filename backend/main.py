@@ -35,6 +35,7 @@ origins = [
     "http://localhost:5173",
     "https://lying-bobby-eligible-promo.trycloudflare.com",
     "http://localhost:5175",
+    "https://polymer-thing-promise-commentary.trycloudflare.com"
 ]
 
 

@@ -15,4 +15,11 @@ export default defineConfig({
       process.env.VITE_API_BASE_URL || "http://localhost:8000",
     ),
   },
+  server: {
+    allowedHosts: [
+      "polymer-thing-promise-commentary.trycloudflare.com",
+      "192.168.1.100",
+      ".example.com", // Allows example.com and all subdomains
+    ],
+  },
 });

@@ -48,7 +48,6 @@ export default function MyOrders() {
       lead_purchased: "bg-indigo-100 text-indigo-800 border-indigo-200",
       assigned_to_agent: "bg-yellow-100 text-yellow-800 border-yellow-200",
       accepted_by_agent: "bg-cyan-100 text-cyan-800 border-cyan-200",
-      pickup_scheduled: "bg-orange-100 text-orange-800 border-orange-200",
       pickup_completed: "bg-green-100 text-green-800 border-green-200",
       pickup_completed_declined: "bg-red-100 text-red-800 border-red-200",
       payment_processed: "bg-emerald-100 text-emerald-800 border-emerald-200",
@@ -61,11 +60,7 @@ export default function MyOrders() {
 
   const getStatusIcon = (status: string) => {
     const completedStatuses = ["pickup_completed", "payment_processed"];
-    const inProgressStatuses = [
-      "assigned_to_agent",
-      "accepted_by_agent",
-      "pickup_scheduled",
-    ];
+    const inProgressStatuses = ["assigned_to_agent", "accepted_by_agent"];
     const errorStatuses = ["cancelled", "pickup_completed_declined"];
 
     if (completedStatuses.includes(status)) {
@@ -87,7 +82,6 @@ export default function MyOrders() {
       lead_purchased: "Partner Assigned",
       assigned_to_agent: "Agent Assigned",
       accepted_by_agent: "Agent Accepted",
-      pickup_scheduled: "Pickup Scheduled",
       pickup_completed: "Pickup Completed",
       pickup_completed_declined: "Offer Declined",
       payment_processed: "Payment Complete",

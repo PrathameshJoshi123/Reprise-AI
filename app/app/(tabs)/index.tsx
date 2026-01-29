@@ -56,9 +56,7 @@ export default function PartnerDashboard() {
       ).length;
       const inProgress = orders.filter(
         (o: any) =>
-          o.status === "assigned_to_agent" ||
-          o.status === "accepted_by_agent" ||
-          o.status === "pickup_scheduled",
+          o.status === "assigned_to_agent" || o.status === "accepted_by_agent",
       ).length;
       const completed = orders.filter(
         (o: any) =>

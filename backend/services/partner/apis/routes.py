@@ -7,11 +7,13 @@ from backend.services.partner.schema.models import Agent, Partner
 from backend.services.partner import utils as partner_utils
 from backend.services.auth import utils as auth_utils
 from backend.services.sell_phone.schema.models import Order
+from backend.services.sell_phone.schema.agent_pickup_details import AgentPickupDetails
 from backend.services.sell_phone.utils import create_status_history
 from typing import List
 from datetime import datetime, timezone
 from backend.services.admin.schema.models import CreditPlan, PartnerCreditTransaction
 from backend.services.admin import schema as admin_schemas
+import base64
 
 router = APIRouter(prefix="/partner", tags=["Partner"])
 
@@ -663,4 +665,70 @@ def reassign_order_to_agent(
         "new_agent_name": new_agent.full_name,
         "new_agent_phone": new_agent.phone,
         "new_agent_email": new_agent.email
+    }
+
+
+# ================================
+# AGENT PICKUP DETAILS ENDPOINTS
+# ================================
+
+@router.get("/orders/{order_id}/pickup-details", response_model=dict)
+def get_order_pickup_details(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_partner: Partner = Depends(auth_utils.get_current_partner),
+):
+    """
+    Get detailed pickup information including photos and inspection form data.
+    Photos are returned as base64 encoded strings.
+    Only accessible to the partner who purchased the order.
+    """
+    # Validate partner owns this order
+    order = partner_utils.validate_partner_order_access(db, current_partner.id, order_id)
+    
+    # Get pickup details
+    pickup_details = db.query(AgentPickupDetails).filter(
+        AgentPickupDetails.order_id == order_id
+    ).first()
+    
+    if not pickup_details:
+        return {
+            "order_id": order_id,
+            "has_pickup_details": False,
+            "message": "No pickup details found for this order"
+        }
+    
+    # Get agent info
+    agent = db.query(Agent).filter(Agent.id == pickup_details.agent_id).first()
+    
+    # Return photos as base64 encoded string for JSON serialization
+    photos_base64 = None
+    if pickup_details.photos_blob:
+        try:
+            photos_base64 = base64.b64encode(pickup_details.photos_blob).decode('utf-8')
+        except Exception as e:
+            print(f"Error encoding photos to base64: {e}")
+            photos_base64 = None
+    
+    return {
+        "order_id": order_id,
+        "has_pickup_details": True,
+        "agent": {
+            "id": agent.id,
+            "name": agent.full_name,
+            "email": agent.email,
+            "phone": agent.phone,
+        } if agent else None,
+        "phone_conditions": pickup_details.phone_conditions,
+        "final_offered_price": pickup_details.final_offered_price,
+        "customer_accepted_offer": pickup_details.customer_accepted_offer == 1,
+        "payment_method": pickup_details.payment_method,
+        "pickup_notes": pickup_details.pickup_notes,
+        "actual_condition": pickup_details.actual_condition,
+        "photos_metadata": pickup_details.photos_metadata,  # JSON metadata for each photo
+        "photos_blob": photos_base64,  # Base64 encoded string for all photos
+        "photos_count": len(pickup_details.photos_metadata) if pickup_details.photos_metadata else 0,
+        "total_blob_size": len(pickup_details.photos_blob) if pickup_details.photos_blob else 0,
+        "captured_at": pickup_details.captured_at.isoformat() if pickup_details.captured_at else None,
+        "created_at": pickup_details.created_at.isoformat() if pickup_details.created_at else None,
     }

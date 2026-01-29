@@ -234,9 +234,7 @@ export default function Checkout() {
       phone_name: phoneData.name,
       brand: phoneData.brand || phoneData.name.split(" ")[0],
       model: phoneData.model || phoneData.name.split(" ").slice(1).join(" "),
-      ram_gb:
-        phoneData.ram_gb ||
-        parseFloat(phoneData.variant?.match(/\d+/)?.[0] || "0"),
+      ram_gb: phoneData.ram_gb,
       storage_gb:
         phoneData.storage_gb ||
         parseFloat(phoneData.variant?.match(/\d+/)?.[0] || "0"),

@@ -54,7 +54,6 @@ export default function DashboardScreen() {
         api.get("/partner/me"),
       ]);
 
-
       setOrders(ordersRes.data);
       setLockedDeals(lockedRes.data);
       setCreditBalance(partnerRes.data.credit_balance || 0);
@@ -122,11 +121,7 @@ export default function DashboardScreen() {
         return orders.filter((o) => o.status === "lead_purchased");
       case "in_progress":
         return orders.filter((o) =>
-          [
-            "assigned_to_agent",
-            "accepted_by_agent",
-            "pickup_scheduled",
-          ].includes(o.status),
+          ["assigned_to_agent", "accepted_by_agent"].includes(o.status),
         );
       case "completed":
         return orders.filter((o) =>
@@ -158,9 +153,7 @@ export default function DashboardScreen() {
       id: "in_progress" as TabType,
       label: "In Progress",
       count: orders.filter((o) =>
-        ["assigned_to_agent", "accepted_by_agent", "pickup_scheduled"].includes(
-          o.status,
-        ),
+        ["assigned_to_agent", "accepted_by_agent"].includes(o.status),
       ).length,
     },
     {

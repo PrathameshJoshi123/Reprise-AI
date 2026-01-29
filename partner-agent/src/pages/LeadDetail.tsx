@@ -16,11 +16,12 @@ interface Lead {
   pickup_address_line: string;
   pickup_city: string;
   pickup_state: string;
-  pickup_pincode: string;
+  pickup_pincode: string | null;
+  phone_name: string;
   brand: string;
   model: string;
-  ram_gb: number;
-  storage_gb: number;
+  ram_gb: number | null;
+  storage_gb: number | null;
   ai_estimated_price: number;
   final_quoted_price: number;
   ai_reasoning: string;
@@ -196,10 +197,17 @@ export default function LeadDetail() {
                     </div>
                     <div className="flex-1">
                       <div className="text-2xl font-bold text-gray-900 mb-1">
-                        {lead.brand} {lead.model}
+                        {lead.phone_name || `${lead.brand} ${lead.model}`}
                       </div>
                       <div className="text-sm text-gray-600">
-                        {lead.ram_gb}GB RAM • {lead.storage_gb}GB Storage
+                        {[
+                          lead.ram_gb ? `${lead.ram_gb}GB RAM` : null,
+                          lead.storage_gb
+                            ? `${lead.storage_gb}GB Storage`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" • ")}
                       </div>
                     </div>
                   </div>
@@ -364,7 +372,10 @@ export default function LeadDetail() {
                             <div className="text-xs text-gray-500">Address</div>
                             <div className="font-semibold text-sm text-gray-900 leading-relaxed">
                               {lead.pickup_address_line}, {lead.pickup_city},{" "}
-                              {lead.pickup_state} - {lead.pickup_pincode}
+                              {lead.pickup_state}
+                              {lead.pickup_pincode
+                                ? ` - ${lead.pickup_pincode}`
+                                : ""}
                             </div>
                           </div>
                         </div>

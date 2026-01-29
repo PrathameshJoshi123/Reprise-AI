@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Form, UploadFile, File
 from sqlalchemy.orm import Session
 from backend.shared.db.connections import get_db
 from backend.services.partner.schema import schemas as partner_schemas
@@ -6,9 +6,11 @@ from backend.services.partner.schema.models import Agent
 from backend.services.partner import utils as partner_utils
 from backend.services.auth import utils as auth_utils
 from backend.services.sell_phone.schema.models import Order
+from backend.services.sell_phone.schema.agent_pickup_details import AgentPickupDetails
 from backend.services.sell_phone.utils import create_status_history
 from typing import List, Optional
 from datetime import datetime
+import json
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
 
@@ -176,79 +178,23 @@ def get_agent_order_detail(
     }
 
 
-@router.post("/orders/{order_id}/schedule-pickup", status_code=200)
-def schedule_pickup(
-    order_id: int,
-    payload: partner_schemas.SchedulePickupRequest,
-    db: Session = Depends(get_db),
-    current_agent: Agent = Depends(auth_utils.get_current_agent),
-):
-    """
-    Schedule pickup for an assigned order.
-    When partner assigns an order to agent, agent must complete the order.
-    No accept/reject allowed - agent directly schedules pickup.
-    """
-    # Check if agent's partner is on hold
-    if partner_utils.check_partner_on_hold(db, current_agent.partner_id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your partner account is on hold. You cannot schedule pickups at this time. Contact your partner administrator."
-        )
-    
-    order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
-    
-    # Validate order status - agent can schedule from assigned_to_agent status
-    if order.status not in ["assigned_to_agent", "accepted_by_agent"]:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Can only schedule pickup for assigned orders (current status: {order.status})"
-        )
-    
-    # Update order status to accepted (auto-accept) and schedule pickup
-    old_status = order.status
-    order.status = "pickup_scheduled"
-    order.pickup_date = payload.scheduled_date
-    order.pickup_time = payload.scheduled_time
-    
-    # Set accepted_at if not already set
-    if not order.accepted_at:
-        order.accepted_at = datetime.utcnow()
-    
-    # Create status history - directly from assigned_to_agent to pickup_scheduled
-    notes = f"Order auto-accepted and pickup scheduled for {payload.scheduled_date} at {payload.scheduled_time}"
-    if payload.notes:
-        notes += f" - Notes: {payload.notes}"
-    
-    create_status_history(
-        db=db,
-        order_id=order_id,
-        from_status=old_status,
-        to_status="pickup_scheduled",
-        changed_by_user_type="agent",
-        changed_by_user_id=current_agent.id,
-        notes=notes
-    )
-    
-    db.commit()
-    
-    return {
-        "message": "Pickup scheduled successfully",
-        "order_id": order_id,
-        "pickup_date": payload.scheduled_date,
-        "pickup_time": payload.scheduled_time
-    }
-
-
 @router.post("/orders/{order_id}/complete-pickup", status_code=200)
 def complete_pickup(
     order_id: int,
-    payload: Optional[partner_schemas.CompletePickupRequest] = None,
+    final_offered_price: float = Form(...),
+    customer_accepted: bool = Form(...),
+    actual_condition: str = Form(default="Inspected"),
+    pickup_notes: str = Form(default=""),
+    payment_method: str = Form(default=""),
+    phone_conditions: str = Form(default=None),
+    photos: List[UploadFile] = File(default=None),
     db: Session = Depends(get_db),
     current_agent: Agent = Depends(auth_utils.get_current_agent),
 ):
     """
-    Complete the pickup process.
-    Records actual condition, final price, and customer acceptance.
+    Complete the pickup process with detailed phone inspection.
+    Records actual condition, final price, customer acceptance, and photos.
+    Stores all photos as binary BLOB data in the database.
     """
     # Check if agent's partner is on hold
     if partner_utils.check_partner_on_hold(db, current_agent.partner_id):
@@ -259,47 +205,111 @@ def complete_pickup(
     
     order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
     
-    if not payload:
+    # Validate order status - can complete from accepted_by_agent
+    if order.status != "accepted_by_agent":
         raise HTTPException(
             status_code=400,
-            detail="Request body required with actual_condition, final_offered_price, customer_accepted"
-        )
-    
-    # Validate order status
-    if order.status != "pickup_scheduled":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Can only complete scheduled pickups (current status: {order.status})"
+            detail=f"Can only complete pickup from accepted_by_agent status (current status: {order.status})"
         )
     
     # Update order with pickup completion details
-    order.actual_condition = payload.actual_condition
-    order.final_offered_price = payload.final_offered_price
-    order.customer_accepted_offer = payload.customer_accepted
-    order.pickup_notes = payload.pickup_notes
+    order.actual_condition = actual_condition
+    order.final_offered_price = final_offered_price
+    order.customer_accepted_offer = customer_accepted
+    order.pickup_notes = pickup_notes or ""
     order.completed_at = datetime.utcnow()
     
-    if payload.payment_method:
-        order.payment_method = payload.payment_method
+    if payment_method:
+        order.payment_method = payment_method
+    
+    # Parse phone conditions if provided
+    phone_conditions_data = None
+    if phone_conditions:
+        try:
+            phone_conditions_data = json.loads(phone_conditions) if isinstance(phone_conditions, str) else phone_conditions
+        except:
+            phone_conditions_data = None
+    
+    # Process and store photos as BLOB
+    photos_metadata = []
+    all_photos_blob = b''
+    
+    if photos and len(photos) > 0:
+        for idx, photo in enumerate(photos):
+            try:
+                # Read photo file as binary
+                # Try to read from file attribute first, then fallback to direct read
+                if hasattr(photo, 'file') and hasattr(photo.file, 'read'):
+                    photo_bytes = photo.file.read()
+                else:
+                    photo_bytes = photo.read()
+                
+                # Validate photo data
+                if not photo_bytes or len(photo_bytes) == 0:
+                    print(f"Warning: Photo {idx} is empty, skipping")
+                    continue
+                
+                # Store binary data
+                all_photos_blob += photo_bytes
+                
+                # Store metadata only (no base64 data)
+                photos_metadata.append({
+                    "index": idx,
+                    "filename": photo.filename,
+                    "content_type": photo.content_type,
+                    "size_bytes": len(photo_bytes),
+                    "captured_at": datetime.utcnow().isoformat()
+                })
+                
+                print(f"Processed photo {idx}: {photo.filename} ({len(photo_bytes)} bytes)")
+            except Exception as e:
+                # Log error but don't fail the entire request
+                print(f"Error processing photo {idx}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                continue
+    
+    # Create or update AgentPickupDetails record
+    pickup_details = db.query(AgentPickupDetails).filter(
+        AgentPickupDetails.order_id == order_id
+    ).first()
+    
+    if not pickup_details:
+        pickup_details = AgentPickupDetails(
+            order_id=order_id,
+            agent_id=current_agent.id
+        )
+        db.add(pickup_details)
+    
+    # Update pickup details with BLOB data
+    pickup_details.phone_conditions = phone_conditions_data
+    pickup_details.photos_metadata = photos_metadata if photos_metadata else None
+    pickup_details.photos_blob = all_photos_blob if all_photos_blob else None
+    pickup_details.final_offered_price = int(final_offered_price)
+    pickup_details.customer_accepted_offer = 1 if customer_accepted else 0
+    pickup_details.payment_method = payment_method or None
+    pickup_details.pickup_notes = pickup_notes or None
+    pickup_details.actual_condition = actual_condition
+    pickup_details.captured_at = datetime.utcnow()
     
     # Determine next status based on customer acceptance
-    if payload.customer_accepted:
+    if customer_accepted:
         order.status = "pickup_completed"
         new_status = "pickup_completed"
-        notes = f"Pickup completed. Customer accepted offer of ₹{payload.final_offered_price}"
+        notes = f"Pickup completed. Customer accepted offer of ₹{final_offered_price}"
     else:
         order.status = "pickup_completed_declined"
         new_status = "pickup_completed_declined"
-        notes = f"Pickup completed. Customer declined offer of ₹{payload.final_offered_price}"
+        notes = f"Pickup completed. Customer declined offer of ₹{final_offered_price}"
     
-    if payload.pickup_notes:
-        notes += f" - Notes: {payload.pickup_notes}"
+    if pickup_notes:
+        notes += f" - Notes: {pickup_notes}"
     
     # Create status history
     create_status_history(
         db=db,
         order_id=order_id,
-        from_status="pickup_scheduled",
+        from_status="accepted_by_agent",
         to_status=new_status,
         changed_by_user_type="agent",
         changed_by_user_id=current_agent.id,
@@ -312,7 +322,9 @@ def complete_pickup(
         "message": "Pickup completed successfully",
         "order_id": order_id,
         "status": order.status,
-        "customer_accepted": payload.customer_accepted
+        "customer_accepted": customer_accepted,
+        "photos_count": len(photos_metadata),
+        "total_blob_size": len(all_photos_blob)
     }
 
 
@@ -405,11 +417,10 @@ def reschedule_pickup(
     order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
     
     # Validate order status
-    valid_statuses = ["accepted_by_agent", "pickup_scheduled"]
-    if order.status not in valid_statuses:
+    if order.status != "accepted_by_agent":
         raise HTTPException(
             status_code=400,
-            detail=f"Can only reschedule accepted or scheduled pickups (current status: {order.status})"
+            detail=f"Can only reschedule pickup from accepted_by_agent status (current status: {order.status})"
         )
     
     old_date = order.pickup_date.strftime('%d/%m/%Y') if order.pickup_date else 'Not set'
@@ -418,8 +429,6 @@ def reschedule_pickup(
     # Update order with new pickup schedule
     order.pickup_date = payload.new_date
     order.pickup_time = payload.new_time
-    if order.status == "accepted_by_agent":
-        order.status = "pickup_scheduled"
     
     # Create status history
     notes = f"Pickup rescheduled from {old_date} {old_time} to {payload.new_date} at {payload.new_time}. Reason: {payload.reschedule_reason}"
@@ -429,8 +438,8 @@ def reschedule_pickup(
     create_status_history(
         db=db,
         order_id=order_id,
-        from_status=order.status,
-        to_status="pickup_scheduled",
+        from_status="accepted_by_agent",
+        to_status="accepted_by_agent",
         changed_by_user_type="agent",
         changed_by_user_id=current_agent.id,
         notes=notes
@@ -454,7 +463,8 @@ def cancel_pickup(
     current_agent: Agent = Depends(auth_utils.get_current_agent),
 ):
     """
-    Cancel a pickup. Returns order to partner for reassignment.
+    Cancel a pickup when customer is not willing to sell.
+    Marks the order as cancelled (terminal state).
     """
     # Check if agent's partner is on hold
     if partner_utils.check_partner_on_hold(db, current_agent.partner_id):
@@ -466,27 +476,22 @@ def cancel_pickup(
     order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
     
     # Validate order status
-    valid_statuses = ["accepted_by_agent", "pickup_scheduled"]
-    if order.status not in valid_statuses:
+    if order.status != "accepted_by_agent":
         raise HTTPException(
             status_code=400,
-            detail=f"Can only cancel accepted or scheduled pickups (current status: {order.status})"
+            detail=f"Can only cancel pickup from accepted_by_agent status (current status: {order.status})"
         )
     
     old_status = order.status
     
-    # Update order - return to purchased status, clear agent assignment
-    order.status = "lead_purchased"
+    # Update order - mark as cancelled (customer doesn't want to sell)
+    order.status = "cancelled"
     order.cancelled_at = datetime.utcnow()
     order.cancellation_reason = payload.cancellation_reason
-    order.agent_id = None
-    order.assigned_at = None
-    order.accepted_at = None
-    order.pickup_date = None
-    order.pickup_time = None
+    # Keep agent assignment but mark as cancelled
     
     # Create status history
-    notes = f"Pickup cancelled by agent {current_agent.full_name}. Reason: {payload.cancellation_reason}"
+    notes = f"Order cancelled by agent {current_agent.full_name}. Customer not willing to sell. Reason: {payload.cancellation_reason}"
     if payload.notes:
         notes += f" - Notes: {payload.notes}"
     
@@ -494,7 +499,7 @@ def cancel_pickup(
         db=db,
         order_id=order_id,
         from_status=old_status,
-        to_status="lead_purchased",
+        to_status="cancelled",
         changed_by_user_type="agent",
         changed_by_user_id=current_agent.id,
         notes=notes
@@ -503,7 +508,7 @@ def cancel_pickup(
     db.commit()
     
     return {
-        "message": "Pickup cancelled. Order returned to partner for reassignment.",
+        "message": "Order cancelled. Customer is not willing to sell.",
         "order_id": order_id,
         "status": order.status
     }
