@@ -26,17 +26,19 @@ if os.name == "nt":
 app = FastAPI(title="RepriseAI Backend", version="1.0.0")
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY", "supersecretkey"))
 # Configure CORS
-# Build a safe list of allowed origins. If FRONTEND_URL env is set (single URL or comma-separated), use it.
-# Otherwise include common local dev origins used by Expo and web tooling.
-
-origins = [
-    "http://localhost:5174",  # your frontend dev server
-    "http://localhost:8081",
-    "http://localhost:5173",
-    "https://lying-bobby-eligible-promo.trycloudflare.com",
-    "http://localhost:5175",
-    "https://polymer-thing-promise-commentary.trycloudflare.com"
-]
+# Build a safe list of allowed origins from environment variable
+# Read CORS_ORIGINS from .env (comma-separated URLs)
+cors_origins_env = os.getenv("CORS_ORIGINS", "")
+if cors_origins_env:
+    origins = [origin.strip() for origin in cors_origins_env.split(",")]
+else:
+    # Fallback to default origins if not set
+    origins = [
+        "http://localhost:5174",
+        "http://localhost:8081",
+        "http://localhost:5173",
+        "http://localhost:5175",
+    ]
 
 
 app.add_middleware(
