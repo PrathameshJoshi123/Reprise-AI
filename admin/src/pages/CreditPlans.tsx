@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import api from "../lib/api";
+import { toast } from "sonner";
+import { showErrorToastWithRetry, showSuccessToast } from "../lib/errorHandler";
 import { formatDateTime, formatCurrency } from "../lib/utils";
 import { Button } from "../components/ui/button";
 import {
@@ -77,10 +79,13 @@ export default function CreditPlans() {
 
   const fetchPlans = async () => {
     try {
+      setLoading(true);
       const response = await api.get("/admin/credit-plans");
       setPlans(response.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch credit plans:", error);
+      const retryFn = () => fetchPlans();
+      showErrorToastWithRetry(error, retryFn, "Credit plans");
     } finally {
       setLoading(false);
     }
@@ -96,8 +101,9 @@ export default function CreditPlans() {
       if (leadCostConfig) {
         setLeadCostPercentage(leadCostConfig.config_value);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch system config:", error);
+      toast.error("Could not load system config.", { duration: 3000 });
     }
   };
 
@@ -110,12 +116,25 @@ export default function CreditPlans() {
         price: parseFloat(formData.price),
         bonus_percentage: parseFloat(formData.bonus_percentage) || 0,
       });
-      toast.success("Credit plan created successfully");
+      showSuccessToast("Credit plan created successfully!");
       setCreateDialog(false);
       resetForm();
       await fetchPlans();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to create plan");
+      if (
+        error.response?.status === 400 &&
+        error.response?.data?.detail?.includes("already exists")
+      ) {
+        toast.error("A plan with this name already exists.", {
+          duration: 4000,
+        });
+      } else {
+        showErrorToastWithRetry(
+          error,
+          () => handleCreate(e),
+          "Create credit plan",
+        );
+      }
     }
   };
 
@@ -130,13 +149,21 @@ export default function CreditPlans() {
         price: parseFloat(formData.price),
         bonus_percentage: parseFloat(formData.bonus_percentage) || 0,
       });
-      toast.success("Credit plan updated successfully");
+      showSuccessToast("Credit plan updated successfully!");
       setEditDialog(false);
       resetForm();
       setSelectedPlan(null);
       await fetchPlans();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to update plan");
+      if (error.response?.status === 404) {
+        toast.error("Credit plan not found.", { duration: 4000 });
+      } else {
+        showErrorToastWithRetry(
+          error,
+          () => handleEdit(e),
+          "Update credit plan",
+        );
+      }
     }
   };
 
@@ -146,10 +173,25 @@ export default function CreditPlans() {
 
     try {
       await api.delete(`/admin/credit-plans/${id}`);
-      toast.success("Credit plan deactivated");
+      showSuccessToast("Credit plan deactivated successfully!");
       await fetchPlans();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to delete plan");
+      if (error.response?.status === 404) {
+        toast.error("Credit plan not found.", { duration: 4000 });
+      } else if (
+        error.response?.status === 400 &&
+        error.response?.data?.detail?.includes("in use")
+      ) {
+        toast.error("Cannot deactivate a plan that has active subscriptions.", {
+          duration: 4000,
+        });
+      } else {
+        showErrorToastWithRetry(
+          error,
+          () => handleDelete(id),
+          "Delete credit plan",
+        );
+      }
     }
   };
 
@@ -179,14 +221,24 @@ export default function CreditPlans() {
     e.preventDefault();
     setIsUpdatingConfig(true);
     try {
+      const value = parseFloat(leadCostPercentage);
+      if (isNaN(value) || value < 0 || value > 100) {
+        toast.error("Please enter a valid percentage between 0 and 100.", {
+          duration: 4000,
+        });
+        setIsUpdatingConfig(false);
+        return;
+      }
       await api.put("/admin/config/lead_cost_percentage", {
         config_value: leadCostPercentage,
       });
-      toast.success("Lead cost percentage updated successfully");
+      showSuccessToast("Lead cost percentage updated successfully!");
       setConfigDialog(false);
     } catch (error: any) {
-      toast.error(
-        error.response?.data?.detail || "Failed to update configuration",
+      showErrorToastWithRetry(
+        error,
+        () => handleUpdateLeadCostPercentage(e),
+        "Update lead cost percentage",
       );
     } finally {
       setIsUpdatingConfig(false);

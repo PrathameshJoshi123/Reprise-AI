@@ -17,6 +17,12 @@ import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
+import { toast } from "sonner";
+import {
+  showErrorToastWithRetry,
+  showSuccessToast,
+  classifyError,
+} from "@/lib/errorHandler";
 
 export function LoginForm({
   className,
@@ -32,13 +38,67 @@ export function LoginForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    // Prevent double-submit
+    if (loading) {
+      return;
+    }
+
     setLoading(true);
 
     try {
       await login(email, password);
+      showSuccessToast("Welcome back!");
       navigate("/");
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Login failed");
+      const errorInfo = classifyError(err);
+
+      // Show specific error message
+      if (err.response?.status === 403) {
+        const msg =
+          "Your admin account is inactive. Contact system administrator.";
+        setError(msg);
+        toast.error(msg, { duration: 5000 });
+      } else if (err.response?.status === 401) {
+        const msg = "Invalid email or password. Please check and try again.";
+        setError(msg);
+        toast.error(msg, { duration: 4000 });
+      } else if (
+        err.code === "ECONNABORTED" ||
+        err.message.includes("timeout")
+      ) {
+        const msg =
+          "Connection timeout. Please check your internet and try again.";
+        setError(msg);
+        toast.error(msg, {
+          duration: 4000,
+          action: {
+            label: "Retry",
+            onClick: () => handleSubmit(e),
+          },
+        });
+      } else if (!err.response) {
+        const msg = "Network error. Please check your connection.";
+        setError(msg);
+        toast.error(msg, {
+          duration: 4000,
+          action: {
+            label: "Retry",
+            onClick: () => handleSubmit(e),
+          },
+        });
+      } else {
+        const msg =
+          "Unable to connect to login service. Please try again later.";
+        setError(msg);
+        toast.error(msg, {
+          duration: 4000,
+          action: {
+            label: "Retry",
+            onClick: () => handleSubmit(e),
+          },
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -87,9 +147,7 @@ export function LoginForm({
                 <Button type="submit" disabled={loading}>
                   {loading ? "Logging in..." : "Login"}
                 </Button>
-                {error && (
-                  <p className="mt-2 text-sm text-red-600">{error}</p>
-                )}
+                {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
               </Field>
             </FieldGroup>
           </CardContent>

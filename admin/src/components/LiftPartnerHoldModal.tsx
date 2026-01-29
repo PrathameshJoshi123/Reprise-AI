@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import api from "../lib/api";
+import { showErrorToastWithRetry, showSuccessToast } from "../lib/errorHandler";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -36,7 +37,16 @@ export default function LiftPartnerHoldModal({
 
   const handleLiftHold = async () => {
     if (!liftReason.trim()) {
-      toast.error("Please provide a reason for lifting the hold");
+      toast.error("Please provide a reason for lifting the hold", {
+        duration: 4000,
+      });
+      return;
+    }
+
+    if (liftReason.trim().length < 5) {
+      toast.error("Reason must be at least 5 characters long.", {
+        duration: 4000,
+      });
       return;
     }
 
@@ -45,12 +55,21 @@ export default function LiftPartnerHoldModal({
       await api.post(`/admin/partners/${partnerId}/lift-hold`, {
         lift_reason: liftReason.trim(),
       });
-      toast.success(`Partner "${partnerName}" hold has been lifted`);
+      showSuccessToast(`Partner "${partnerName}" hold lifted!`);
       setLiftReason("");
       onHoldLifted();
       onClose();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to lift hold");
+      if (error.response?.status === 404) {
+        toast.error("Partner not found or hold not found.", { duration: 4000 });
+      } else if (
+        error.response?.status === 400 &&
+        error.response?.data?.detail?.includes("not on hold")
+      ) {
+        toast.error("This partner is not on hold.", { duration: 4000 });
+      } else {
+        showErrorToastWithRetry(error, handleLiftHold, "Lift hold");
+      }
     } finally {
       setLoading(false);
     }

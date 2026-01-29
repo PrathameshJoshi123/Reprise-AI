@@ -49,7 +49,6 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(
         (models.User.phone == payload.identifier) | (models.User.email == payload.identifier)
     ).first()
-    print(user)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect credentials")
     if not user.is_active:

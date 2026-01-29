@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../lib/api";
+import { toast } from "sonner";
+import { showErrorToastWithRetry, showWarningToast } from "../lib/errorHandler";
 import { formatDateTime, formatCurrency } from "../lib/utils";
 import { getOrderStatusColor } from "../lib/badgeUtils";
 import {
@@ -98,8 +100,16 @@ export default function Orders() {
         setTotal(response.data.total || 0);
         setTotalPages(response.data.total_pages || 1);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch orders:", error);
+      if (error.code === "ECONNABORTED") {
+        showWarningToast(
+          "Request timed out. Try adjusting filters or date range.",
+        );
+      } else {
+        const retryFn = () => fetchOrders();
+        showErrorToastWithRetry(error, retryFn, "Orders");
+      }
       setOrders([]);
       setTotal(0);
       setTotalPages(0);

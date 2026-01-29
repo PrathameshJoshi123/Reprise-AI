@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../lib/api";
-import { Button } from "../components/ui/button";
+import { toast } from "sonner";
+import {
+  showErrorToastWithRetry,
+  showSuccessToast,
+  showWarningToast,
+} from "../lib/errorHandler";
 import {
   Card,
   CardContent,
@@ -27,7 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
-import { toast } from "sonner";
+import { Button } from "../components/ui/button";
 
 interface User {
   id: number;
@@ -60,8 +65,10 @@ export default function Customers() {
       setFetching(true);
       const response = await api.get("/admin/users");
       setUsers(response.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch users:", error);
+      const retryFn = () => fetchUsers();
+      showErrorToastWithRetry(error, retryFn, "Users");
     } finally {
       setFetching(false);
     }
@@ -71,7 +78,7 @@ export default function Customers() {
     e.preventDefault();
     try {
       await api.post("/admin/users", formData);
-      toast.success("Customer created successfully");
+      showSuccessToast("Customer created successfully!");
       setCreateDialog(false);
       setFormData({
         email: "",
@@ -82,19 +89,62 @@ export default function Customers() {
       });
       await fetchUsers();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to create customer");
+      if (
+        error.response?.status === 400 &&
+        error.response?.data?.detail?.includes("email")
+      ) {
+        toast.error("Customer with this email already exists.", {
+          duration: 4000,
+        });
+      } else if (
+        error.response?.status === 400 &&
+        error.response?.data?.detail?.includes("phone")
+      ) {
+        toast.error("Customer with this phone already exists.", {
+          duration: 4000,
+        });
+      } else {
+        showErrorToastWithRetry(
+          error,
+          () => handleCreate(e),
+          "Create customer",
+        );
+      }
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this customer?")) return;
+    if (
+      !confirm(
+        "Are you sure you want to delete this customer? This action cannot be undone.",
+      )
+    )
+      return;
 
     try {
       await api.delete(`/admin/users/${id}`);
-      toast.success("Customer deleted successfully");
+      showSuccessToast("Customer deleted successfully!");
       await fetchUsers();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to delete customer");
+      if (error.response?.status === 404) {
+        toast.error("Customer not found or already deleted.", {
+          duration: 4000,
+        });
+      } else if (
+        error.response?.status === 400 &&
+        error.response?.data?.detail?.includes("orders")
+      ) {
+        toast.error(
+          "Cannot delete customer with active orders. Please cancel or complete their orders first.",
+          { duration: 4000 },
+        );
+      } else {
+        showErrorToastWithRetry(
+          error,
+          () => handleDelete(id),
+          "Delete customer",
+        );
+      }
     }
   };
 

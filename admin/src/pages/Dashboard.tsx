@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import api from "../lib/api";
 import { formatCurrency, formatCredits } from "../lib/utils";
+import { showErrorToastWithRetry, showWarningToast } from "../lib/errorHandler";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -43,9 +45,15 @@ export default function Dashboard() {
   const fetchStats = async () => {
     try {
       const response = await api.get("/admin/dashboard/stats");
+      if (!response.data) {
+        showWarningToast("Dashboard data format error. Please refresh.");
+        return;
+      }
       setStats(response.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch stats:", error);
+      const retryFn = () => fetchStats();
+      showErrorToastWithRetry(error, retryFn, "Dashboard");
     } finally {
       setLoading(false);
     }
@@ -59,7 +67,21 @@ export default function Dashboard() {
     );
   }
 
-  if (!stats) return null;
+  if (!stats) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96">
+        <p className="text-muted-foreground">
+          Failed to load dashboard statistics. Please try again.
+        </p>
+        <button
+          onClick={() => fetchStats()}
+          className="mt-4 text-blue-600 hover:underline"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const statCards = [
     {

@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
 import api from "../lib/api";
+import { toast } from "sonner";
+import {
+  showErrorToastWithRetry,
+  showSuccessToast,
+  showWarningToast,
+} from "../lib/errorHandler";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -117,9 +123,16 @@ export default function PhonesList() {
       });
       setPhones(response.data.items);
       setTotalPhones(response.data.total);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch phones:", error);
-      toast.error("Failed to load phones list");
+      if (error.code === "ECONNABORTED") {
+        showWarningToast(
+          "Search timed out. Try with fewer or different keywords.",
+        );
+      } else {
+        const retryFn = () => fetchPhones();
+        showErrorToastWithRetry(error, retryFn, "Phones");
+      }
     } finally {
       setLoading(false);
     }
@@ -142,12 +155,21 @@ export default function PhonesList() {
         Internal_Storage_GB: parseFloat(formData.Internal_Storage_GB),
       };
       await api.post("/admin/phones", payload);
-      toast.success("Phone created successfully");
+      showSuccessToast("Phone created successfully!");
       setCreateDialog(false);
       setFormData(initialFormData);
       await fetchPhones();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to create phone");
+      if (
+        error.response?.status === 400 &&
+        error.response?.data?.detail?.includes("duplicate")
+      ) {
+        toast.error("This phone model already exists in the database.", {
+          duration: 4000,
+        });
+      } else {
+        showErrorToastWithRetry(error, () => handleCreate(e), "Create phone");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -188,13 +210,22 @@ export default function PhonesList() {
         payload.Internal_Storage_GB = internalStorage;
 
       await api.put(`/admin/phones/${selectedPhone.id}`, payload);
-      toast.success("Phone updated successfully");
+      showSuccessToast("Phone updated successfully!");
       setEditDialog(false);
       setSelectedPhone(null);
       setFormData(initialFormData);
       await fetchPhones();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to update phone");
+      if (error.response?.status === 404) {
+        toast.error("Phone not found.", { duration: 4000 });
+      } else if (
+        error.response?.status === 400 &&
+        error.response?.data?.detail?.includes("duplicate")
+      ) {
+        toast.error("This phone model already exists.", { duration: 4000 });
+      } else {
+        showErrorToastWithRetry(error, () => handleEdit(e), "Update phone");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -206,12 +237,16 @@ export default function PhonesList() {
     try {
       setSubmitting(true);
       await api.delete(`/admin/phones/${selectedPhone.id}`);
-      toast.success("Phone deleted successfully");
+      showSuccessToast("Phone deleted successfully!");
       setDeleteDialog(false);
       setSelectedPhone(null);
       await fetchPhones();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to delete phone");
+      if (error.response?.status === 404) {
+        toast.error("Phone not found or already deleted.", { duration: 4000 });
+      } else {
+        showErrorToastWithRetry(error, handleDelete, "Delete phone");
+      }
     } finally {
       setSubmitting(false);
     }

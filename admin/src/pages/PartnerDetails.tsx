@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import api from "../lib/api";
+import { toast } from "sonner";
+import { showErrorToastWithRetry, showSuccessToast } from "../lib/errorHandler";
 import { formatDateTime } from "../lib/utils";
 import { Button } from "../components/ui/button";
 import {
@@ -112,6 +114,7 @@ export default function PartnerDetails() {
 
   const fetchPartnerDetails = async () => {
     try {
+      setLoading(true);
       const response = await api.get(
         `/admin/partners/${id}/verification-details`,
       );
@@ -124,9 +127,10 @@ export default function PartnerDetails() {
       } catch (error) {
         console.error("Failed to fetch hold status:", error);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch partner details:", error);
-      toast.error("Failed to load partner details");
+      const retryFn = () => fetchPartnerDetails();
+      showErrorToastWithRetry(error, retryFn, "Partner details");
     } finally {
       setLoading(false);
     }
@@ -138,11 +142,20 @@ export default function PartnerDetails() {
       await api.post(`/admin/partners/${id}/approve`, {
         approval_notes: approvalNotes,
       });
-      toast.success("Partner approved successfully");
+      showSuccessToast("Partner approved successfully!");
       setApproveDialog(false);
       await fetchPartnerDetails();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to approve partner");
+      if (error.response?.status === 404) {
+        toast.error("Partner not found.", { duration: 4000 });
+      } else if (
+        error.response?.status === 400 &&
+        error.response?.data?.detail?.includes("already approved")
+      ) {
+        toast.error("Partner is already approved.", { duration: 4000 });
+      } else {
+        showErrorToastWithRetry(error, handleApprove, "Approve partner");
+      }
     } finally {
       setActionLoading(false);
     }
@@ -150,7 +163,7 @@ export default function PartnerDetails() {
 
   const handleReject = async () => {
     if (!rejectionReason.trim()) {
-      toast.error("Please provide a rejection reason");
+      toast.error("Please provide a rejection reason", { duration: 4000 });
       return;
     }
     setActionLoading(true);
@@ -158,11 +171,20 @@ export default function PartnerDetails() {
       await api.post(`/admin/partners/${id}/reject`, {
         rejection_reason: rejectionReason,
       });
-      toast.success("Partner rejected");
+      showSuccessToast("Partner rejected successfully!");
       setRejectDialog(false);
       await fetchPartnerDetails();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to reject partner");
+      if (error.response?.status === 404) {
+        toast.error("Partner not found.", { duration: 4000 });
+      } else if (
+        error.response?.status === 400 &&
+        error.response?.data?.detail?.includes("already rejected")
+      ) {
+        toast.error("Partner is already rejected.", { duration: 4000 });
+      } else {
+        showErrorToastWithRetry(error, handleReject, "Reject partner");
+      }
     } finally {
       setActionLoading(false);
     }
