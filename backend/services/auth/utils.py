@@ -265,5 +265,5 @@ def check_pincode_serviceability(pincode: str, db: Session) -> dict:
         return {
             "serviceable": False,
             "partner_count": 0,
-            "message": "Currently, no partners service your pincode. You can still create orders, and we'll notify you when service becomes available in your area."
+            "message": "Cannot create orders in this pincode area. Please try a different pincode."
         }
