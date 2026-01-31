@@ -55,6 +55,32 @@ export default function PartnerLogin() {
 
   const { login, signup, holdInfo, clearHoldInfo } = useAuth();
 
+  const extractErrorMessage = (error: any): string => {
+    // Handle Pydantic validation errors (array of error objects)
+    if (Array.isArray(error?.response?.data?.detail)) {
+      const errors = error.response.data.detail
+        .map((err: any) => {
+          if (typeof err === "object" && err.msg) {
+            const field = err.loc ? err.loc[err.loc.length - 1] : "field";
+            return `${field}: ${err.msg}`;
+          }
+          return "Invalid input";
+        })
+        .filter((msg: string) => msg);
+
+      return errors.length > 0
+        ? errors.slice(0, 2).join(", ") // Show first 2 errors
+        : "Please check your input and try again.";
+    }
+
+    // Handle string error messages
+    if (typeof error?.response?.data?.detail === "string") {
+      return error.response.data.detail;
+    }
+
+    return "An error occurred. Please try again.";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -104,7 +130,7 @@ export default function PartnerLogin() {
         navigate("/partner/dashboard");
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || "An error occurred");
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -496,6 +522,7 @@ export default function PartnerLogin() {
         isOpen={!!holdInfo}
         reason={holdInfo?.reason}
         liftDate={holdInfo?.liftDate}
+        verificationStatus={holdInfo?.verificationStatus}
       />
     </>
   );

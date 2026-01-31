@@ -74,13 +74,35 @@ export const classifyError = (error: any): ErrorInfo => {
     };
   }
 
-  // Validation errors
-  if (status === 400) {
+  // Validation errors (400 and 422)
+  if (status === 400 || status === 422) {
+    let userMessage = "Invalid input. Please check your data.";
+
+    // Handle Pydantic validation errors (array of error objects)
+    if (Array.isArray(detail)) {
+      const errors = detail
+        .map((err: any) => {
+          if (typeof err === "object" && err.msg) {
+            const field = err.loc ? err.loc[err.loc.length - 1] : "field";
+            return `${field}: ${err.msg}`;
+          }
+          return "Invalid input";
+        })
+        .filter((msg: string) => msg);
+
+      userMessage =
+        errors.length > 0
+          ? errors.slice(0, 3).join(", ")
+          : "Invalid input. Please check your data.";
+    } else if (typeof detail === "string") {
+      userMessage = detail;
+    }
+
     return {
       type: "validation",
-      statusCode: 400,
+      statusCode: status,
       message: "Validation error",
-      userMessage: detail || "Invalid input. Please check your data.",
+      userMessage: userMessage,
       retryable: false,
     };
   }

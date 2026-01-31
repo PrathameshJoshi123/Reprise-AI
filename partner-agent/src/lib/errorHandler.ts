@@ -81,10 +81,37 @@ export const normalizeError = (
 
   // Validation errors
   if (status === 400 || status === 422) {
+    // Handle Pydantic validation errors (array of error objects)
+    let userMessage = "Please check your input and try again.";
+
+    if (Array.isArray(data?.detail)) {
+      // Pydantic validation error - array of error objects
+      const errors = data.detail
+        .map((err: any) => {
+          if (typeof err === "object" && err.msg) {
+            const field = err.loc ? err.loc[err.loc.length - 1] : "field";
+            return `${field}: ${err.msg}`;
+          }
+          return "Invalid input";
+        })
+        .filter((msg: string) => msg);
+
+      userMessage =
+        errors.length > 0
+          ? errors.slice(0, 3).join(", ") // Show first 3 errors
+          : "Please check your input and try again.";
+    } else if (typeof data?.detail === "string") {
+      // Regular string error message
+      userMessage = data.detail;
+    } else if (data?.detail) {
+      // Fallback for other detail formats
+      userMessage = String(data.detail);
+    }
+
     return {
       classification: "validation",
       shortMessage: "Invalid Input",
-      userMessage: data?.detail || "Please check your input and try again.",
+      userMessage: userMessage,
       actionable: "Review Input",
       retryable: true,
       persistent: false,

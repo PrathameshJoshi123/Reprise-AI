@@ -10,6 +10,8 @@ from backend.services.partner.apis.agent_routes import router as agent_router
 from backend.shared.db.connections import Base, engine
 from starlette.middleware.sessions import SessionMiddleware
 from backend.config import FRONTEND_URL
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 import asyncio
 from dotenv import load_dotenv
@@ -51,6 +53,19 @@ app.add_middleware(
 
 # create tables (models' Base.metadata.create_all also called in services, safe to call again)
 Base.metadata.create_all(bind=engine)
+
+# Exception handler for PartnerNotApprovedException
+from backend.services.auth.utils import PartnerNotApprovedException
+
+@app.exception_handler(PartnerNotApprovedException)
+async def partner_not_approved_exception_handler(request: Request, exc: PartnerNotApprovedException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "verification_status": exc.verification_status
+        }
+    )
 
 # Register service routers
 app.include_router(auth_router, prefix="/auth", tags=["auth"])

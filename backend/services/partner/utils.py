@@ -89,6 +89,8 @@ def create_partner_application(
 def authenticate_partner(db: Session, email: str, password: str) -> Partner:
     """
     Authenticate a partner by email and password.
+    Allow login even if partner is rejected/deactivated so they can see their application status.
+    API access will be blocked for non-approved partners by get_current_partner dependency.
     
     Args:
         db: Database session
@@ -109,11 +111,9 @@ def authenticate_partner(db: Session, email: str, password: str) -> Partner:
     if not verify_password(password, partner.hashed_password):
         raise ValueError("Invalid credentials")
     
-    if not partner.is_active:
-        raise ValueError("Partner account is deactivated")
-    
-    # Allow login but warn if not approved
-    # The get_current_partner dependency will block API access for non-approved partners
+    # Allow login regardless of account status
+    # Partner can login to see their application status
+    # API access control is handled by get_current_partner dependency
     
     return partner
 

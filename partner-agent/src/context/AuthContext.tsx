@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import api from "../lib/api";
 import { handleApiError } from "../lib/errorHandler";
 
@@ -12,11 +18,16 @@ interface User {
   is_on_hold?: boolean;
   hold_reason?: string;
   hold_lift_date?: string;
+  verification_status?: string;
+  rejection_reason?: string | null;
+  is_active?: boolean;
+  created_at?: string;
 }
 
 interface HoldInfo {
   reason: string;
   liftDate?: string;
+  verificationStatus?: string;
 }
 
 interface AuthContextType {
@@ -67,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  const fetchUser = async (type: "partner" | "agent") => {
+  const fetchUser = useCallback(async (type: "partner" | "agent") => {
     try {
       const endpoint = type === "partner" ? "/partner/me" : "/agent/me";
       const response = await api.get(endpoint);
@@ -79,12 +90,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setHoldInfo(null);
     } catch (error: any) {
       console.error("Failed to fetch user:", error);
-      // Check if error is 403 (account on hold)
+      // Check if error is 403 (account on hold/not approved)
       if (error.response?.status === 403) {
         const holdData = error.response?.data;
         setHoldInfo({
-          reason: holdData?.detail || "Your account has been placed on hold",
+          reason: holdData?.detail || "Your account is not yet approved",
           liftDate: holdData?.hold_lift_date,
+          verificationStatus: holdData?.verification_status,
         });
         // Keep token but mark user as on hold
         return;
@@ -97,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const login = async (
     email: string,
@@ -119,12 +131,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUserType(type);
       await fetchUser(type);
     } catch (error: any) {
-      // Check if error is 403 (account on hold)
+      // Check if error is 403 (account on hold/not approved)
       if (error.response?.status === 403) {
         const holdData = error.response?.data;
         setHoldInfo({
-          reason: holdData?.detail || "Your account has been placed on hold",
+          reason: holdData?.detail || "Your account is not yet approved",
           liftDate: holdData?.hold_lift_date,
+          verificationStatus: holdData?.verification_status,
         });
         // Store the type so we know which portal tried to login
         setUserType(type);
@@ -188,11 +201,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setHoldInfo(null);
   };
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     if (userType) {
       await fetchUser(userType);
     }
-  };
+  }, [userType, fetchUser]);
 
   return (
     <AuthContext.Provider

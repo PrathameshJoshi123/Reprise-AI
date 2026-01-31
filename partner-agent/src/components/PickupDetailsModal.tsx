@@ -140,8 +140,8 @@ export default function PickupDetailsModal({
   const formatConditions = (conditions: any) => {
     if (!conditions) return null;
     return (
-      <div className="space-y-2 text-sm">
-        <div className="grid grid-cols-2 gap-2">
+      <div className="space-y-2 text-xs md:text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {Object.entries(conditions).map(([key, value]) => (
             <div
               key={key}
@@ -166,12 +166,12 @@ export default function PickupDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white border-gray-200 shadow-2xl">
+      <DialogContent className="w-full max-w-4xl max-h-[90vh] md:max-h-[95vh] overflow-y-auto bg-white border-gray-200 shadow-2xl p-3 md:p-6 rounded-t-2xl md:rounded-lg">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+          <DialogTitle className="text-lg md:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
             Pickup Details - Order #{orderId}
           </DialogTitle>
-          <DialogDescription className="text-gray-600">
+          <DialogDescription className="text-xs md:text-sm text-gray-600">
             Complete inspection form and photos captured by agent
           </DialogDescription>
         </DialogHeader>
@@ -179,25 +179,27 @@ export default function PickupDetailsModal({
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
-            <p className="mt-2 text-gray-600">Loading pickup details...</p>
+            <p className="mt-2 text-xs md:text-sm text-gray-600">
+              Loading pickup details...
+            </p>
           </div>
         ) : error ? (
-          <div className="p-4 bg-red-50 border border-red-200 rounded text-red-700">
+          <div className="p-3 md:p-4 bg-red-50 border border-red-200 rounded text-xs md:text-sm text-red-700">
             {error}
           </div>
         ) : details && !details.has_pickup_details ? (
-          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded text-yellow-700">
+          <div className="p-3 md:p-4 bg-yellow-50 border border-yellow-200 rounded text-xs md:text-sm text-yellow-700">
             No pickup details found for this order.
           </div>
         ) : details ? (
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             {/* Agent Info */}
             {details.agent && (
-              <div className="border rounded-lg p-4 bg-blue-50">
-                <h3 className="font-semibold text-blue-900 mb-2">
+              <div className="border rounded-lg p-3 md:p-4 bg-blue-50">
+                <h3 className="font-semibold text-sm md:text-base text-blue-900 mb-2">
                   Inspecting Agent
                 </h3>
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 text-xs md:text-sm">
                   <div>
                     <span className="text-gray-600">Name:</span>
                     <p className="font-medium">{details.agent.name}</p>
@@ -206,9 +208,11 @@ export default function PickupDetailsModal({
                     <span className="text-gray-600">Phone:</span>
                     <p className="font-medium">{details.agent.phone}</p>
                   </div>
-                  <div>
+                  <div className="sm:col-span-2">
                     <span className="text-gray-600">Email:</span>
-                    <p className="font-medium text-sm">{details.agent.email}</p>
+                    <p className="font-medium text-xs md:text-sm break-all">
+                      {details.agent.email}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -216,21 +220,23 @@ export default function PickupDetailsModal({
 
             {/* Photos Section */}
             {photos.length > 0 && (
-              <div className="border rounded-lg p-4">
-                <h3 className="font-semibold mb-4">
+              <div className="border rounded-lg p-3 md:p-4">
+                <h3 className="font-semibold text-sm md:text-base mb-3 md:mb-4">
                   Photos ({details.photos_count})
                 </h3>
-                <div className="space-y-4">
+                <div className="space-y-3 md:space-y-4">
                   {/* Photo Display */}
-                  <div className="bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center h-96">
+                  <div className="bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center h-48 sm:h-64 md:h-96">
                     {photos[activePhotoIndex] ? (
                       <img
                         src={photos[activePhotoIndex].url}
                         alt={`Photo ${activePhotoIndex + 1}`}
-                        className="max-h-96 max-w-full object-contain"
+                        className="max-h-full max-w-full object-contain"
                       />
                     ) : (
-                      <div className="text-gray-500">No image data</div>
+                      <div className="text-xs md:text-sm text-gray-500">
+                        No image data
+                      </div>
                     )}
                   </div>
 
@@ -241,9 +247,9 @@ export default function PickupDetailsModal({
                         <button
                           key={idx}
                           onClick={() => setActivePhotoIndex(idx)}
-                          className={`flex-shrink-0 w-20 h-20 rounded border-2 overflow-hidden ${
+                          className={`flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded border-2 overflow-hidden transition-all ${
                             activePhotoIndex === idx
-                              ? "border-blue-500"
+                              ? "border-blue-500 scale-110"
                               : "border-gray-300"
                           }`}
                         >
@@ -258,10 +264,12 @@ export default function PickupDetailsModal({
                   )}
 
                   {/* Photo Info */}
-                  <div className="text-xs text-gray-600 space-y-1">
+                  <div className="text-xs text-gray-600 space-y-0.5 md:space-y-1">
                     <p>
                       <span className="font-semibold">File:</span>{" "}
-                      {photos[activePhotoIndex]?.metadata.filename}
+                      <span className="break-all">
+                        {photos[activePhotoIndex]?.metadata.filename}
+                      </span>
                     </p>
                     <p>
                       <span className="font-semibold">Size:</span>{" "}
@@ -285,28 +293,30 @@ export default function PickupDetailsModal({
 
             {/* Phone Conditions */}
             {details.phone_conditions && (
-              <div className="border rounded-lg p-4">
-                <h3 className="font-semibold mb-4">Phone Conditions</h3>
+              <div className="border rounded-lg p-3 md:p-4">
+                <h3 className="font-semibold text-sm md:text-base mb-3 md:mb-4">
+                  Phone Conditions
+                </h3>
                 {formatConditions(details.phone_conditions)}
               </div>
             )}
 
             {/* Offer Details */}
-            <div className="border rounded-lg p-4 bg-green-50">
-              <h3 className="font-semibold text-green-900 mb-3">
+            <div className="border rounded-lg p-3 md:p-4 bg-green-50">
+              <h3 className="font-semibold text-sm md:text-base text-green-900 mb-2 md:mb-3">
                 Offer Details
               </h3>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-2 text-xs md:text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Final Offered Price:</span>
-                  <span className="font-semibold text-lg">
+                  <span className="font-semibold text-base md:text-lg">
                     ₹{details.final_offered_price?.toLocaleString()}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-gray-600">Customer Acceptance:</span>
                   <span
-                    className={`font-semibold px-3 py-1 rounded ${
+                    className={`font-semibold px-2 md:px-3 py-0.5 md:py-1 rounded text-xs md:text-sm ${
                       details.customer_accepted_offer
                         ? "bg-green-200 text-green-800"
                         : "bg-red-200 text-red-800"
@@ -336,16 +346,18 @@ export default function PickupDetailsModal({
 
             {/* Pickup Notes */}
             {details.pickup_notes && (
-              <div className="border rounded-lg p-4">
-                <h3 className="font-semibold mb-2">Agent Notes</h3>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">
+              <div className="border rounded-lg p-3 md:p-4">
+                <h3 className="font-semibold text-sm md:text-base mb-2">
+                  Agent Notes
+                </h3>
+                <p className="text-xs md:text-sm text-gray-700 whitespace-pre-wrap break-words">
                   {details.pickup_notes}
                 </p>
               </div>
             )}
 
             {/* Metadata */}
-            <div className="border-t pt-4 text-xs text-gray-500 space-y-1">
+            <div className="border-t pt-3 md:pt-4 text-xs text-gray-500 space-y-0.5 md:space-y-1">
               <p>
                 Captured at:{" "}
                 {details.captured_at
@@ -359,8 +371,8 @@ export default function PickupDetailsModal({
             </div>
 
             {/* Close Button */}
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button onClick={onClose} variant="outline">
+            <div className="flex justify-end gap-2 pt-3 md:pt-4 border-t">
+              <Button onClick={onClose} variant="outline" size="sm">
                 Close
               </Button>
             </div>

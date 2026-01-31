@@ -25,6 +25,31 @@ export default function AgentLogin() {
 
   const { login } = useAuth();
 
+  const extractErrorMessage = (error: any): string => {
+    // Handle Pydantic validation errors (array of error objects)
+    if (Array.isArray(error?.response?.data?.detail)) {
+      const errors = error.response.data.detail
+        .map((err: any) => {
+          if (typeof err === "object" && err.msg) {
+            return err.msg;
+          }
+          return "Invalid input";
+        })
+        .filter((msg: string) => msg);
+
+      return errors.length > 0
+        ? errors.slice(0, 2).join(", ")
+        : "Invalid credentials";
+    }
+
+    // Handle string error messages
+    if (typeof error?.response?.data?.detail === "string") {
+      return error.response.data.detail;
+    }
+
+    return "Invalid credentials";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -33,7 +58,7 @@ export default function AgentLogin() {
     try {
       await login(formData.email, formData.password, "agent");
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Invalid credentials");
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }

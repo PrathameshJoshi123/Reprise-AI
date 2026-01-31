@@ -99,13 +99,11 @@ export default function PartnerDetails() {
   // Dialog states
   const [approveDialog, setApproveDialog] = useState(false);
   const [rejectDialog, setRejectDialog] = useState(false);
-  const [clarifyDialog, setClarifyDialog] = useState(false);
   const [holdModalOpen, setHoldModalOpen] = useState(false);
   const [liftModalOpen, setLiftModalOpen] = useState(false);
 
   const [approvalNotes, setApprovalNotes] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
-  const [clarificationMessage, setClarificationMessage] = useState("");
 
   useEffect(() => {
     fetchPartnerDetails();
@@ -498,6 +496,50 @@ export default function PartnerDetails() {
             </CardContent>
           </Card>
         )}
+
+      {/* Re-approve Rejected Partner */}
+      {partner.verification_status === "rejected" && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader>
+            <CardTitle className="text-orange-900">
+              Reapproval Available
+            </CardTitle>
+            <CardDescription className="text-orange-800">
+              This partner application was rejected but can be reapproved if
+              conflicts have been resolved
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {partner.rejection_reason && (
+              <div className="bg-white rounded-lg p-4 border border-orange-200">
+                <p className="text-sm font-semibold text-orange-900 mb-2">
+                  Original Rejection Reason:
+                </p>
+                <p className="text-sm text-orange-800">
+                  {partner.rejection_reason}
+                </p>
+              </div>
+            )}
+            <div className="flex gap-4">
+              <Button
+                onClick={() => setApproveDialog(true)}
+                className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
+              >
+                <CheckCircle className="h-4 w-4" />
+                Approve Partner Now
+              </Button>
+              <Button
+                onClick={() => setRejectDialog(true)}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <XCircle className="h-4 w-4" />
+                Reject Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Hold/Lift Partner Card */}
       {partner.verification_status === "approved" && (

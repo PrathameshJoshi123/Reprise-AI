@@ -193,6 +193,9 @@ def get_partner_profile(
         full_name=current_partner.full_name,
         phone=current_partner.phone,
         credit_balance=current_partner.credit_balance,
+        verification_status=current_partner.verification_status,
+        rejection_reason=current_partner.rejection_reason,
+        is_active=current_partner.is_active,
         is_on_hold=is_on_hold,
         hold_reason=hold.reason if hold else None,
         hold_lift_date=hold.lift_date if hold else None

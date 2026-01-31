@@ -11,12 +11,4 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-
-  server: {
-    allowedHosts: [
-      "polymer-thing-promise-commentary.trycloudflare.com",
-      "192.168.1.100",
-      ".example.com", // Allows example.com and all subdomains
-    ],
-  },
 });

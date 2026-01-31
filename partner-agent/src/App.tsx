@@ -9,6 +9,7 @@ import AgentsManagement from "./pages/AgentsManagement";
 import AgentLogin from "./pages/AgentLogin";
 import AgentDashboard from "./pages/AgentDashboard";
 import Home from "./pages/Home";
+import ApplicationStatus from "./pages/ApplicationStatus";
 import { Toaster } from "./components/ui/sonner";
 
 function ProtectedRoute({
@@ -35,6 +36,11 @@ function ProtectedRoute({
         replace
       />
     );
+  }
+
+  // For partners, check if they are approved
+  if (allowedType === "partner" && user.verification_status !== "approved") {
+    return <Navigate to="/partner/application-status" replace />;
   }
 
   return <>{children}</>;
@@ -67,11 +73,19 @@ function AppRoutes() {
         path="/partner/login"
         element={
           user && userType === "partner" ? (
-            <Navigate to="/partner/dashboard" replace />
+            user.verification_status === "approved" ? (
+              <Navigate to="/partner/dashboard" replace />
+            ) : (
+              <Navigate to="/partner/application-status" replace />
+            )
           ) : (
             <PartnerLogin />
           )
         }
+      />
+      <Route
+        path="/partner/application-status"
+        element={<ApplicationStatus />}
       />
       <Route
         path="/agent/login"

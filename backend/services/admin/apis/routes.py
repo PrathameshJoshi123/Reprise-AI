@@ -224,6 +224,8 @@ def approve_partner(
 ):
     """
     Approve partner verification.
+    Can be used to approve pending partners or re-approve rejected partners.
+    When re-approving a rejected partner, clears the rejection reason and activates the account.
     """
     partner = db.query(Partner).filter(Partner.id == partner_id).first()
     if not partner:
@@ -232,6 +234,7 @@ def approve_partner(
     # Update partner status
     partner.verification_status = 'approved'
     partner.is_active = True
+    partner.rejection_reason = None  # Clear rejection reason when re-approving
     
     # Create verification history entry
     history_entry = PartnerVerificationHistory(
@@ -251,7 +254,8 @@ def approve_partner(
         "status": "success",
         "message": "Partner approved",
         "partner_id": partner_id,
-        "verification_status": partner.verification_status
+        "verification_status": partner.verification_status,
+        "is_active": partner.is_active
     }
 
 
@@ -264,14 +268,17 @@ def reject_partner(
 ):
     """
     Reject partner verification.
+    Sets verification_status to 'rejected' and deactivates the partner account.
+    Partner can still login but cannot access partner features until reapproved.
     """
     partner = db.query(Partner).filter(Partner.id == partner_id).first()
     if not partner:
         raise HTTPException(status_code=404, detail="Partner not found")
     
-    # Update partner status
+    # Update partner status - set to rejected and deactivate
     partner.verification_status = 'rejected'
     partner.rejection_reason = payload.rejection_reason
+    partner.is_active = False  # Deactivate the account
     
     # Create verification history entry
     history_entry = PartnerVerificationHistory(
@@ -291,7 +298,8 @@ def reject_partner(
         "status": "success",
         "message": "Partner rejected",
         "partner_id": partner_id,
-        "verification_status": partner.verification_status
+        "verification_status": partner.verification_status,
+        "is_active": partner.is_active
     }
 
 

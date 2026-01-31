@@ -26,19 +26,19 @@ export const HoldNotificationBanner: React.FC<HoldNotificationBannerProps> = ({
   };
 
   return (
-    <div className="w-full bg-red-50 border-l-4 border-red-600 rounded-lg p-4 mb-6 shadow-md">
-      <div className="flex items-start gap-3">
-        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-        <div className="flex-1">
-          <h3 className="text-lg font-semibold text-red-900 mb-1">
+    <div className="w-full bg-red-50 border-l-4 border-red-600 rounded-lg p-3 md:p-4 mb-4 md:mb-6 shadow-md">
+      <div className="flex items-start gap-2 md:gap-3">
+        <AlertCircle className="w-4 md:w-5 h-4 md:h-5 text-red-600 flex-shrink-0 mt-0.5 md:mt-0" />
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base md:text-lg font-semibold text-red-900 mb-1">
             Account on Hold
           </h3>
           {reason && (
-            <p className="text-sm text-red-800 mb-2">
+            <p className="text-xs md:text-sm text-red-800 mb-1 md:mb-2 break-words">
               <span className="font-medium">Reason:</span> {reason}
             </p>
           )}
-          <div className="text-sm text-red-700">
+          <div className="text-xs md:text-sm text-red-700">
             <span className="font-medium">Lift Date:</span>{" "}
             {liftDate ? formatDate(liftDate) : "To be decided by admin"}
           </div>

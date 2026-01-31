@@ -131,10 +131,12 @@ export default function PartnerDashboard() {
   const [purchaseLoading, setPurchaseLoading] = useState(false);
 
   const openBuyModal = async () => {
+    console.log("openBuyModal function called");
     try {
       const resp = await api.get("/partner/credit-plans");
       setPlans(resp.data || []);
       setShowBuyModal(true);
+      console.log("Buy credits modal opened successfully");
     } catch (err) {
       console.error("Failed to load credit plans:", err);
       handleApiError(err);
@@ -236,11 +238,11 @@ export default function PartnerDashboard() {
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer hover:-translate-y-1 border border-gray-200">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="text-base font-semibold">
+      <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer hover:-translate-y-1 border border-gray-200 h-full flex flex-col">
+        <CardHeader className="pb-2 md:pb-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-sm md:text-base font-semibold truncate">
                 {lead.brand} {lead.model}
               </CardTitle>
               <CardDescription className="text-xs mt-1">
@@ -248,33 +250,37 @@ export default function PartnerDashboard() {
               </CardDescription>
             </div>
             <Badge
-              className={`${getStatusColor(lead.status)} text-xs px-2 py-0.5`}
+              className={`${getStatusColor(lead.status)} text-xs px-2 py-0.5 whitespace-nowrap flex-shrink-0`}
             >
               {lead.status.replace(/_/g, " ")}
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-2 md:space-y-3 flex-grow">
           <div>
             <div className="text-xs text-gray-500">AI Estimated Price</div>
-            <div className="text-xl font-bold text-green-600">
+            <div className="text-lg md:text-xl font-bold text-green-600">
               {formatPrice(lead.ai_estimated_price || lead.final_quoted_price)}
             </div>
           </div>
 
           <div>
             <div className="text-xs text-gray-500 mb-1">Customer</div>
-            <div className="font-medium text-sm">{lead.customer_name}</div>
+            <div className="font-medium text-xs md:text-sm truncate">
+              {lead.customer_name}
+            </div>
           </div>
 
           {lead.agent_name && (
             <div>
               <div className="text-xs text-gray-500 mb-1">Assigned Agent</div>
-              <div className="font-medium text-sm">{lead.agent_name}</div>
+              <div className="font-medium text-xs md:text-sm truncate">
+                {lead.agent_name}
+              </div>
             </div>
           )}
 
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
             {isCompleted ? (
               <>
                 <Button
@@ -330,43 +336,11 @@ export default function PartnerDashboard() {
         userName={user?.name}
         showLogout={true}
         onLogout={handleLogout}
-        additionalContent={
-          <div className="flex flex-col md:flex-row items-center gap-4">
-            <div className="text-center md:text-right">
-              <div className="text-sm text-gray-500">Credit Balance</div>
-              <div className="text-xl font-bold text-green-600">
-                ◇{user?.credit_balance || 0}
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" onClick={openBuyModal}>
-                Buy Credits
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => navigate("/partner/marketplace")}
-              >
-                Marketplace
-              </Button>
-              <Button
-                variant="default"
-                className="bg-green-600 hover:bg-green-700"
-                onClick={() => navigate("/partner/agents")}
-              >
-                <span className="hidden sm:inline">Self-Assign </span>Agent
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => navigate("/partner/agents")}
-              >
-                Manage Agents
-              </Button>
-            </div>
-          </div>
-        }
+        onBuyCredits={openBuyModal}
+        showDashboardButton={true}
       />
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
-        <div className="container mx-auto px-4 py-6">
+        <div className="container mx-auto px-3 md:px-4 py-4 md:py-6">
           {user?.is_on_hold && (
             <HoldNotificationBanner
               reason={user.hold_reason}
@@ -374,8 +348,8 @@ export default function PartnerDashboard() {
             />
           )}
           {/* Custom Tabs */}
-          <div className="mb-6">
-            <div className="flex gap-2 p-1 bg-white rounded-lg shadow-sm border border-gray-200 w-fit">
+          <div className="mb-4 md:mb-6 overflow-x-auto">
+            <div className="flex gap-1 md:gap-2 p-1 bg-white rounded-lg shadow-sm border border-gray-200 w-fit min-w-full md:w-auto">
               {[
                 {
                   key: "lead_locked",
@@ -401,7 +375,7 @@ export default function PartnerDashboard() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key as any)}
-                  className={`relative px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                  className={`relative px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-md transition-all duration-200 whitespace-nowrap ${
                     activeTab === tab.key
                       ? "text-white"
                       : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
@@ -418,10 +392,10 @@ export default function PartnerDashboard() {
                       }}
                     />
                   )}
-                  <span className="relative z-10 flex items-center gap-2">
+                  <span className="relative z-10 flex items-center gap-1 md:gap-2">
                     {tab.label}
                     <span
-                      className={`text-xs px-1.5 py-0.5 rounded-full ${
+                      className={`text-xs px-1 md:px-1.5 py-0.5 rounded-full ${
                         activeTab === tab.key
                           ? "bg-white/20"
                           : "bg-gray-100 text-gray-600"
@@ -460,7 +434,7 @@ export default function PartnerDashboard() {
                     </CardContent>
                   </Card>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                     {leadLockedDeals.map((lead) => (
                       <motion.div
                         key={lead.id}
@@ -470,11 +444,11 @@ export default function PartnerDashboard() {
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ duration: 0.3 }}
                       >
-                        <Card className="hover:shadow-xl transition-all duration-300 border-2 border-purple-200 hover:-translate-y-1">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <CardTitle className="text-base font-semibold">
+                        <Card className="hover:shadow-xl transition-all duration-300 border-2 border-purple-200 hover:-translate-y-1 h-full flex flex-col">
+                          <CardHeader className="pb-2 md:pb-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <CardTitle className="text-sm md:text-base font-semibold truncate">
                                   {lead.brand} {lead.model}
                                 </CardTitle>
                                 <CardDescription className="text-xs mt-1">
@@ -482,15 +456,15 @@ export default function PartnerDashboard() {
                                   Storage
                                 </CardDescription>
                               </div>
-                              <Badge className="bg-purple-500 text-xs px-2 py-0.5">
+                              <Badge className="bg-purple-500 text-xs px-2 py-0.5 whitespace-nowrap flex-shrink-0">
                                 Locked
                               </Badge>
                             </div>
                           </CardHeader>
-                          <CardContent className="space-y-3">
+                          <CardContent className="space-y-2 md:space-y-3 flex-grow">
                             <div>
                               <div className="text-xs text-gray-500">Price</div>
-                              <div className="text-xl font-bold text-green-600">
+                              <div className="text-lg md:text-xl font-bold text-green-600">
                                 {formatPrice(
                                   lead.ai_estimated_price ||
                                     lead.final_quoted_price,
@@ -502,7 +476,7 @@ export default function PartnerDashboard() {
                               <div className="text-xs text-gray-500">
                                 Lead Cost
                               </div>
-                              <div className="text-base font-semibold text-orange-600">
+                              <div className="text-sm md:text-base font-semibold text-orange-600">
                                 {formatPrice(lead.lead_cost || 0)}
                               </div>
                             </div>
@@ -512,7 +486,7 @@ export default function PartnerDashboard() {
                                 <div className="text-xs text-gray-500">
                                   Time Remaining
                                 </div>
-                                <div className="text-sm font-medium text-red-600">
+                                <div className="text-xs md:text-sm font-medium text-red-600">
                                   {Math.floor(lead.time_remaining / 60)} min{" "}
                                   {Math.floor(lead.time_remaining % 60)} sec
                                 </div>
@@ -523,7 +497,7 @@ export default function PartnerDashboard() {
                               <div className="text-xs text-gray-500 mb-1">
                                 Customer
                               </div>
-                              <div className="font-medium text-sm">
+                              <div className="font-medium text-xs md:text-sm truncate">
                                 {lead.customer_name}
                               </div>
                             </div>
@@ -538,7 +512,7 @@ export default function PartnerDashboard() {
                               </div>
                             </div>
 
-                            <div className="flex gap-2 pt-2">
+                            <div className="flex flex-col sm:flex-row gap-2 pt-2">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -592,7 +566,7 @@ export default function PartnerDashboard() {
                     </CardContent>
                   </Card>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                     {leadPurchasedOrders.map((lead) => (
                       <motion.div
                         key={lead.id}
@@ -602,11 +576,11 @@ export default function PartnerDashboard() {
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ duration: 0.3 }}
                       >
-                        <Card className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-gray-200">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <CardTitle className="text-base font-semibold">
+                        <Card className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-gray-200 h-full flex flex-col">
+                          <CardHeader className="pb-2 md:pb-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <CardTitle className="text-sm md:text-base font-semibold truncate">
                                   {lead.brand} {lead.model}
                                 </CardTitle>
                                 <CardDescription className="text-xs mt-1">
@@ -614,15 +588,15 @@ export default function PartnerDashboard() {
                                   Storage
                                 </CardDescription>
                               </div>
-                              <Badge className="bg-green-500 text-xs px-2 py-0.5">
+                              <Badge className="bg-green-500 text-xs px-2 py-0.5 whitespace-nowrap flex-shrink-0">
                                 Purchased
                               </Badge>
                             </div>
                           </CardHeader>
-                          <CardContent className="space-y-3">
+                          <CardContent className="space-y-2 md:space-y-3 flex-grow">
                             <div>
                               <div className="text-xs text-gray-500">Price</div>
-                              <div className="text-xl font-bold text-green-600">
+                              <div className="text-lg md:text-xl font-bold text-green-600">
                                 {formatPrice(
                                   lead.ai_estimated_price ||
                                     lead.final_quoted_price,
@@ -634,7 +608,7 @@ export default function PartnerDashboard() {
                               <div className="text-xs text-gray-500 mb-1">
                                 Customer
                               </div>
-                              <div className="font-medium text-sm">
+                              <div className="font-medium text-xs md:text-sm truncate">
                                 {lead.customer_name}
                               </div>
                             </div>
@@ -652,7 +626,7 @@ export default function PartnerDashboard() {
                             {assigningOrder === lead.id ? (
                               <div className="space-y-2">
                                 <select
-                                  className="w-full border rounded px-3 py-2 text-sm"
+                                  className="w-full border rounded px-2 md:px-3 py-2 text-xs md:text-sm"
                                   value={selectedAgent || ""}
                                   onChange={(e) =>
                                     setSelectedAgent(Number(e.target.value))
@@ -667,7 +641,7 @@ export default function PartnerDashboard() {
                                       </option>
                                     ))}
                                 </select>
-                                <div className="flex gap-2">
+                                <div className="flex flex-col sm:flex-row gap-2">
                                   <Button
                                     size="sm"
                                     className="flex-1 text-xs h-8"
@@ -693,7 +667,7 @@ export default function PartnerDashboard() {
                                 </div>
                               </div>
                             ) : (
-                              <div className="flex gap-2 pt-2">
+                              <div className="flex flex-col sm:flex-row gap-2 pt-2">
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -741,7 +715,7 @@ export default function PartnerDashboard() {
                     </CardContent>
                   </Card>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                     {acceptedByAgentLeads.map((lead) => (
                       <LeadCard key={lead.id} lead={lead} />
                     ))}
@@ -769,7 +743,7 @@ export default function PartnerDashboard() {
                     </CardContent>
                   </Card>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                     {completedOrders.map((lead) => (
                       <LeadCard key={lead.id} lead={lead} isCompleted={true} />
                     ))}
@@ -800,7 +774,7 @@ export default function PartnerDashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center"
+            className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
           >
             <div
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
@@ -812,14 +786,16 @@ export default function PartnerDashboard() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               transition={{ type: "spring", duration: 0.5 }}
-              className="relative w-full max-w-2xl bg-white rounded-xl p-6 shadow-2xl"
+              className="relative w-full md:w-full md:max-w-2xl bg-white rounded-t-xl md:rounded-xl p-4 md:p-6 shadow-2xl max-h-[90vh] md:max-h-[95vh] overflow-y-auto"
             >
-              <h2 className="text-2xl font-bold mb-2">Buy Credits</h2>
-              <p className="text-sm text-gray-500 mb-4">
+              <h2 className="text-xl md:text-2xl font-bold mb-2">
+                Buy Credits
+              </h2>
+              <p className="text-xs md:text-sm text-gray-500 mb-4">
                 Choose a credit plan to purchase
               </p>
 
-              <div className="space-y-3">
+              <div className="space-y-2 md:space-y-3">
                 {plans.map((p, index) => (
                   <motion.div
                     key={p.id}
@@ -828,27 +804,27 @@ export default function PartnerDashboard() {
                     transition={{ delay: index * 0.1 }}
                   >
                     <Card className="hover:shadow-lg transition-all duration-200 hover:border-purple-300">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-semibold text-base">
+                      <CardContent className="p-3 md:p-4">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                          <div className="flex-grow">
+                            <div className="font-semibold text-sm md:text-base">
                               {p.plan_name}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-xs md:text-sm text-gray-500">
                               {p.description}
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-lg font-bold">
+                          <div className="text-right w-full sm:w-auto">
+                            <div className="text-lg md:text-xl font-bold">
                               {p.credit_amount} credits
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-xs md:text-sm text-gray-500">
                               ₹{p.price}
                             </div>
                             <div className="mt-2">
                               <Button
                                 size="sm"
-                                className="text-xs h-8"
+                                className="text-xs h-8 w-full sm:w-auto"
                                 onClick={() => handleBuyPlan(p.id)}
                                 disabled={purchaseLoading}
                               >

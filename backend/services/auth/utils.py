@@ -10,6 +10,15 @@ import requests
 from dotenv import load_dotenv
 load_dotenv()
 
+# Custom exception for partner verification status
+class PartnerNotApprovedException(HTTPException):
+    def __init__(self, verification_status: str, detail: str = None):
+        self.verification_status = verification_status
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=detail or f"Partner account not approved (status: {verification_status})"
+        )
+
 # Secret for demo; replace with env var in production
 SECRET_KEY = "replace-this-with-secure-secret"
 ALGORITHM = "HS256"
@@ -77,10 +86,7 @@ def get_current_partner(token: str = Depends(oauth2_scheme), db: Session = Depen
     
     # Check if partner is verified and active
     if partner.verification_status != "approved":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Partner account not approved (status: {partner.verification_status})"
-        )
+        raise PartnerNotApprovedException(partner.verification_status)
     
     return partner
 
@@ -128,6 +134,7 @@ def create_or_get_user_from_google(id_token_str: str, db: Session, pincode: str 
         audience = os.getenv("GOOGLE_CLIENT_ID", None)
 
         idinfo = google_id_token.verify_oauth2_token(id_token_str, grequests.Request(), audience)
+        
     except ValueError as e:
         msg = f"Invalid Google token: {str(e)}"
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=msg)
@@ -249,10 +256,16 @@ def check_pincode_serviceability(pincode: str, db: Session) -> dict:
     
     pincode = pincode.strip()
     
-    # Count active partners servicing this pincode
-    partner_count = db.query(PartnerServiceablePincode).filter(
+    # Count active approved partners servicing this pincode
+    from backend.services.partner.schema.models import Partner
+    partner_count = db.query(PartnerServiceablePincode).join(
+        Partner,
+        Partner.id == PartnerServiceablePincode.partner_id
+    ).filter(
         PartnerServiceablePincode.pincode == pincode,
-        PartnerServiceablePincode.is_active == True
+        PartnerServiceablePincode.is_active == True,
+        Partner.verification_status == 'approved',
+        Partner.is_active == True
     ).count()
     
     if partner_count > 0:

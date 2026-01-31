@@ -58,6 +58,7 @@ export default function Home() {
         showLogout={!!user}
         onLogout={handleLogout}
         userName={user?.name}
+        showDashboardButton={true}
       />
 
       {/* Hero Section */}

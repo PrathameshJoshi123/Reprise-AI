@@ -77,6 +77,7 @@ class PartnerOut(BaseModel):
     gst_number: Optional[str]
     pan_number: Optional[str]
     verification_status: str
+    rejection_reason: Optional[str] = None
     credit_balance: float
     is_active: bool
     created_at: datetime
@@ -91,6 +92,9 @@ class PartnerCreditNameOut(BaseModel):
     full_name: str
     phone: Optional[str] = None
     credit_balance: float
+    verification_status: str
+    rejection_reason: Optional[str] = None
+    is_active: bool
     is_on_hold: bool = False
     hold_reason: Optional[str] = None
     hold_lift_date: Optional[datetime] = None
