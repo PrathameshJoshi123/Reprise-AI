@@ -14,7 +14,7 @@ export function Footer() {
               <span className="text-xl font-bold text-primary">CashNow</span>
             </div>
             <p className="mb-4 text-gray-600">
-              MobileTrade is India's leading platform for selling used
+              CashNow is India's leading platform for selling used
               smartphones. Get the best price for your old phone with our
               hassle-free service.
             </p>

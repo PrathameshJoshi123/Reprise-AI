@@ -12,6 +12,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Lazy load less critical pages
 const Brands = lazy(() => import("./pages/Brands"));
+const WhyCashNow = lazy(() => import("./pages/WhyCashNow"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const AboutUs = lazy(() => import("./pages/AboutUs"));
 const Contact = lazy(() => import("./pages/Contact"));
@@ -62,6 +63,7 @@ const App = () => (
               {/* Lazy loaded pages */}
               <Route path="/brands" element={<Brands />} />
               <Route path="/brands/:brandId" element={<Brands />} />
+              <Route path="/why-cashnow" element={<WhyCashNow />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/about-us" element={<AboutUs />} />
               <Route path="/contact" element={<Contact />} />

@@ -39,6 +39,7 @@ interface AuthContextType {
     pincode?: string,
   ) => Promise<boolean>;
   logout: () => void;
+  refreshCurrentUser: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
