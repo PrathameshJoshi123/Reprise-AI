@@ -101,6 +101,7 @@ export default function OnboardingCarousel({
 
   return (
     <Animated.View
+      pointerEvents="none"
       style={[
         styles.container,
         { backgroundColor: currentSlide.color },
@@ -124,7 +125,7 @@ export default function OnboardingCarousel({
       </Animated.View>
 
       {/* Pagination Dots */}
-      <View style={styles.pagination} >
+      <View style={styles.pagination}>
         {slides.map((_, index) => (
           <View
             key={index}
