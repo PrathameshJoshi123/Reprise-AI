@@ -1089,6 +1089,91 @@ def list_orders(
     }
 
 
+@router.get("/orders/{order_id}/pickup-details")
+def get_order_pickup_details(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin),
+):
+    """
+    Get pickup details for an order (admin only).
+    Returns complete inspection data including photos and inspection form.
+    """
+    from backend.services.sell_phone.schema.agent_pickup_details import AgentPickupDetails
+    from backend.services.partner.schema.models import Agent
+    import base64
+    
+    order = db.query(sell_models.Order).filter(sell_models.Order.id == order_id).first()
+    
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Get pickup/inspection details
+    pickup_details = db.query(AgentPickupDetails).filter(
+        AgentPickupDetails.order_id == order_id
+    ).first()
+    
+    if not pickup_details:
+        # Return basic order info if no inspection details
+        return {
+            "order_id": order_id,
+            "has_pickup_details": False,
+            "scheduled_date": order.pickup_date,
+            "scheduled_time": order.pickup_time,
+            "customer_name": order.customer_name,
+            "customer_phone": order.customer_phone,
+            "address": order.pickup_address_line or order.address_line,
+            "city": order.pickup_city or order.city,
+            "state": order.pickup_state or order.state,
+            "pincode": order.pickup_pincode or order.pincode,
+            "status": order.status,
+        }
+    
+    # Get agent info
+    agent = db.query(Agent).filter(Agent.id == pickup_details.agent_id).first()
+    
+    # Encode photos to base64 for JSON serialization
+    photos_base64 = None
+    if pickup_details.photos_blob:
+        try:
+            photos_base64 = base64.b64encode(pickup_details.photos_blob).decode('utf-8')
+        except Exception as e:
+            print(f"Error encoding photos to base64: {e}")
+            photos_base64 = None
+    
+    return {
+        "order_id": order_id,
+        "has_pickup_details": True,
+        "agent": {
+            "id": agent.id,
+            "name": agent.full_name,
+            "email": agent.email,
+            "phone": agent.phone,
+        } if agent else None,
+        "phone_conditions": pickup_details.phone_conditions,
+        "final_offered_price": pickup_details.final_offered_price,
+        "customer_accepted_offer": pickup_details.customer_accepted_offer == 1,
+        "payment_method": pickup_details.payment_method,
+        "pickup_notes": pickup_details.pickup_notes,
+        "actual_condition": pickup_details.actual_condition,
+        "photos_metadata": pickup_details.photos_metadata,
+        "photos_blob": photos_base64,
+        "photos_count": len(pickup_details.photos_metadata) if pickup_details.photos_metadata else 0,
+        "total_blob_size": len(pickup_details.photos_blob) if pickup_details.photos_blob else 0,
+        "captured_at": pickup_details.captured_at.isoformat() if pickup_details.captured_at else None,
+        "created_at": pickup_details.created_at.isoformat() if pickup_details.created_at else None,
+        "scheduled_date": order.pickup_date,
+        "scheduled_time": order.pickup_time,
+        "customer_name": order.customer_name,
+        "customer_phone": order.customer_phone,
+        "address": order.pickup_address_line or order.address_line,
+        "city": order.pickup_city or order.city,
+        "state": order.pickup_state or order.state,
+        "pincode": order.pickup_pincode or order.pincode,
+        "status": order.status,
+    }
+
+
 # ============================================================================
 # PHONE LIST MANAGEMENT
 # ============================================================================
