@@ -7,7 +7,8 @@
     "icon": "./assets/images/icon.png",
     "scheme": "repriseapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "jsEngine": "hermes",
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true
     },
@@ -44,7 +45,7 @@
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
+      "reactCompiler": false
     }
   }
 }

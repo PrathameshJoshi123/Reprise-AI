@@ -17,6 +17,14 @@ export interface Partner {
   gst_number: string | null;
   pan_number: string;
   is_verified: boolean;
+  verification_status:
+    | "pending"
+    | "under_review"
+    | "clarification_needed"
+    | "approved"
+    | "rejected"
+    | "suspended";
+  rejection_reason?: string;
   is_on_hold: boolean;
   hold_reason?: string;
   hold_lift_date?: string;

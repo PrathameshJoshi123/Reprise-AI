@@ -1,35 +1,45 @@
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  View,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
+  View,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
+import { getErrorMessage } from "../../utils/error";
+import { parsePincodes } from "../../utils/formatting";
 import {
   validateEmail,
+  validateGST,
+  validatePAN,
   validatePassword,
   validatePhone,
-  validatePAN,
-  validateGST,
   validatePincodes,
   validateRequired,
 } from "../../utils/validation";
-import { parsePincodes } from "../../utils/formatting";
 
 export default function PartnerLoginScreen() {
   const { login, signup } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [statusModalType, setStatusModalType] = useState<
+    "success" | "warning" | "error"
+  >("warning");
+  const [statusModalContent, setStatusModalContent] = useState({
+    title: "",
+    message: "",
+  });
 
   // Form state
   const [formData, setFormData] = useState({
@@ -95,7 +105,6 @@ export default function PartnerLoginScreen() {
     try {
       if (isLogin) {
         await login(formData.email, formData.password, "partner");
-        router.replace("/(tabs)/dashboard");
       } else {
         const pincodes = parsePincodes(formData.serviceable_pincodes);
         await signup(
@@ -109,13 +118,57 @@ export default function PartnerLoginScreen() {
           formData.pan_number,
           pincodes,
         );
-        router.replace("/(tabs)/dashboard");
+
+        // Show success modal for signup as requested
+        setStatusModalContent({
+          title: "Application Submitted",
+          message:
+            "Your application has been submitted successfully and is currently under review. You will be notified once it is approved.",
+        });
+        setStatusModalType("success");
+        setStatusModalVisible(true);
       }
     } catch (error: any) {
-      Alert.alert(
-        "Error",
-        error.response?.data?.detail || "An error occurred. Please try again.",
-      );
+      // Clean error handling - no console noise
+      const errorMessage = getErrorMessage(error, "An error occurred.");
+      const lowerError = errorMessage.toLowerCase();
+
+      // Check for REJECTED/SUSPENDED status errors
+      if (
+        lowerError.includes("reject") ||
+        lowerError.includes("suspend") ||
+        lowerError.includes("block")
+      ) {
+        setStatusModalContent({
+          title: lowerError.includes("suspend")
+            ? "Account Suspended"
+            : "Application Rejected",
+          message: lowerError.includes("suspend")
+            ? "Your account has been suspended. Please contact support."
+            : "Your application was rejected. Please check your email for details or contact support.",
+        });
+        setStatusModalType("error");
+        setStatusModalVisible(true);
+      }
+      // Check for PENDING/REVIEW status errors
+      else if (
+        lowerError.includes("review") ||
+        lowerError.includes("approval") ||
+        lowerError.includes("pending") ||
+        lowerError.includes("verify") ||
+        lowerError.includes("active")
+      ) {
+        setStatusModalContent({
+          title: "Application Under Review",
+          message:
+            "Your partner application is currently under review by our administrators. Please check back later.",
+        });
+        setStatusModalType("warning");
+        setStatusModalVisible(true);
+      } else {
+        // Generic error - show alert but clean message (no AxiosError junk)
+        Alert.alert("Error", errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -144,7 +197,10 @@ export default function PartnerLoginScreen() {
 
             <View style={styles.contentContainer}>
               {/* Back Button */}
-              <TouchableOpacity onPress={()=>router.push("/")} style={styles.backButton}>
+              <TouchableOpacity
+                onPress={() => router.push("/")}
+                style={styles.backButton}
+              >
                 <Ionicons name="chevron-back" size={24} color="#475569" />
               </TouchableOpacity>
 
@@ -236,8 +292,6 @@ export default function PartnerLoginScreen() {
                     {loading ? "Logging in..." : "Login"}
                   </Text>
                 </TouchableOpacity>
-
-      
               </View>
 
               {/* Toggle to Signup */}
@@ -253,6 +307,69 @@ export default function PartnerLoginScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
+        {/* Status Modal */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={statusModalVisible}
+          onRequestClose={() => setStatusModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View
+                style={[
+                  styles.modalIconContainer,
+                  {
+                    backgroundColor:
+                      statusModalType === "error"
+                        ? "#fee2e2"
+                        : statusModalType === "success"
+                          ? "#dcfce7"
+                          : "#fef3c7",
+                  },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name={
+                    statusModalType === "error"
+                      ? "close-circle-outline"
+                      : statusModalType === "success"
+                        ? "check-circle-outline"
+                        : "clock-time-four-outline"
+                  }
+                  size={48}
+                  color={
+                    statusModalType === "error"
+                      ? "#dc2626"
+                      : statusModalType === "success"
+                        ? "#16a34a"
+                        : "#d97706"
+                  }
+                />
+              </View>
+              <Text style={styles.modalTitle}>{statusModalContent.title}</Text>
+              <Text style={styles.modalMessage}>
+                {statusModalContent.message}
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  {
+                    backgroundColor:
+                      statusModalType === "error"
+                        ? "#dc2626"
+                        : statusModalType === "success"
+                          ? "#16a34a"
+                          : "#d97706",
+                  },
+                ]}
+                onPress={() => setStatusModalVisible(false)}
+              >
+                <Text style={styles.modalButtonText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     );
   }
@@ -261,11 +378,19 @@ export default function PartnerLoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20 }}>
-          <View style={{ marginTop: 20, marginBottom: 30 }}>
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            padding: 24,
+            paddingBottom: 100,
+          }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={{ marginBottom: 24 }}>
             <Text
               style={{
                 fontSize: 28,
@@ -453,9 +578,123 @@ export default function PartnerLoginScreen() {
               </Text>
             )}
           </View>
+
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 14, fontWeight: "500", marginBottom: 6 }}>
+              Email *
+            </Text>
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: errors.email ? "#dc2626" : "#d1d5db",
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 16,
+                backgroundColor: "#fff",
+              }}
+              value={formData.email}
+              onChangeText={(text) => setFormData({ ...formData, email: text })}
+              placeholder="email@example.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+            />
+            {errors.email && (
+              <Text style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>
+                {errors.email}
+              </Text>
+            )}
+          </View>
+
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 14, fontWeight: "500", marginBottom: 6 }}>
+              Password *
+            </Text>
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: errors.password ? "#dc2626" : "#d1d5db",
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 16,
+                backgroundColor: "#fff",
+                color: "#1e293b",
+              }}
+              value={formData.password}
+              onChangeText={(text) =>
+                setFormData({ ...formData, password: text })
+              }
+              placeholder="Create a password"
+              secureTextEntry
+            />
+            {errors.password && (
+              <Text style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>
+                {errors.password}
+              </Text>
+            )}
+          </View>
+
+          <View style={{ marginBottom: 24 }}>
+            <Text style={{ fontSize: 14, fontWeight: "500", marginBottom: 6 }}>
+              Serviceable Pincodes (Comma separated) *
+            </Text>
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: errors.serviceable_pincodes
+                  ? "#dc2626"
+                  : "#d1d5db",
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 16,
+                backgroundColor: "#fff",
+                minHeight: 80,
+                textAlignVertical: "top",
+              }}
+              value={formData.serviceable_pincodes}
+              onChangeText={(text) =>
+                setFormData({ ...formData, serviceable_pincodes: text })
+              }
+              placeholder="e.g. 110001, 110002"
+              multiline
+              numberOfLines={3}
+              keyboardType="number-pad"
+            />
+            <Text style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+              List the pincodes where you can provide service.
+            </Text>
+            {errors.serviceable_pincodes && (
+              <Text style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>
+                {errors.serviceable_pincodes}
+              </Text>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={{
+              backgroundColor: "#2563eb",
+              borderRadius: 12,
+              padding: 16,
+              alignItems: "center",
+              marginBottom: 16,
+              shadowColor: "#2563eb",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.2,
+              shadowRadius: 8,
+              elevation: 4,
+            }}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            <Text
+              style={{ color: "#ffffff", fontSize: 16, fontWeight: "bold" }}
+            >
+              {loading ? "Submitting..." : "Submit Application"}
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={toggleMode}
-            style={{ alignItems: "center" }}
+            style={{ alignItems: "center", padding: 10 }}
           >
             <Text style={{ color: "#2563eb", fontSize: 14 }}>
               Already have an account? Login
@@ -463,6 +702,70 @@ export default function PartnerLoginScreen() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Status Modal - Reused for Signup Screen */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={statusModalVisible}
+        onRequestClose={() => setStatusModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View
+              style={[
+                styles.modalIconContainer,
+                {
+                  backgroundColor:
+                    statusModalType === "error"
+                      ? "#fee2e2"
+                      : statusModalType === "success"
+                        ? "#dcfce7"
+                        : "#fef3c7",
+                },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name={
+                  statusModalType === "error"
+                    ? "close-circle-outline"
+                    : statusModalType === "success"
+                      ? "check-circle-outline"
+                      : "clock-time-four-outline"
+                }
+                size={48}
+                color={
+                  statusModalType === "error"
+                    ? "#dc2626"
+                    : statusModalType === "success"
+                      ? "#16a34a"
+                      : "#d97706"
+                }
+              />
+            </View>
+            <Text style={styles.modalTitle}>{statusModalContent.title}</Text>
+            <Text style={styles.modalMessage}>
+              {statusModalContent.message}
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.modalButton,
+                {
+                  backgroundColor:
+                    statusModalType === "error"
+                      ? "#dc2626"
+                      : statusModalType === "success"
+                        ? "#16a34a"
+                        : "#d97706",
+                },
+              ]}
+              onPress={() => setStatusModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -628,6 +931,62 @@ const styles = StyleSheet.create({
   },
   toggleTextBold: {
     color: "#2563eb",
+    fontWeight: "600",
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1e293b",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: "#64748b",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  modalButton: {
+    backgroundColor: "#2563eb",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    width: "100%",
+    alignItems: "center",
+  },
+  modalButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
     fontWeight: "600",
   },
 });
