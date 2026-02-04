@@ -22,6 +22,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    referral_code: Optional[str] = None  # Optional referral code during signup
     
     @validator('pincode')
     def validate_pincode(cls, v):
@@ -57,6 +58,7 @@ class UserOut(BaseModel):
     is_active: bool
     # New: include pincode in output
     pincode: Optional[str] = None
+    referral_points: int = 0
     # Role inferred by backend: 'customer', 'agent', 'partner', 'admin'
     role: Optional[str] = None
 
@@ -76,6 +78,7 @@ class ProfileOut(BaseModel):
     address: Optional[str] = None
     is_active: bool
     pincode: Optional[str] = None
+    referral_points: int = 0
 
     model_config = {"from_attributes": True}
 

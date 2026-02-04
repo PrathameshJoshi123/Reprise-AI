@@ -11,6 +11,7 @@ import {
   ShoppingCart,
   LogOut,
   Smartphone,
+  Gift,
 } from "lucide-react";
 
 export default function Layout() {
@@ -58,6 +59,11 @@ export default function Layout() {
       label: "Phone List",
       icon: Smartphone,
       path: "/phones",
+    },
+    {
+      label: "Referral Settings",
+      icon: Gift,
+      path: "/referral-settings",
     },
   ];
 

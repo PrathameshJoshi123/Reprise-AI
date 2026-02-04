@@ -11,6 +11,7 @@ import PartnerDetails from "./pages/PartnerDetails";
 import CreditPlans from "./pages/CreditPlans";
 import Orders from "./pages/Orders";
 import PhonesList from "./pages/PhonesList";
+import ReferralSettings from "./pages/ReferralSettings";
 import "./App.css";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -54,6 +55,7 @@ function App() {
             <Route path="credit-plans" element={<CreditPlans />} />
             <Route path="orders" element={<Orders />} />
             <Route path="phones" element={<PhonesList />} />
+            <Route path="referral-settings" element={<ReferralSettings />} />
           </Route>
         </Routes>
       </AuthProvider>

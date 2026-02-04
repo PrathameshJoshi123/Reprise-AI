@@ -35,6 +35,7 @@ export default function CustomerLogin() {
   const [phone, setPhone] = useState("");
   const [pincode, setPincode] = useState("");
   const [address, setAddress] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [pincodeError, setPincodeError] = useState("");
   const [pincodeChecking, setPincodeChecking] = useState(false);
   const [pincodeValid, setPincodeValid] = useState(false);
@@ -90,7 +91,7 @@ export default function CustomerLogin() {
       if (!data.serviceable) {
         setPincodeError(
           data.message ||
-          "Sorry, we don't service this pincode yet. You can still signup, but order processing may be delayed.",
+            "Sorry, we don't service this pincode yet. You can still signup, but order processing may be delayed.",
         );
       }
     } catch (error) {
@@ -364,8 +365,8 @@ export default function CustomerLogin() {
                         {pincodeValid && serviceableInfo && (
                           <Alert className="bg-green-50 border-green-200">
                             <AlertDescription className="text-green-800 text-sm">
-                              ✓ Great! {serviceableInfo.partner_count} partner(s)
-                              service your area
+                              ✓ Great! {serviceableInfo.partner_count}{" "}
+                              partner(s) service your area
                             </AlertDescription>
                           </Alert>
                         )}
@@ -373,8 +374,8 @@ export default function CustomerLogin() {
                           <Alert className="bg-amber-50 border-amber-200">
                             <AlertTriangle className="h-4 w-4 text-amber-600" />
                             <AlertDescription className="text-amber-800 text-sm">
-                              Cannot create orders in this pincode area. Please try
-                              a different pincode.
+                              Cannot create orders in this pincode area. Please
+                              try a different pincode.
                             </AlertDescription>
                           </Alert>
                         )}
@@ -388,6 +389,24 @@ export default function CustomerLogin() {
                           value={address}
                           onChange={(e) => setAddress(e.target.value)}
                         />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="referral">
+                          Referral Code (Optional)
+                        </Label>
+                        <Input
+                          id="referral"
+                          placeholder="6-digit code (e.g., 123456)"
+                          maxLength={6}
+                          value={referralCode}
+                          onChange={(e) =>
+                            setReferralCode(e.target.value.replace(/\D/g, ""))
+                          }
+                        />
+                        <p className="text-xs text-gray-500">
+                          Have a referral code? Enter it to earn bonus points!
+                        </p>
                       </div>
                     </>
                   )}
@@ -434,13 +453,18 @@ export default function CustomerLogin() {
                             toast.warning(
                               "Please enter a valid email address to login.",
                               {
-                                description: "Email format is required for login.",
+                                description:
+                                  "Email format is required for login.",
                                 duration: 5000,
                               },
                             );
                             return;
                           }
-                          const ok = await login(identifier, password, "customer");
+                          const ok = await login(
+                            identifier,
+                            password,
+                            "customer",
+                          );
                           if (ok) {
                             const stateRedirect = (location.state as any)
                               ?.redirectTo;
@@ -465,10 +489,14 @@ export default function CustomerLogin() {
                             !identifier ||
                             !password
                           ) {
-                            toast.warning("Please fill in all required fields", {
-                              description: "All fields marked with * are required.",
-                              duration: 5000,
-                            });
+                            toast.warning(
+                              "Please fill in all required fields",
+                              {
+                                description:
+                                  "All fields marked with * are required.",
+                                duration: 5000,
+                              },
+                            );
                             return;
                           }
 
@@ -485,10 +513,14 @@ export default function CustomerLogin() {
                           }
 
                           if (pincode.length !== 6) {
-                            toast.warning("Please enter a valid 6-digit pincode", {
-                              description: "Pincode must be exactly 6 digits.",
-                              duration: 5000,
-                            });
+                            toast.warning(
+                              "Please enter a valid 6-digit pincode",
+                              {
+                                description:
+                                  "Pincode must be exactly 6 digits.",
+                                duration: 5000,
+                              },
+                            );
                             return;
                           }
 
@@ -520,6 +552,7 @@ export default function CustomerLogin() {
                             null,
                             null,
                             pincode,
+                            referralCode || undefined,
                           );
 
                           if (ok) {

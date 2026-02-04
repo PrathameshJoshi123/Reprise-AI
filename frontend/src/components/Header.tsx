@@ -9,6 +9,7 @@ import {
   Users,
   LogOut,
   LayoutDashboard,
+  Gift,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
@@ -134,10 +135,11 @@ export function Header() {
   return (
     <>
       <header
-        className={`sticky top-0 z-40 w-full transition-all duration-200 ${isScrolled
-          ? "bg-background shadow-sm"
-          : "bg-background/95 backdrop-blur-sm"
-          }`}
+        className={`sticky top-0 z-40 w-full transition-all duration-200 ${
+          isScrolled
+            ? "bg-background shadow-sm"
+            : "bg-background/95 backdrop-blur-sm"
+        }`}
       >
         <div className="container mx-auto px-4">
           <div className="flex h-16 items-center justify-between">
@@ -155,10 +157,11 @@ export function Header() {
                   user?.role === "customer" ? (
                     <Link
                       to="/sell-phone"
-                      className={`text-sm font-medium transition-colors ${location.pathname === "/sell-phone"
-                        ? "text-primary border-b-2 border-primary"
-                        : "text-gray-600 hover:text-primary"
-                        }`}
+                      className={`text-sm font-medium transition-colors ${
+                        location.pathname === "/sell-phone"
+                          ? "text-primary border-b-2 border-primary"
+                          : "text-gray-600 hover:text-primary"
+                      }`}
                     >
                       Sell Phone
                     </Link>
@@ -166,10 +169,11 @@ export function Header() {
                 ) : (
                   <Link
                     to="/sell-phone"
-                    className={`text-sm font-medium transition-colors ${location.pathname === "/sell-phone"
-                      ? "text-primary border-b-2 border-primary"
-                      : "text-gray-600 hover:text-primary"
-                      }`}
+                    className={`text-sm font-medium transition-colors ${
+                      location.pathname === "/sell-phone"
+                        ? "text-primary border-b-2 border-primary"
+                        : "text-gray-600 hover:text-primary"
+                    }`}
                   >
                     Sell Phone
                   </Link>
@@ -177,28 +181,53 @@ export function Header() {
 
                 <Link
                   to="/how-it-works"
-                  className={`text-sm font-medium transition-colors ${location.pathname === "/how-it-works"
-                    ? "text-primary border-b-2 border-primary"
-                    : "text-gray-600 hover:text-primary"
-                    }`}
+                  className={`text-sm font-medium transition-colors ${
+                    location.pathname === "/how-it-works"
+                      ? "text-primary border-b-2 border-primary"
+                      : "text-gray-600 hover:text-primary"
+                  }`}
                 >
                   How It Works
                 </Link>
                 <Link
                   to="/why-cashnow"
-                  className={`text-sm font-medium transition-colors ${location.pathname === "/why-cashnow"
-                    ? "text-primary border-b-2 border-primary"
-                    : "text-gray-600 hover:text-primary"
-                    }`}
+                  className={`text-sm font-medium transition-colors ${
+                    location.pathname === "/why-cashnow"
+                      ? "text-primary border-b-2 border-primary"
+                      : "text-gray-600 hover:text-primary"
+                  }`}
                 >
                   Why CashNow?
                 </Link>
+                {authPresent && user?.role === "customer" && (
+                  <Link
+                    to="/referral"
+                    className={`text-sm font-medium transition-colors ${
+                      location.pathname === "/referral"
+                        ? "text-primary border-b-2 border-primary"
+                        : "text-gray-600 hover:text-primary"
+                    }`}
+                  >
+                    Referral
+                  </Link>
+                )}
+                <Link
+                  to="/become-partner"
+                  className={`text-sm font-medium transition-colors ${
+                    location.pathname === "/become-partner"
+                      ? "text-primary border-b-2 border-primary"
+                      : "text-gray-600 hover:text-primary"
+                  }`}
+                >
+                  Become a Partner
+                </Link>
                 <Link
                   to="/contact"
-                  className={`text-sm font-medium transition-colors ${location.pathname === "/contact"
-                    ? "text-primary border-b-2 border-primary"
-                    : "text-gray-600 hover:text-primary"
-                    }`}
+                  className={`text-sm font-medium transition-colors ${
+                    location.pathname === "/contact"
+                      ? "text-primary border-b-2 border-primary"
+                      : "text-gray-600 hover:text-primary"
+                  }`}
                 >
                   Contact
                 </Link>
@@ -309,10 +338,11 @@ export function Header() {
                       user?.role === "customer" ? (
                         <Link
                           to="/sell-phone"
-                          className={`text-base font-medium transition-colors ${location.pathname === "/sell-phone"
+                          className={`text-base font-medium transition-colors ${
+                            location.pathname === "/sell-phone"
                               ? "text-primary border-l-4 border-primary pl-2"
                               : "hover:text-blue-600"
-                            }`}
+                          }`}
                         >
                           Sell Phone
                         </Link>
@@ -320,10 +350,11 @@ export function Header() {
                     ) : (
                       <Link
                         to="/sell-phone"
-                        className={`text-base font-medium transition-colors ${location.pathname === "/sell-phone"
+                        className={`text-base font-medium transition-colors ${
+                          location.pathname === "/sell-phone"
                             ? "text-primary border-l-4 border-primary pl-2"
                             : "hover:text-blue-600"
-                          }`}
+                        }`}
                       >
                         Sell Phone
                       </Link>
@@ -331,38 +362,52 @@ export function Header() {
 
                     <Link
                       to="/how-it-works"
-                      className={`text-base font-medium transition-colors ${location.pathname === "/how-it-works"
+                      className={`text-base font-medium transition-colors ${
+                        location.pathname === "/how-it-works"
                           ? "text-primary border-l-4 border-primary pl-2"
                           : "hover:text-blue-600"
-                        }`}
+                      }`}
                     >
                       How It Works
                     </Link>
                     <Link
                       to="/why-cashnow"
-                      className={`text-base font-medium transition-colors ${location.pathname === "/why-cashnow"
+                      className={`text-base font-medium transition-colors ${
+                        location.pathname === "/why-cashnow"
                           ? "text-primary border-l-4 border-primary pl-2"
                           : "hover:text-blue-600"
-                        }`}
+                      }`}
                     >
                       Why CashNow?
                     </Link>
                     <Link
-                      to="/contact"
-                      className={`text-base font-medium transition-colors ${location.pathname === "/contact"
+                      to="/become-partner"
+                      className={`text-base font-medium transition-colors ${
+                        location.pathname === "/become-partner"
                           ? "text-primary border-l-4 border-primary pl-2"
                           : "hover:text-blue-600"
-                        }`}
+                      }`}
+                    >
+                      Become a Partner
+                    </Link>
+                    <Link
+                      to="/contact"
+                      className={`text-base font-medium transition-colors ${
+                        location.pathname === "/contact"
+                          ? "text-primary border-l-4 border-primary pl-2"
+                          : "hover:text-blue-600"
+                      }`}
                     >
                       Contact
                     </Link>
                     {showMyOrders && (
                       <Link
                         to="/my-orders"
-                        className={`text-base font-medium transition-colors ${location.pathname === "/my-orders"
+                        className={`text-base font-medium transition-colors ${
+                          location.pathname === "/my-orders"
                             ? "text-primary border-l-4 border-primary pl-2"
                             : "hover:text-blue-600"
-                          }`}
+                        }`}
                       >
                         My Orders
                       </Link>

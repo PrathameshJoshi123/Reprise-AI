@@ -34,6 +34,7 @@ from backend.services.admin.schema.models import AdminCreditConfiguration, Admin
 from backend.services.sell_phone.schema.models import PhoneList, LeadLock, Order, OrderStatusHistory # noqa: F401
 
 from backend.services.sell_phone.schema.agent_pickup_details import AgentPickupDetails  # noqa: F401
+from backend.services.referral.models import ReferralSettings, ReferralCode, ReferralHistory  # noqa: F401
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,

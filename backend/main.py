@@ -7,6 +7,8 @@ from backend.services.customer_side_prediction.apis import router as customer_si
 from backend.services.admin.apis.routes import router as admin_router
 from backend.services.partner.apis.routes import router as partner_router
 from backend.services.partner.apis.agent_routes import router as agent_router
+from backend.services.referral.apis.routes import router as referral_router
+from backend.services.referral.apis.admin_routes import router as referral_admin_router
 from backend.shared.db.connections import Base, engine
 from starlette.middleware.sessions import SessionMiddleware
 from backend.config import FRONTEND_URL
@@ -74,6 +76,8 @@ app.include_router(customer_side_prediction_router)
 app.include_router(admin_router)
 app.include_router(partner_router)
 app.include_router(agent_router)
+app.include_router(referral_router)
+app.include_router(referral_admin_router, prefix="/admin")
 # app.include_router(detection_router)
 
 # Register service routes here (e.g., from services.valuation.apis import router; app.include_router(router))
