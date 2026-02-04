@@ -130,6 +130,45 @@ class PartnerOrderBriefOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PaymentRequestCreate(BaseModel):
+    """Schema for partner to request credit purchase with UPI payment"""
+    plan_id: int
+    credit_amount: float
+    payment_amount: float
+    bonus_percentage: float
+
+
+class PaymentRequestOut(BaseModel):
+    """Schema for payment request response"""
+    id: int
+    plan_id: Optional[int] = None
+    credit_amount: float
+    payment_amount: float
+    bonus_percentage: float
+    approval_status: str
+    approval_notes: Optional[str] = None
+    created_at: datetime
+    reviewed_at: Optional[datetime] = None
+    
+    model_config = {"from_attributes": True}
+
+
+class PaymentRequestWithScreenshot(BaseModel):
+    """Schema for payment request with screenshot metadata"""
+    id: int
+    plan_id: Optional[int] = None
+    credit_amount: float
+    payment_amount: float
+    bonus_percentage: float
+    approval_status: str
+    approval_notes: Optional[str] = None
+    has_screenshot: bool
+    created_at: datetime
+    reviewed_at: Optional[datetime] = None
+    
+    model_config = {"from_attributes": True}
+
+
 # ================================
 # AGENT SCHEMAS
 # ================================

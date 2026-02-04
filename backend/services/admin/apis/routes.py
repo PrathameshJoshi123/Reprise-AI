@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, File, UploadFile
 from sqlalchemy.orm import Session, load_only
 from sqlalchemy import func, desc
 from typing import Optional, List
@@ -10,7 +10,7 @@ from backend.services.partner.schema.models import Partner, PartnerServiceablePi
 from backend.services.partner import utils as partner_utils
 from backend.services.admin.schema.models import (
     Admin, PartnerVerificationHistory, CreditPlan, 
-    PartnerCreditTransaction, AdminCreditConfiguration
+    PartnerCreditTransaction, AdminCreditConfiguration, PartnerPaymentRequest
 )
 from backend.services.admin import utils as admin_utils
 from backend.services.admin.schema.schemas import (
@@ -24,6 +24,7 @@ from backend.services.admin.schema.schemas import (
     CreditPlanOut, CreditPlanCreate, CreditPlanUpdate,
     PartnerCreditTransactionOut, AdjustCreditsRequest,
     AdminCreditConfigurationOut, UpdateConfigRequest,
+    PartnerPaymentRequestDetailOut, ApprovePaymentRequest, RejectPaymentRequest,
     # Dashboard
     DashboardStats,
     # Phone List
@@ -532,6 +533,199 @@ def get_partner_transactions(
     ).order_by(desc(PartnerCreditTransaction.created_at)).offset((page - 1) * limit).limit(limit).all()
     
     return transactions
+
+
+# ============================================================================
+# PAYMENT REQUEST MANAGEMENT
+# ============================================================================
+
+@router.get("/payment-requests", response_model=List[PartnerPaymentRequestDetailOut])
+def get_payment_requests(
+    approval_status: Optional[str] = Query(None, description="Filter by status: pending, approved, rejected"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """Get all partner payment requests with optional status filter"""
+    query = db.query(PartnerPaymentRequest)
+    
+    if approval_status:
+        query = query.filter(PartnerPaymentRequest.approval_status == approval_status)
+    
+    requests = query.order_by(desc(PartnerPaymentRequest.created_at)).offset((page - 1) * limit).limit(limit).all()
+    
+    # Format response with partner details
+    result = []
+    for req in requests:
+        partner = db.query(Partner).filter(Partner.id == req.partner_id).first()
+        if partner:
+            result.append(PartnerPaymentRequestDetailOut(
+                id=req.id,
+                partner_id=req.partner_id,
+                partner_email=partner.email,
+                partner_name=partner.full_name,
+                plan_id=req.plan_id,
+                credit_amount=req.credit_amount,
+                payment_amount=req.payment_amount,
+                bonus_percentage=req.bonus_percentage,
+                approval_status=req.approval_status,
+                approval_notes=req.approval_notes,
+                reviewed_by_admin_id=req.reviewed_by_admin_id,
+                reviewed_at=req.reviewed_at,
+                created_at=req.created_at,
+                has_screenshot=bool(req.payment_screenshot_blob)
+            ))
+    
+    return result
+
+
+@router.get("/payment-requests/{request_id}", response_model=PartnerPaymentRequestDetailOut)
+def get_payment_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """Get specific payment request details"""
+    req = db.query(PartnerPaymentRequest).filter(PartnerPaymentRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Payment request not found")
+    
+    partner = db.query(Partner).filter(Partner.id == req.partner_id).first()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Partner not found")
+    
+    return PartnerPaymentRequestDetailOut(
+        id=req.id,
+        partner_id=req.partner_id,
+        partner_email=partner.email,
+        partner_name=partner.full_name,
+        plan_id=req.plan_id,
+        credit_amount=req.credit_amount,
+        payment_amount=req.payment_amount,
+        bonus_percentage=req.bonus_percentage,
+        approval_status=req.approval_status,
+        approval_notes=req.approval_notes,
+        reviewed_by_admin_id=req.reviewed_by_admin_id,
+        reviewed_at=req.reviewed_at,
+        created_at=req.created_at,
+        has_screenshot=bool(req.payment_screenshot_blob)
+    )
+
+
+@router.get("/payment-requests/{request_id}/screenshot")
+def get_payment_screenshot(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """Get payment screenshot for a request"""
+    req = db.query(PartnerPaymentRequest).filter(PartnerPaymentRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Payment request not found")
+    
+    if not req.payment_screenshot_blob:
+        raise HTTPException(status_code=404, detail="Screenshot not found")
+    
+    import base64
+    # Return image data as base64
+    image_data = base64.b64encode(req.payment_screenshot_blob).decode('utf-8')
+    return {
+        "data": image_data,
+        "metadata": req.payment_screenshot_metadata
+    }
+
+
+@router.post("/payment-requests/{request_id}/approve", response_model=dict)
+def approve_payment_request(
+    request_id: int,
+    payload: ApprovePaymentRequest,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """Approve a payment request and add credits to partner"""
+    req = db.query(PartnerPaymentRequest).filter(PartnerPaymentRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Payment request not found")
+    
+    if req.approval_status != 'pending':
+        raise HTTPException(status_code=400, detail=f"Request already {req.approval_status}")
+    
+    partner = db.query(Partner).filter(Partner.id == req.partner_id).first()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Partner not found")
+    
+    # Update request status
+    req.approval_status = 'approved'
+    req.reviewed_by_admin_id = current_admin.id
+    req.reviewed_at = datetime.now(timezone.utc)
+    req.approval_notes = payload.approval_notes
+    
+    # Add credits to partner
+    balance_before = partner.credit_balance
+    total_credits = req.credit_amount + (req.credit_amount * req.bonus_percentage / 100.0)
+    partner.credit_balance = (partner.credit_balance or 0.0) + total_credits
+    balance_after = partner.credit_balance
+    
+    # Create transaction record
+    transaction = PartnerCreditTransaction(
+        partner_id=partner.id,
+        transaction_type='credit_purchase',
+        amount=total_credits,
+        balance_before=balance_before,
+        balance_after=balance_after,
+        reference_id=req.id,
+        reference_type='payment_request',
+        payment_method='upi',
+        payment_transaction_id=f"PR-{req.id}",
+        notes=f"UPI payment approved for {req.credit_amount} credits",
+        created_by_admin_id=current_admin.id
+    )
+    
+    db.add(req)
+    db.add(partner)
+    db.add(transaction)
+    db.commit()
+    
+    return {
+        "status": "success",
+        "message": "Payment approved and credits added",
+        "request_id": request_id,
+        "credits_added": total_credits,
+        "new_balance": balance_after
+    }
+
+
+@router.post("/payment-requests/{request_id}/reject", response_model=dict)
+def reject_payment_request(
+    request_id: int,
+    payload: RejectPaymentRequest,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(admin_utils.get_current_admin)
+):
+    """Reject a payment request"""
+    req = db.query(PartnerPaymentRequest).filter(PartnerPaymentRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Payment request not found")
+    
+    if req.approval_status != 'pending':
+        raise HTTPException(status_code=400, detail=f"Request already {req.approval_status}")
+    
+    # Update request status
+    req.approval_status = 'rejected'
+    req.reviewed_by_admin_id = current_admin.id
+    req.reviewed_at = datetime.now(timezone.utc)
+    req.approval_notes = payload.approval_notes
+    
+    db.add(req)
+    db.commit()
+    
+    return {
+        "status": "success",
+        "message": "Payment request rejected",
+        "request_id": request_id,
+        "reason": payload.approval_notes
+    }
 
 
 # ============================================================================

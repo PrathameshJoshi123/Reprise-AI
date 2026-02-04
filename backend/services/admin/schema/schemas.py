@@ -196,6 +196,50 @@ class AdjustCreditsRequest(BaseModel):
     notes: str
 
 
+class PartnerPaymentRequestOut(BaseModel):
+    id: int
+    partner_id: int
+    plan_id: Optional[int] = None
+    credit_amount: float
+    payment_amount: float
+    bonus_percentage: float
+    approval_status: str
+    approval_notes: Optional[str] = None
+    reviewed_by_admin_id: Optional[int] = None
+    reviewed_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    
+    model_config = {"from_attributes": True}
+
+
+class PartnerPaymentRequestDetailOut(BaseModel):
+    id: int
+    partner_id: int
+    partner_email: str
+    partner_name: str
+    plan_id: Optional[int] = None
+    credit_amount: float
+    payment_amount: float
+    bonus_percentage: float
+    approval_status: str
+    approval_notes: Optional[str] = None
+    reviewed_by_admin_id: Optional[int] = None
+    reviewed_at: Optional[datetime] = None
+    created_at: datetime
+    has_screenshot: bool
+    
+    model_config = {"from_attributes": True}
+
+
+class ApprovePaymentRequest(BaseModel):
+    approval_notes: Optional[str] = None
+
+
+class RejectPaymentRequest(BaseModel):
+    approval_notes: str
+
+
 class AdminCreditConfigurationOut(BaseModel):
     id: int
     config_key: str

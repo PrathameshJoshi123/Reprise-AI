@@ -59,7 +59,11 @@ export default function PartnerDashboard() {
   const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<
-    "lead_locked" | "lead_purchased" | "accepted_by_agent" | "pickup_completed"
+    | "lead_locked"
+    | "lead_purchased"
+    | "accepted_by_agent"
+    | "pickup_completed"
+    | "credits"
   >("lead_locked");
   const [leadLockedDeals, setLeadLockedDeals] = useState<Lead[]>([]);
   const [leadPurchasedOrders, setLeadPurchasedOrders] = useState<Lead[]>([]);
@@ -77,6 +81,7 @@ export default function PartnerDashboard() {
   useEffect(() => {
     fetchAllData();
     fetchAgents();
+    fetchPaymentRequests();
   }, []);
 
   const fetchAgents = async () => {
@@ -126,9 +131,27 @@ export default function PartnerDashboard() {
     }
   };
 
+  const fetchPaymentRequests = async () => {
+    try {
+      const response = await api.get("/partner/payment-requests");
+      setPaymentRequests(response.data.requests || []);
+    } catch (error) {
+      console.error("Failed to fetch payment requests:", error);
+    }
+  };
+
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [plans, setPlans] = useState<any[]>([]);
+  const [loadingPlanId, setLoadingPlanId] = useState<number | null>(null);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [paymentStep, setPaymentStep] = useState<
+    "select_plan" | "payment_proof"
+  >("select_plan");
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [paymentRequestId, setPaymentRequestId] = useState<number | null>(null);
+  const [paymentRequests, setPaymentRequests] = useState<any[]>([]);
+  const [screenshot, setScreenshot] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string>("");
 
   const openBuyModal = async () => {
     console.log("openBuyModal function called");
@@ -143,23 +166,73 @@ export default function PartnerDashboard() {
     }
   };
 
-  const handleBuyPlan = async (planId: number) => {
-    if (!confirm("Proceed to buy this credit plan?")) return;
+  const handleBuyPlan = (planId: number) => {
+    const plan = plans.find((p) => p.id === planId);
+    if (!plan) return;
+
+    // Do NOT create the payment request yet. Only open the payment proof step.
+    setSelectedPlan(plan);
+    setPaymentStep("payment_proof");
+  };
+
+  const handleUploadScreenshot = async () => {
+    if (!screenshot) {
+      alert("Please select a screenshot");
+      return;
+    }
+
     setPurchaseLoading(true);
     try {
-      const resp = await api.post("/partner/purchase-credits", {
-        plan_id: planId,
-        payment_method: "manual",
-      });
-      alert(resp.data?.message || "Purchase successful");
+      // If a payment request hasn't been created yet, create it now using the selected plan
+      let requestId = paymentRequestId;
+      if (!requestId) {
+        if (!selectedPlan) throw new Error("Selected plan missing");
+        const createResp = await api.post(
+          "/partner/payment-request",
+          new URLSearchParams({ plan_id: selectedPlan.id.toString() }),
+          { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
+        );
+        requestId = createResp.data.request_id;
+        setPaymentRequestId(requestId);
+      }
+
+      const formData = new FormData();
+      formData.append("screenshot", screenshot);
+
+      const resp = await api.post(
+        `/partner/payment-request/${requestId}/upload-screenshot`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
+
+      alert(
+        "Screenshot uploaded successfully! Admin will review your payment.",
+      );
       setShowBuyModal(false);
+      setPaymentStep("select_plan");
+      setSelectedPlan(null);
+      setPaymentRequestId(null);
+      setScreenshot(null);
+      setScreenshotPreview("");
       await refreshUser();
       await fetchAllData();
     } catch (err: any) {
-      console.error("Purchase failed:", err);
-      handleApiError(err, "purchase");
+      console.error("Upload failed:", err);
+      handleApiError(err, "upload screenshot");
     } finally {
       setPurchaseLoading(false);
+    }
+  };
+
+  const handleScreenshotSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setScreenshot(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScreenshotPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -238,10 +311,10 @@ export default function PartnerDashboard() {
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer hover:-translate-y-1 border border-gray-200 h-full flex flex-col">
-        <CardHeader className="pb-2 md:pb-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between w-full">
+            <div>
               <CardTitle className="text-sm md:text-base font-semibold truncate">
                 {lead.brand} {lead.model}
               </CardTitle>
@@ -339,7 +412,7 @@ export default function PartnerDashboard() {
         onBuyCredits={openBuyModal}
         showDashboardButton={true}
       />
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+      <div className="min-h-0 bg-gradient-to-br from-purple-50 via-white to-blue-50">
         <div className="container mx-auto px-3 md:px-4 py-4 md:py-6">
           {user?.is_on_hold && (
             <HoldNotificationBanner
@@ -370,6 +443,13 @@ export default function PartnerDashboard() {
                   key: "pickup_completed",
                   label: "Completed",
                   count: completedOrders.length,
+                },
+                {
+                  key: "credits",
+                  label: "Credits",
+                  count: paymentRequests.filter(
+                    (r) => r.approval_status === "pending",
+                  ).length,
                 },
               ].map((tab) => (
                 <button
@@ -755,6 +835,102 @@ export default function PartnerDashboard() {
         </div>
       </div>
 
+      {/* Credits Tab */}
+      {activeTab === "credits" && (
+        <div className="mt-0">
+          <motion.div
+            key="credits"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-2 pt-2"
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment Requests</CardTitle>
+                <CardDescription>
+                  Track your credit purchase payment requests and approval
+                  status
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {paymentRequests.length === 0 ? (
+                  <div className="text-center py-4">
+                    <p className="text-gray-500 mb-1">
+                      No payment requests yet
+                    </p>
+                    <Button onClick={openBuyModal}>Buy Credits</Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {paymentRequests.map((req) => (
+                      <motion.div
+                        key={req.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex-grow">
+                          <div className="font-semibold">
+                            {req.credit_amount.toFixed(0)} Credits • ₹
+                            {req.payment_amount.toFixed(0)}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {new Date(req.created_at).toLocaleDateString()}
+                          </div>
+                          {req.approval_notes && (
+                            <div className="text-xs text-gray-600 mt-1">
+                              {req.approval_notes}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          {req.approval_status === "pending" && (
+                            <Badge
+                              variant="secondary"
+                              className="bg-yellow-100 text-yellow-800"
+                            >
+                              ⏳ Pending
+                            </Badge>
+                          )}
+                          {req.approval_status === "approved" && (
+                            <Badge className="bg-green-600">✓ Approved</Badge>
+                          )}
+                          {req.approval_status === "rejected" && (
+                            <Badge variant="destructive">✗ Rejected</Badge>
+                          )}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {paymentRequests.length > 0 && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3">
+                    <div className="text-2xl">ℹ️</div>
+                    <div>
+                      <p className="font-semibold text-sm mb-1">
+                        About Credit Purchases
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        When you submit a payment screenshot, our admin team
+                        will review it within 24 hours. Once approved, credits
+                        will be instantly added to your account.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </motion.div>
+        </div>
+      )}
+
       {/* Pickup Details Modal */}
       {selectedOrderIdForPickup && (
         <PickupDetailsModal
@@ -778,7 +954,14 @@ export default function PartnerDashboard() {
           >
             <div
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-              onClick={() => setShowBuyModal(false)}
+              onClick={() => {
+                setShowBuyModal(false);
+                setPaymentStep("select_plan");
+                setSelectedPlan(null);
+                setPaymentRequestId(null);
+                setScreenshot(null);
+                setScreenshotPreview("");
+              }}
             ></div>
 
             <motion.div
@@ -788,65 +971,199 @@ export default function PartnerDashboard() {
               transition={{ type: "spring", duration: 0.5 }}
               className="relative w-full md:w-full md:max-w-2xl bg-white rounded-t-xl md:rounded-xl p-4 md:p-6 shadow-2xl max-h-[90vh] md:max-h-[95vh] overflow-y-auto"
             >
-              <h2 className="text-xl md:text-2xl font-bold mb-2">
-                Buy Credits
-              </h2>
-              <p className="text-xs md:text-sm text-gray-500 mb-4">
-                Choose a credit plan to purchase
-              </p>
+              {/* Step 1: Select Plan */}
+              {paymentStep === "select_plan" && (
+                <>
+                  <h2 className="text-xl md:text-2xl font-bold mb-2">
+                    Buy Credits
+                  </h2>
+                  <p className="text-xs md:text-sm text-gray-500 mb-4">
+                    Choose a credit plan to purchase
+                  </p>
 
-              <div className="space-y-2 md:space-y-3">
-                {plans.map((p, index) => (
-                  <motion.div
-                    key={p.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <Card className="hover:shadow-lg transition-all duration-200 hover:border-purple-300">
-                      <CardContent className="p-3 md:p-4">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                          <div className="flex-grow">
-                            <div className="font-semibold text-sm md:text-base">
-                              {p.plan_name}
+                  <div className="space-y-2 md:space-y-3">
+                    {plans.map((p, index) => (
+                      <motion.div
+                        key={p.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                      >
+                        <Card className="hover:shadow-lg transition-all duration-200 hover:border-purple-300">
+                          <CardContent className="p-3 md:p-4">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                              <div className="flex-grow">
+                                <div className="font-semibold text-sm md:text-base">
+                                  {p.plan_name}
+                                </div>
+                                <div className="text-xs md:text-sm text-gray-500">
+                                  {p.description}
+                                </div>
+                                {p.bonus_percentage > 0 && (
+                                  <div className="text-xs mt-1 font-semibold text-green-600">
+                                    + {p.bonus_percentage}% bonus
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-right w-full sm:w-auto">
+                                <div className="text-lg md:text-xl font-bold">
+                                  {p.credit_amount} credits
+                                </div>
+                                <div className="text-xs md:text-sm text-gray-500">
+                                  ₹{p.price}
+                                </div>
+                                <div className="mt-2">
+                                  <Button
+                                    size="sm"
+                                    className="text-xs h-8 w-full sm:w-auto bg-purple-600 hover:bg-purple-700"
+                                    onClick={() => handleBuyPlan(p.id)}
+                                    disabled={loadingPlanId !== null}
+                                  >
+                                    {loadingPlanId === p.id
+                                      ? "Processing..."
+                                      : "Select"}
+                                  </Button>
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-xs md:text-sm text-gray-500">
-                              {p.description}
-                            </div>
-                          </div>
-                          <div className="text-right w-full sm:w-auto">
-                            <div className="text-lg md:text-xl font-bold">
-                              {p.credit_amount} credits
-                            </div>
-                            <div className="text-xs md:text-sm text-gray-500">
-                              ₹{p.price}
-                            </div>
-                            <div className="mt-2">
-                              <Button
-                                size="sm"
-                                className="text-xs h-8 w-full sm:w-auto"
-                                onClick={() => handleBuyPlan(p.id)}
-                                disabled={purchaseLoading}
-                              >
-                                {purchaseLoading ? "Processing..." : "Buy"}
-                              </Button>
-                            </div>
-                          </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 text-right">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowBuyModal(false);
+                        setPaymentStep("select_plan");
+                      }}
+                    >
+                      Close
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 2: Payment Proof */}
+              {paymentStep === "payment_proof" && selectedPlan && (
+                <>
+                  <h2 className="text-xl md:text-2xl font-bold mb-2">
+                    Scan & Pay via UPI
+                  </h2>
+                  <p className="text-xs md:text-sm text-gray-600 mb-4">
+                    Plan:{" "}
+                    <span className="font-semibold">
+                      {selectedPlan.plan_name}
+                    </span>{" "}
+                    • Amount:{" "}
+                    <span className="font-semibold">₹{selectedPlan.price}</span>
+                  </p>
+
+                  <div className="space-y-4">
+                    {/* QR Code Section */}
+                    <Card className="bg-gradient-to-br from-purple-50 to-blue-50">
+                      <CardContent className="p-6 flex flex-col items-center">
+                        <h3 className="text-sm font-semibold mb-3 text-gray-700">
+                          Scan to Pay
+                        </h3>
+                        <div className="bg-white p-4 rounded-lg border-2 border-purple-200">
+                          <img
+                            src="/assets/QR_CODE.jpg"
+                            alt="UPI QR Code"
+                            className="w-48 h-48 md:w-56 md:h-56 object-cover rounded"
+                          />
                         </div>
+                        <p className="text-xs text-gray-600 mt-3 text-center">
+                          Scan this QR code with your UPI app and pay ₹
+                          {selectedPlan.price}
+                        </p>
                       </CardContent>
                     </Card>
-                  </motion.div>
-                ))}
-              </div>
 
-              <div className="mt-6 text-right">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowBuyModal(false)}
-                >
-                  Close
-                </Button>
-              </div>
+                    {/* Screenshot Upload Section */}
+                    <Card>
+                      <CardContent className="p-4">
+                        <h3 className="text-sm font-semibold mb-3 text-gray-700">
+                          Upload Payment Screenshot
+                        </h3>
+
+                        {screenshotPreview ? (
+                          <div className="mb-4">
+                            <img
+                              src={screenshotPreview}
+                              alt="Payment screenshot"
+                              className="w-full max-h-64 object-contain rounded-lg border-2 border-green-300"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-2 w-full"
+                              onClick={() => {
+                                setScreenshot(null);
+                                setScreenshotPreview("");
+                              }}
+                            >
+                              Change Screenshot
+                            </Button>
+                          </div>
+                        ) : (
+                          <label className="border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:border-purple-400 transition-colors flex items-center justify-center min-h-[140px]">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleScreenshotSelect}
+                              className="hidden"
+                            />
+                            <div className="text-center text-gray-600 flex flex-col items-center gap-1">
+                              <div className="text-2xl">📸</div>
+                              <p className="font-semibold mb-0">
+                                Click to select screenshot
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                or drag and drop
+                              </p>
+                            </div>
+                          </label>
+                        )}
+
+                        <p className="text-xs text-gray-500 mt-3">
+                          📸 Screenshot should show the successful payment
+                          confirmation
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => {
+                          setPaymentStep("select_plan");
+                          setSelectedPlan(null);
+                          setPaymentRequestId(null);
+                        }}
+                      >
+                        Back
+                      </Button>
+                      <Button
+                        className="flex-1 bg-green-600 hover:bg-green-700"
+                        disabled={!screenshot || purchaseLoading}
+                        onClick={handleUploadScreenshot}
+                      >
+                        {purchaseLoading ? "Uploading..." : "Submit Payment"}
+                      </Button>
+                    </div>
+
+                    <p className="text-xs text-gray-500 text-center">
+                      ✓ Admin will review your payment and credits will be added
+                      within 24 hours
+                    </p>
+                  </div>
+                </>
+              )}
             </motion.div>
           </motion.div>
         </AnimatePresence>

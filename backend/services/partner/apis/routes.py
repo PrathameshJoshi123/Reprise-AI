@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, File, UploadFile, Form
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from backend.shared.db.connections import get_db
 from backend.services.partner.schema import schemas as partner_schemas
 from backend.services.partner.schema.models import Agent, Partner
@@ -9,11 +9,12 @@ from backend.services.auth import utils as auth_utils
 from backend.services.sell_phone.schema.models import Order
 from backend.services.sell_phone.schema.agent_pickup_details import AgentPickupDetails
 from backend.services.sell_phone.utils import create_status_history
-from typing import List
+from typing import List, Optional
 from datetime import datetime, timezone
-from backend.services.admin.schema.models import CreditPlan, PartnerCreditTransaction
+from backend.services.admin.schema.models import CreditPlan, PartnerCreditTransaction, PartnerPaymentRequest
 from backend.services.admin import schema as admin_schemas
 import base64
+import json
 
 router = APIRouter(prefix="/partner", tags=["Partner"])
 
@@ -98,6 +99,170 @@ def partner_purchase_credits(
         "balance_before": balance_before,
         "balance_after": balance_after,
         "plan": {"id": plan.id, "plan_name": plan.plan_name, "credit_amount": plan.credit_amount},
+    }
+
+
+@router.post("/payment-request", response_model=dict, status_code=201)
+def create_payment_request(
+    plan_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_partner: Partner = Depends(auth_utils.get_current_partner),
+):
+    """Create a payment request for UPI credit purchase"""
+    # Check if partner is on hold
+    if partner_utils.check_partner_on_hold(db, current_partner.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is on hold. You cannot purchase credits at this time."
+        )
+    
+    plan = db.query(CreditPlan).filter(CreditPlan.id == plan_id, CreditPlan.is_active == True).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Credit plan not found")
+    
+    # Create payment request
+    payment_request = PartnerPaymentRequest(
+        partner_id=current_partner.id,
+        plan_id=plan.id,
+        credit_amount=plan.credit_amount,
+        payment_amount=plan.price,
+        bonus_percentage=plan.bonus_percentage or 0.0,
+        approval_status='pending'
+    )
+    
+    db.add(payment_request)
+    db.commit()
+    db.refresh(payment_request)
+    
+    return {
+        "status": "success",
+        "message": "Payment request created",
+        "request_id": payment_request.id,
+        "credit_amount": plan.credit_amount,
+        "payment_amount": plan.price,
+        "bonus_percentage": plan.bonus_percentage or 0.0
+    }
+
+
+@router.post("/payment-request/{request_id}/upload-screenshot")
+def upload_payment_screenshot(
+    request_id: int,
+    screenshot: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_partner: Partner = Depends(auth_utils.get_current_partner),
+):
+    """Upload payment screenshot for a payment request"""
+    payment_request = db.query(PartnerPaymentRequest).filter(
+        PartnerPaymentRequest.id == request_id,
+        PartnerPaymentRequest.partner_id == current_partner.id
+    ).first()
+    
+    if not payment_request:
+        raise HTTPException(status_code=404, detail="Payment request not found")
+    
+    if payment_request.approval_status != 'pending':
+        raise HTTPException(status_code=400, detail=f"Cannot upload screenshot for {payment_request.approval_status} request")
+    
+    try:
+        # Read screenshot file
+        screenshot_bytes = screenshot.file.read()
+        if not screenshot_bytes:
+            raise HTTPException(status_code=400, detail="Screenshot file is empty")
+        
+        # Store binary data
+        payment_request.payment_screenshot_blob = screenshot_bytes
+        
+        # Store metadata
+        payment_request.payment_screenshot_metadata = {
+            "filename": screenshot.filename,
+            "content_type": screenshot.content_type,
+            "size_bytes": len(screenshot_bytes),
+            "uploaded_at": datetime.utcnow().isoformat()
+        }
+        
+        db.add(payment_request)
+        db.commit()
+        
+        return {
+            "status": "success",
+            "message": "Screenshot uploaded successfully",
+            "request_id": request_id,
+            "file_size": len(screenshot_bytes)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to upload screenshot: {str(e)}")
+
+
+@router.get("/payment-requests")
+def get_partner_payment_requests(
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=50),
+    approval_status: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_partner: Partner = Depends(auth_utils.get_current_partner),
+):
+    """Get partner's payment requests"""
+    query = db.query(PartnerPaymentRequest).filter(
+        PartnerPaymentRequest.partner_id == current_partner.id
+    )
+    
+    if approval_status:
+        query = query.filter(PartnerPaymentRequest.approval_status == approval_status)
+    
+    requests = query.order_by(desc(PartnerPaymentRequest.created_at)).offset((page - 1) * limit).limit(limit).all()
+    
+    total = db.query(PartnerPaymentRequest).filter(
+        PartnerPaymentRequest.partner_id == current_partner.id
+    ).count()
+    
+    return {
+        "requests": [
+            {
+                "id": r.id,
+                "plan_id": r.plan_id,
+                "credit_amount": r.credit_amount,
+                "payment_amount": r.payment_amount,
+                "bonus_percentage": r.bonus_percentage,
+                "approval_status": r.approval_status,
+                "approval_notes": r.approval_notes,
+                "has_screenshot": bool(r.payment_screenshot_blob),
+                "created_at": r.created_at,
+                "reviewed_at": r.reviewed_at
+            }
+            for r in requests
+        ],
+        "total": total,
+        "page": page,
+        "limit": limit
+    }
+
+
+@router.get("/payment-request/{request_id}")
+def get_payment_request_details(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_partner: Partner = Depends(auth_utils.get_current_partner),
+):
+    """Get details of a payment request"""
+    payment_request = db.query(PartnerPaymentRequest).filter(
+        PartnerPaymentRequest.id == request_id,
+        PartnerPaymentRequest.partner_id == current_partner.id
+    ).first()
+    
+    if not payment_request:
+        raise HTTPException(status_code=404, detail="Payment request not found")
+    
+    return {
+        "id": payment_request.id,
+        "plan_id": payment_request.plan_id,
+        "credit_amount": payment_request.credit_amount,
+        "payment_amount": payment_request.payment_amount,
+        "bonus_percentage": payment_request.bonus_percentage,
+        "approval_status": payment_request.approval_status,
+        "approval_notes": payment_request.approval_notes,
+        "has_screenshot": bool(payment_request.payment_screenshot_blob),
+        "created_at": payment_request.created_at,
+        "reviewed_at": payment_request.reviewed_at
     }
 
 
