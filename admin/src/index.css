@@ -125,3 +125,19 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Ensure top sections are visible below the fixed mobile header */
+@media (max-width: 1023px) {
+  :root {
+    --mobile-header-height: 4rem;
+  }
+  .safe-top {
+    padding-top: var(--mobile-header-height);
+  }
+  /* scrolling to anchors should account for the header */
+  html,
+  body,
+  main {
+    scroll-padding-top: var(--mobile-header-height);
+  }
+}

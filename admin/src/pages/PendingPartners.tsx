@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import api from "../lib/api";
+import { showErrorToastWithRetry } from "../lib/errorHandler";
 import { formatDateTime } from "../lib/utils";
 import { getPartnerStatusColor } from "../lib/badgeUtils";
 import { Button } from "../components/ui/button";
@@ -45,10 +46,13 @@ export default function PendingPartners() {
 
   const fetchPendingPartners = async () => {
     try {
+      setLoading(true);
       const response = await api.get("/admin/partners/pending-verification");
       setPartners(response.data);
-    } catch (error) {
-      console.error("Failed to fetch partners:", error);
+    } catch (error: any) {
+      console.error("Failed to fetch pending partners:", error);
+      const retryFn = () => fetchPendingPartners();
+      showErrorToastWithRetry(error, retryFn, "Pending partners");
     } finally {
       setLoading(false);
     }

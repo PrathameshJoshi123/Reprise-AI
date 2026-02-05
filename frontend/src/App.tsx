@@ -12,11 +12,14 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Lazy load less critical pages
 const Brands = lazy(() => import("./pages/Brands"));
+const WhyCashNow = lazy(() => import("./pages/WhyCashNow"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const AboutUs = lazy(() => import("./pages/AboutUs"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const MyOrders = lazy(() => import("@/pages/MyOrders"));
+const BecomePartner = lazy(() => import("./pages/BecomePartner"));
+const Referral = lazy(() => import("./pages/Referral"));
 
 // Auth pages
 const AgentLogin = lazy(() => import("./pages/AgentLogin"));
@@ -62,10 +65,13 @@ const App = () => (
               {/* Lazy loaded pages */}
               <Route path="/brands" element={<Brands />} />
               <Route path="/brands/:brandId" element={<Brands />} />
+              <Route path="/why-cashnow" element={<WhyCashNow />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/about-us" element={<AboutUs />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/checkout" element={<Checkout />} />
+              <Route path="/become-partner" element={<BecomePartner />} />
+              <Route path="/referral" element={<Referral />} />
               <Route path="/agent/login" element={<AgentLogin />} />
               <Route path="/agent/dashboard" element={<AgentDashboard />} />
               <Route path="/my-orders" element={<MyOrders />} />

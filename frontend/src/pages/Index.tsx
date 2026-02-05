@@ -12,6 +12,7 @@ import {
   Wallet,
   Zap,
   Sparkles,
+  Calendar,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Footer } from "@/components/Footer";
@@ -102,7 +103,7 @@ export default function Index() {
               </motion.div>
 
               <motion.h1
-                className="text-4xl md:text-5xl font-bold mb-4 text-primary leading-tight"
+                className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-primary leading-tight"
                 variants={itemVariants}
               >
                 "Turn Your Old Phone Into Instant Cash"
@@ -118,7 +119,7 @@ export default function Index() {
               </motion.p>
 
               <motion.div
-                className="flex flex-wrap gap-4 mt-4"
+                className="flex flex-col sm:flex-row gap-4 justify-center"
                 variants={itemVariants}
               >
                 <Link to="/sell-phone">
@@ -136,9 +137,9 @@ export default function Index() {
               variants={itemVariants}
             >
               <motion.img
-                src="/images/landing2.jpg"
+                src="/assets/client-photos/photo-1.jpeg"
                 alt="Agent and customer interaction"
-                className="w-full max-w-xl rounded-2xl shadow-2xl object-cover"
+                className="w-full h-auto max-w-xl rounded-2xl shadow-2xl"
                 initial={{ opacity: 0, scale: 0.98, x: 40 }}
                 animate={{ opacity: 1, scale: 1, x: 0 }}
                 transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
@@ -148,25 +149,32 @@ export default function Index() {
           </motion.div>
 
           {/* Dual CTA Cards */}
+          {/* Single CTA Card Centered */}
           <motion.div
-            className="grid grid-cols-1 md:grid-cols-1 gap-8 max-w-5xl mx-auto"
+            className="flex justify-center max-w-5xl mx-auto"
             initial="hidden"
             animate="visible"
             variants={containerVariants}
           >
             {/* Customer Card */}
-            <motion.div variants={cardVariants} whileHover="hover">
-              <Card className="border-2 border-blue-200 h-full relative overflow-hidden group">
+            <motion.div
+              variants={cardVariants}
+              whileHover="hover"
+              className="w-full max-w-md"
+            >
+              <Card className="border-2 border-secondary h-full relative overflow-hidden group">
                 <CardContent className="p-8 relative z-10">
                   <motion.div
-                    className="bg-primary w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
+                    className="bg-primary w-16 h-16 rounded-2xl flex items-center justify-center mb-6 mx-auto"
                     whileHover={{ scale: 1.05 }}
                     transition={{ duration: 0.4 }}
                   >
                     <Smartphone className="text-primary-foreground" size={32} />
                   </motion.div>
-                  <h2 className="text-2xl font-bold mb-4">I'm a Customer</h2>
-                  <p className="text-gray-600 mb-6 leading-relaxed">
+                  <h2 className="text-2xl font-bold mb-4 text-center">
+                    I'm a Customer
+                  </h2>
+                  <p className="text-gray-600 mb-6 leading-relaxed text-center">
                     Sell your old phone instantly. Get the best price, free
                     doorstep pickup, and instant payment.
                   </p>
@@ -217,185 +225,7 @@ export default function Index() {
       </section>
 
       {/* Why Choose Us Section */}
-      <motion.section
-        className="py-20 bg-white"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true, margin: "-100px" }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="container mx-auto px-4">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-4xl font-bold mb-4">Why Choose CashNow?</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto text-lg">
-              The most trusted platform for buying and selling used mobile
-              phones in India
-            </p>
-          </motion.div>
 
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-          >
-            {[
-              {
-                icon: Shield,
-                title: "100% Safe",
-                description:
-                  "Secure transactions with complete data privacy protection",
-                color: "blue",
-              },
-              {
-                icon: DollarSign,
-                title: "Best Prices",
-                description:
-                  "Competitive market rates with instant price evaluation",
-                color: "green",
-              },
-              {
-                icon: Zap,
-                title: "Instant Process",
-                description: "Quick verification and same-day payment options",
-                color: "purple",
-              },
-              {
-                icon: BadgeCheck,
-                title: "Verified Agents",
-                description:
-                  "Network of trusted and certified mobile trade professionals",
-                color: "orange",
-              },
-            ].map((feature, index) => {
-              const Icon = feature.icon;
-              return (
-                <motion.div
-                  key={index}
-                  className="text-center group"
-                  variants={itemVariants}
-                  whileHover={{ y: -10 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <motion.div
-                    className={`bg-${feature.color}-50 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-${feature.color}-100 transition-colors`}
-                    whileHover={{ rotate: [0, -10, 10, -10, 0], scale: 1.1 }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <Icon className={`text-${feature.color}-600`} size={32} />
-                  </motion.div>
-                  <h3 className="font-bold text-lg mb-2">{feature.title}</h3>
-                  <p className="text-gray-600 text-sm">{feature.description}</p>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        </div>
-      </motion.section>
-
-      {/* How It Works - Customer Section */}
-      <motion.section
-        className="py-20 bg-gray-50"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="container mx-auto px-4">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-4xl font-bold mb-4">
-              How It Works - For Customers
-            </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto text-lg">
-              Sell your phone in just 3 simple steps
-            </p>
-          </motion.div>
-
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-3 gap-10 max-w-5xl mx-auto"
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-          >
-            {[
-              {
-                icon: PhoneIcon,
-                gradient: "from-blue-500 to-indigo-600",
-                badgeColor: "bg-blue-600",
-                title: "Get Instant Quote",
-                description:
-                  "Select your phone model and condition to receive an instant price quote in seconds",
-              },
-              {
-                icon: Truck,
-                gradient: "from-purple-500 to-pink-600",
-                badgeColor: "bg-purple-600",
-                title: "Free Pickup",
-                description:
-                  "Schedule a free doorstep pickup at your convenience. Our agent will collect your device",
-              },
-              {
-                icon: Wallet,
-                gradient: "from-green-500 to-emerald-600",
-                badgeColor: "bg-green-600",
-                title: "Get Paid Instantly",
-                description:
-                  "Receive payment immediately via UPI, bank transfer, or cash after device verification",
-              },
-            ].map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <motion.div
-                  key={index}
-                  className="relative"
-                  variants={itemVariants}
-                  whileHover={{ y: -10, scale: 1.02 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-shadow">
-                    <motion.div
-                      className="bg-primary w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
-                      whileHover={{ rotate: 0 }}
-                      transition={{ duration: 0.4 }}
-                    >
-                      <Icon className="text-primary-foreground" size={28} />
-                    </motion.div>
-                    <motion.div
-                      className={`absolute -top-4 -left-4 ${step.badgeColor} text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg`}
-                      initial={{ scale: 0 }}
-                      whileInView={{ scale: 1 }}
-                      viewport={{ once: true }}
-                      transition={{
-                        delay: 0.2 + index * 0.2,
-                        type: "spring",
-                        stiffness: 200,
-                      }}
-                    >
-                      {index + 1}
-                    </motion.div>
-                    <h3 className="font-bold text-xl mb-3">{step.title}</h3>
-                    <p className="text-gray-600">{step.description}</p>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        </div>
-      </motion.section>
 
       {/* Stats Section */}
       <motion.section
@@ -450,6 +280,8 @@ export default function Index() {
           </motion.div>
         </div>
       </motion.section>
+
+
 
       {/* CTA Section */}
       <motion.section

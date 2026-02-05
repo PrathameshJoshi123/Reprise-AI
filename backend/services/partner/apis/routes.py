@@ -1,17 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, File, UploadFile, Form
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from backend.shared.db.connections import get_db
 from backend.services.partner.schema import schemas as partner_schemas
 from backend.services.partner.schema.models import Agent, Partner
 from backend.services.partner import utils as partner_utils
 from backend.services.auth import utils as auth_utils
 from backend.services.sell_phone.schema.models import Order
+from backend.services.sell_phone.schema.agent_pickup_details import AgentPickupDetails
 from backend.services.sell_phone.utils import create_status_history
-from typing import List
+from typing import List, Optional
 from datetime import datetime, timezone
-from backend.services.admin.schema.models import CreditPlan, PartnerCreditTransaction
+from backend.services.admin.schema.models import CreditPlan, PartnerCreditTransaction, PartnerPaymentRequest
 from backend.services.admin import schema as admin_schemas
+import base64
+import json
 
 router = APIRouter(prefix="/partner", tags=["Partner"])
 
@@ -96,6 +99,170 @@ def partner_purchase_credits(
         "balance_before": balance_before,
         "balance_after": balance_after,
         "plan": {"id": plan.id, "plan_name": plan.plan_name, "credit_amount": plan.credit_amount},
+    }
+
+
+@router.post("/payment-request", response_model=dict, status_code=201)
+def create_payment_request(
+    plan_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_partner: Partner = Depends(auth_utils.get_current_partner),
+):
+    """Create a payment request for UPI credit purchase"""
+    # Check if partner is on hold
+    if partner_utils.check_partner_on_hold(db, current_partner.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is on hold. You cannot purchase credits at this time."
+        )
+    
+    plan = db.query(CreditPlan).filter(CreditPlan.id == plan_id, CreditPlan.is_active == True).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Credit plan not found")
+    
+    # Create payment request
+    payment_request = PartnerPaymentRequest(
+        partner_id=current_partner.id,
+        plan_id=plan.id,
+        credit_amount=plan.credit_amount,
+        payment_amount=plan.price,
+        bonus_percentage=plan.bonus_percentage or 0.0,
+        approval_status='pending'
+    )
+    
+    db.add(payment_request)
+    db.commit()
+    db.refresh(payment_request)
+    
+    return {
+        "status": "success",
+        "message": "Payment request created",
+        "request_id": payment_request.id,
+        "credit_amount": plan.credit_amount,
+        "payment_amount": plan.price,
+        "bonus_percentage": plan.bonus_percentage or 0.0
+    }
+
+
+@router.post("/payment-request/{request_id}/upload-screenshot")
+def upload_payment_screenshot(
+    request_id: int,
+    screenshot: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_partner: Partner = Depends(auth_utils.get_current_partner),
+):
+    """Upload payment screenshot for a payment request"""
+    payment_request = db.query(PartnerPaymentRequest).filter(
+        PartnerPaymentRequest.id == request_id,
+        PartnerPaymentRequest.partner_id == current_partner.id
+    ).first()
+    
+    if not payment_request:
+        raise HTTPException(status_code=404, detail="Payment request not found")
+    
+    if payment_request.approval_status != 'pending':
+        raise HTTPException(status_code=400, detail=f"Cannot upload screenshot for {payment_request.approval_status} request")
+    
+    try:
+        # Read screenshot file
+        screenshot_bytes = screenshot.file.read()
+        if not screenshot_bytes:
+            raise HTTPException(status_code=400, detail="Screenshot file is empty")
+        
+        # Store binary data
+        payment_request.payment_screenshot_blob = screenshot_bytes
+        
+        # Store metadata
+        payment_request.payment_screenshot_metadata = {
+            "filename": screenshot.filename,
+            "content_type": screenshot.content_type,
+            "size_bytes": len(screenshot_bytes),
+            "uploaded_at": datetime.utcnow().isoformat()
+        }
+        
+        db.add(payment_request)
+        db.commit()
+        
+        return {
+            "status": "success",
+            "message": "Screenshot uploaded successfully",
+            "request_id": request_id,
+            "file_size": len(screenshot_bytes)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to upload screenshot: {str(e)}")
+
+
+@router.get("/payment-requests")
+def get_partner_payment_requests(
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=50),
+    approval_status: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_partner: Partner = Depends(auth_utils.get_current_partner),
+):
+    """Get partner's payment requests"""
+    query = db.query(PartnerPaymentRequest).filter(
+        PartnerPaymentRequest.partner_id == current_partner.id
+    )
+    
+    if approval_status:
+        query = query.filter(PartnerPaymentRequest.approval_status == approval_status)
+    
+    requests = query.order_by(desc(PartnerPaymentRequest.created_at)).offset((page - 1) * limit).limit(limit).all()
+    
+    total = db.query(PartnerPaymentRequest).filter(
+        PartnerPaymentRequest.partner_id == current_partner.id
+    ).count()
+    
+    return {
+        "requests": [
+            {
+                "id": r.id,
+                "plan_id": r.plan_id,
+                "credit_amount": r.credit_amount,
+                "payment_amount": r.payment_amount,
+                "bonus_percentage": r.bonus_percentage,
+                "approval_status": r.approval_status,
+                "approval_notes": r.approval_notes,
+                "has_screenshot": bool(r.payment_screenshot_blob),
+                "created_at": r.created_at,
+                "reviewed_at": r.reviewed_at
+            }
+            for r in requests
+        ],
+        "total": total,
+        "page": page,
+        "limit": limit
+    }
+
+
+@router.get("/payment-request/{request_id}")
+def get_payment_request_details(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_partner: Partner = Depends(auth_utils.get_current_partner),
+):
+    """Get details of a payment request"""
+    payment_request = db.query(PartnerPaymentRequest).filter(
+        PartnerPaymentRequest.id == request_id,
+        PartnerPaymentRequest.partner_id == current_partner.id
+    ).first()
+    
+    if not payment_request:
+        raise HTTPException(status_code=404, detail="Payment request not found")
+    
+    return {
+        "id": payment_request.id,
+        "plan_id": payment_request.plan_id,
+        "credit_amount": payment_request.credit_amount,
+        "payment_amount": payment_request.payment_amount,
+        "bonus_percentage": payment_request.bonus_percentage,
+        "approval_status": payment_request.approval_status,
+        "approval_notes": payment_request.approval_notes,
+        "has_screenshot": bool(payment_request.payment_screenshot_blob),
+        "created_at": payment_request.created_at,
+        "reviewed_at": payment_request.reviewed_at
     }
 
 
@@ -187,8 +354,13 @@ def get_partner_profile(
     is_on_hold = hold is not None
     
     return partner_schemas.PartnerCreditNameOut(
+        email=current_partner.email,
         full_name=current_partner.full_name,
+        phone=current_partner.phone,
         credit_balance=current_partner.credit_balance,
+        verification_status=current_partner.verification_status,
+        rejection_reason=current_partner.rejection_reason,
+        is_active=current_partner.is_active,
         is_on_hold=is_on_hold,
         hold_reason=hold.reason if hold else None,
         hold_lift_date=hold.lift_date if hold else None
@@ -198,6 +370,75 @@ def get_partner_profile(
 # ================================
 # AGENT MANAGEMENT ENDPOINTS (FOR PARTNERS)
 # ================================
+
+@router.post("/self-assign-as-agent", response_model=partner_schemas.PartnerSelfAssignResponse, status_code=201)
+def partner_self_assign_as_agent(
+    payload: partner_schemas.PartnerSelfAssignRequest,
+    db: Session = Depends(get_db),
+    current_partner: Partner = Depends(auth_utils.get_current_partner),
+):
+    """
+    Partner self-assigns themselves as an agent.
+    Creates a new agent record for the partner so they can login to the agent portal.
+    Uses partner's existing password if not provided (same credentials for both portals).
+    """
+    # Check if partner is on hold
+    if partner_utils.check_partner_on_hold(db, current_partner.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is on hold. You cannot self-assign as an agent at this time. Contact support for details."
+        )
+    
+    try:
+        # Use partner's details if not provided (all fields default to partner's info)
+        agent_email = payload.email or current_partner.email
+        agent_full_name = payload.full_name or current_partner.full_name
+        agent_phone = payload.phone or current_partner.phone
+        
+        # If no password provided, create agent with partner's existing hashed password
+        # This allows them to use the same credentials for both portals
+        agent_password = payload.password
+        
+        if agent_password:
+            # If a password is provided, use it (it will be hashed by create_agent)
+            agent = partner_utils.create_agent(
+                db=db,
+                partner_id=current_partner.id,
+                email=agent_email,
+                phone=agent_phone,
+                password=agent_password,
+                full_name=agent_full_name,
+                employee_id=payload.employee_id
+            )
+        else:
+            # If no password provided, create agent with same password as partner
+            # This way they use the same credentials
+            agent = partner_utils.create_agent_with_existing_password(
+                db=db,
+                partner_id=current_partner.id,
+                email=agent_email,
+                phone=agent_phone,
+                full_name=agent_full_name,
+                employee_id=payload.employee_id,
+                partner_hashed_password=current_partner.hashed_password
+            )
+        
+        db.commit()
+        db.refresh(agent)
+        
+        return partner_schemas.PartnerSelfAssignResponse(
+            agent_id=agent.id,
+            partner_id=agent.partner_id,
+            email=agent.email,
+            phone=agent.phone,
+            full_name=agent.full_name,
+            is_active=agent.is_active,
+            created_at=agent.created_at,
+            message="You have successfully self-assigned as an agent. You can now login to the agent portal using your partner account credentials."
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
 
 @router.post("/agents", response_model=partner_schemas.AgentOut, status_code=201)
 def create_agent(
@@ -663,4 +904,70 @@ def reassign_order_to_agent(
         "new_agent_name": new_agent.full_name,
         "new_agent_phone": new_agent.phone,
         "new_agent_email": new_agent.email
+    }
+
+
+# ================================
+# AGENT PICKUP DETAILS ENDPOINTS
+# ================================
+
+@router.get("/orders/{order_id}/pickup-details", response_model=dict)
+def get_order_pickup_details(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_partner: Partner = Depends(auth_utils.get_current_partner),
+):
+    """
+    Get detailed pickup information including photos and inspection form data.
+    Photos are returned as base64 encoded strings.
+    Only accessible to the partner who purchased the order.
+    """
+    # Validate partner owns this order
+    order = partner_utils.validate_partner_order_access(db, current_partner.id, order_id)
+    
+    # Get pickup details
+    pickup_details = db.query(AgentPickupDetails).filter(
+        AgentPickupDetails.order_id == order_id
+    ).first()
+    
+    if not pickup_details:
+        return {
+            "order_id": order_id,
+            "has_pickup_details": False,
+            "message": "No pickup details found for this order"
+        }
+    
+    # Get agent info
+    agent = db.query(Agent).filter(Agent.id == pickup_details.agent_id).first()
+    
+    # Return photos as base64 encoded string for JSON serialization
+    photos_base64 = None
+    if pickup_details.photos_blob:
+        try:
+            photos_base64 = base64.b64encode(pickup_details.photos_blob).decode('utf-8')
+        except Exception as e:
+            print(f"Error encoding photos to base64: {e}")
+            photos_base64 = None
+    
+    return {
+        "order_id": order_id,
+        "has_pickup_details": True,
+        "agent": {
+            "id": agent.id,
+            "name": agent.full_name,
+            "email": agent.email,
+            "phone": agent.phone,
+        } if agent else None,
+        "phone_conditions": pickup_details.phone_conditions,
+        "final_offered_price": pickup_details.final_offered_price,
+        "customer_accepted_offer": pickup_details.customer_accepted_offer == 1,
+        "payment_method": pickup_details.payment_method,
+        "pickup_notes": pickup_details.pickup_notes,
+        "actual_condition": pickup_details.actual_condition,
+        "photos_metadata": pickup_details.photos_metadata,  # JSON metadata for each photo
+        "photos_blob": photos_base64,  # Base64 encoded string for all photos
+        "photos_count": len(pickup_details.photos_metadata) if pickup_details.photos_metadata else 0,
+        "total_blob_size": len(pickup_details.photos_blob) if pickup_details.photos_blob else 0,
+        "captured_at": pickup_details.captured_at.isoformat() if pickup_details.captured_at else None,
+        "created_at": pickup_details.created_at.isoformat() if pickup_details.created_at else None,
     }

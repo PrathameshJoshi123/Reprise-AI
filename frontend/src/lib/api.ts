@@ -1,4 +1,5 @@
 import axios, { AxiosHeaders } from "axios";
+import { toast } from "sonner";
 
 // Create axios instance with base URL
 const api = axios.create({
@@ -41,9 +42,25 @@ api.interceptors.response.use(
             (headers.get("x-skip-auth-redirect") ||
               headers.get("X-Skip-Auth-Redirect"))));
       if (!skipHeader) {
-        // Handle unauthorized globally (most requests)
-        localStorage.removeItem("accessToken");
-        window.location.href = "/login";
+        // Show auth error toast instead of silent redirect
+        toast.error("Session expired. Please sign in again to continue.", {
+          description: "Your login expired or is invalid.",
+          action: {
+            label: "Sign In",
+            onClick: () => {
+              localStorage.removeItem("accessToken");
+              localStorage.removeItem("currentUser");
+              window.location.href = "/login";
+            },
+          },
+          duration: Infinity,
+        });
+        // Auto-redirect after 10 seconds if user doesn't click
+        setTimeout(() => {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("currentUser");
+          window.location.href = "/login";
+        }, 10000);
       }
     }
     return Promise.reject(error);

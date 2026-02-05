@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { handleApiError } from "../lib/errorHandler";
 import { Button } from "../components/ui/button";
 import Header from "../components/Header";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Lead {
   id: number;
@@ -16,11 +17,12 @@ interface Lead {
   pickup_address_line: string;
   pickup_city: string;
   pickup_state: string;
-  pickup_pincode: string;
+  pickup_pincode: string | null;
+  phone_name: string;
   brand: string;
   model: string;
-  ram_gb: number;
-  storage_gb: number;
+  ram_gb: number | null;
+  storage_gb: number | null;
   ai_estimated_price: number;
   final_quoted_price: number;
   ai_reasoning: string;
@@ -55,6 +57,9 @@ export default function LeadDetail() {
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [showBuyModal, setShowBuyModal] = useState(false);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -72,6 +77,7 @@ export default function LeadDetail() {
       setAgents(agentsRes.data.filter((a: Agent) => a.is_active));
     } catch (error) {
       console.error("Failed to fetch data:", error);
+      handleApiError(error);
     } finally {
       setLoading(false);
     }
@@ -91,9 +97,38 @@ export default function LeadDetail() {
       await fetchData();
       alert("Agent assigned successfully!");
     } catch (error: any) {
-      alert(error.response?.data?.detail || "Failed to assign agent");
+      handleApiError(error);
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const openBuyModal = async () => {
+    try {
+      const resp = await api.get("/partner/credit-plans");
+      setPlans(resp.data || []);
+      setShowBuyModal(true);
+    } catch (err) {
+      console.error("Failed to load credit plans:", err);
+      handleApiError(err);
+    }
+  };
+
+  const handleBuyPlan = async (planId: number) => {
+    if (!confirm("Proceed to buy this credit plan?")) return;
+    setPurchaseLoading(true);
+    try {
+      const resp = await api.post("/partner/purchase-credits", {
+        plan_id: planId,
+        payment_method: "manual",
+      });
+      alert(resp.data?.message || "Purchase successful");
+      setShowBuyModal(false);
+    } catch (err: any) {
+      console.error("Purchase failed:", err);
+      handleApiError(err, "purchase");
+    } finally {
+      setPurchaseLoading(false);
     }
   };
 
@@ -148,6 +183,8 @@ export default function LeadDetail() {
         pageTitle="Lead Details"
         showLogout={true}
         onLogout={handleLogout}
+        showDashboardButton={true}
+        onBuyCredits={openBuyModal}
         additionalContent={
           <div className="flex items-center gap-3">
             <Button
@@ -171,10 +208,10 @@ export default function LeadDetail() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="grid grid-cols-10 gap-6 h-full"
+            className="grid grid-cols-1 lg:grid-cols-10 gap-6 h-full"
           >
             {/* Left Panel - Asset Summary (70%) */}
-            <div className="col-span-7">
+            <div className="lg:col-span-7">
               <Card className="shadow-lg h-full flex flex-col">
                 <CardContent className="p-8 flex-1 flex flex-col">
                   {/* Phone Details Header */}
@@ -196,10 +233,17 @@ export default function LeadDetail() {
                     </div>
                     <div className="flex-1">
                       <div className="text-2xl font-bold text-gray-900 mb-1">
-                        {lead.brand} {lead.model}
+                        {lead.phone_name || `${lead.brand} ${lead.model}`}
                       </div>
                       <div className="text-sm text-gray-600">
-                        {lead.ram_gb}GB RAM • {lead.storage_gb}GB Storage
+                        {[
+                          lead.ram_gb ? `${lead.ram_gb}GB RAM` : null,
+                          lead.storage_gb
+                            ? `${lead.storage_gb}GB Storage`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" • ")}
                       </div>
                     </div>
                   </div>
@@ -291,7 +335,7 @@ export default function LeadDetail() {
                       <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
                         Customer Information
                       </h3>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
                             <svg
@@ -338,7 +382,7 @@ export default function LeadDetail() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-start gap-3 col-span-2">
+                        <div className="flex items-start gap-3 sm:col-span-2">
                           <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
                             <svg
                               className="w-5 h-5 text-orange-600"
@@ -364,7 +408,10 @@ export default function LeadDetail() {
                             <div className="text-xs text-gray-500">Address</div>
                             <div className="font-semibold text-sm text-gray-900 leading-relaxed">
                               {lead.pickup_address_line}, {lead.pickup_city},{" "}
-                              {lead.pickup_state} - {lead.pickup_pincode}
+                              {lead.pickup_state}
+                              {lead.pickup_pincode
+                                ? ` - ${lead.pickup_pincode}`
+                                : ""}
                             </div>
                           </div>
                         </div>
@@ -376,7 +423,7 @@ export default function LeadDetail() {
             </div>
 
             {/* Right Panel - Action Sidebar (30%) */}
-            <div className="col-span-3 flex flex-col gap-6">
+            <div className="lg:col-span-3 flex flex-col gap-6">
               {/* Assigned Agent */}
               {lead.agent_name && (
                 <Card className="shadow-lg bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200">
@@ -526,6 +573,95 @@ export default function LeadDetail() {
           </motion.div>
         </div>
       </div>
+
+      {/* Buy Credits Modal */}
+      <AnimatePresence>
+        {showBuyModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowBuyModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Buy Credits
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowBuyModal(false)}
+                  >
+                    ✕
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  {plans.map((p: any) => (
+                    <motion.div
+                      key={p.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 }}
+                    >
+                      <Card className="hover:shadow-lg transition-all duration-200 hover:border-purple-300">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                            <div className="flex-grow">
+                              <div className="font-semibold text-base">
+                                {p.plan_name}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {p.description}
+                              </div>
+                            </div>
+                            <div className="text-right w-full sm:w-auto">
+                              <div className="text-lg font-bold">
+                                {p.credit_amount} credits
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                ₹{p.price}
+                              </div>
+                              <div className="mt-2">
+                                <Button
+                                  size="sm"
+                                  className="text-xs h-8 w-full sm:w-auto"
+                                  onClick={() => handleBuyPlan(p.id)}
+                                  disabled={purchaseLoading}
+                                >
+                                  {purchaseLoading ? "Processing..." : "Buy"}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+
+                <div className="mt-6 text-right">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowBuyModal(false)}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

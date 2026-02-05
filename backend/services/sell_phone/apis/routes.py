@@ -65,7 +65,9 @@ def get_phones_list(
             "Original_Price": phone.Original_Price,
             "Selling_Price": highest_variant or phone.Selling_Price,
             "RAM_GB": phone.RAM_GB,
-            "Internal_Storage_GB": phone.Internal_Storage_GB
+            "Internal_Storage_GB": phone.Internal_Storage_GB,
+            "image_url": phone.image_url,
+            "image_blob": phone.image_blob
         })
     
     return {
@@ -97,7 +99,9 @@ def get_phone(phone_id: int, db: Session = Depends(get_db)):
         "Original_Price": phone.Original_Price,
         "Selling_Price": highest_variant or phone.Selling_Price,
         "RAM_GB": phone.RAM_GB,
-        "Internal_Storage_GB": phone.Internal_Storage_GB
+        "Internal_Storage_GB": phone.Internal_Storage_GB,
+        "image_url": phone.image_url,
+        "image_blob": phone.image_blob
     }
 
 @router.get("/phones/{phone_id}/variants")

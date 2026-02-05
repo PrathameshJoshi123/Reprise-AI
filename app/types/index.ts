@@ -66,6 +66,7 @@ export interface Order {
   phone: number;
   customer: string;
   ai_estimated_price: number;
+  // quoted_price: number;
 
   // Phone details - backend uses these names
   phone_name: string;
@@ -79,7 +80,7 @@ export interface Order {
 
   // Pricing
   final_quoted_price?: number;
-  quoted_price?: number;
+  quoted_price: number;
   lead_cost: number | null;
   final_price?: number; // Final agreed price
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, File, UploadFile
 from sqlalchemy.orm import Session, load_only
 from sqlalchemy import func, desc
 from typing import Optional, List
@@ -10,9 +10,13 @@ from backend.services.partner.schema.models import Partner, PartnerServiceablePi
 from backend.services.partner import utils as partner_utils
 from backend.services.admin.schema.models import (
     Admin, PartnerVerificationHistory, CreditPlan, 
-    PartnerCreditTransaction, AdminCreditConfiguration
+    PartnerCreditTransaction, AdminCreditConfiguration, PartnerPaymentRequest
 )
-from backend.services.admin import utils as admin_utils
+from backend.services.admin.utils.utils import (
+    verify_password, create_admin_access_token, get_current_admin, 
+    require_super_admin, get_password_hash
+)
+from backend.services.admin.utils import image_handler
 from backend.services.admin.schema.schemas import (
     # Admin auth
     AdminLoginRequest, AdminToken, AdminOut, AdminCreate, AdminUpdate,
@@ -24,6 +28,7 @@ from backend.services.admin.schema.schemas import (
     CreditPlanOut, CreditPlanCreate, CreditPlanUpdate,
     PartnerCreditTransactionOut, AdjustCreditsRequest,
     AdminCreditConfigurationOut, UpdateConfigRequest,
+    PartnerPaymentRequestDetailOut, ApprovePaymentRequest, RejectPaymentRequest,
     # Dashboard
     DashboardStats,
     # Phone List
@@ -63,13 +68,13 @@ def admin_login(payload: AdminLoginRequest, db: Session = Depends(get_db)):
             detail="Admin account is inactive"
         )
     
-    if not admin_utils.verify_password(payload.password, admin.hashed_password):
+    if not verify_password(payload.password, admin.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect credentials"
         )
     
-    token = admin_utils.create_admin_access_token(data={"admin_id": admin.id})
+    token = create_admin_access_token(data={"admin_id": admin.id})
     
     return {
         "access_token": token,
@@ -79,7 +84,7 @@ def admin_login(payload: AdminLoginRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/auth/me", response_model=AdminOut)
-def get_current_admin_profile(current_admin: Admin = Depends(admin_utils.get_current_admin)):
+def get_current_admin_profile(current_admin: Admin = Depends(get_current_admin)):
     """Get current admin profile"""
     return current_admin
 
@@ -88,7 +93,7 @@ def get_current_admin_profile(current_admin: Admin = Depends(admin_utils.get_cur
 def create_admin(
     payload: AdminCreate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.require_super_admin)
+    current_admin: Admin = Depends(require_super_admin)
 ):
     """
     Create new admin (super_admin only).
@@ -97,7 +102,7 @@ def create_admin(
     if existing:
         raise HTTPException(status_code=400, detail="Admin with this email already exists")
     
-    hashed_password = admin_utils.get_password_hash(payload.password)
+    hashed_password = get_password_hash(payload.password)
     admin = Admin(
         email=payload.email,
         full_name=payload.full_name,
@@ -121,7 +126,7 @@ def get_pending_verifications(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Get partners pending verification or in clarification.
@@ -144,7 +149,7 @@ def get_pending_verifications(
 def get_partner_verification_details(
     partner_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Get complete partner details including verification history, pincodes, and agents.
@@ -180,7 +185,7 @@ def request_partner_clarification(
     partner_id: int,
     payload: RequestClarificationRequest,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Request additional information from partner.
@@ -220,10 +225,12 @@ def approve_partner(
     partner_id: int,
     payload: ApprovePartnerRequest,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Approve partner verification.
+    Can be used to approve pending partners or re-approve rejected partners.
+    When re-approving a rejected partner, clears the rejection reason and activates the account.
     """
     partner = db.query(Partner).filter(Partner.id == partner_id).first()
     if not partner:
@@ -232,6 +239,7 @@ def approve_partner(
     # Update partner status
     partner.verification_status = 'approved'
     partner.is_active = True
+    partner.rejection_reason = None  # Clear rejection reason when re-approving
     
     # Create verification history entry
     history_entry = PartnerVerificationHistory(
@@ -251,7 +259,8 @@ def approve_partner(
         "status": "success",
         "message": "Partner approved",
         "partner_id": partner_id,
-        "verification_status": partner.verification_status
+        "verification_status": partner.verification_status,
+        "is_active": partner.is_active
     }
 
 
@@ -260,18 +269,21 @@ def reject_partner(
     partner_id: int,
     payload: RejectPartnerRequest,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Reject partner verification.
+    Sets verification_status to 'rejected' and deactivates the partner account.
+    Partner can still login but cannot access partner features until reapproved.
     """
     partner = db.query(Partner).filter(Partner.id == partner_id).first()
     if not partner:
         raise HTTPException(status_code=404, detail="Partner not found")
     
-    # Update partner status
+    # Update partner status - set to rejected and deactivate
     partner.verification_status = 'rejected'
     partner.rejection_reason = payload.rejection_reason
+    partner.is_active = False  # Deactivate the account
     
     # Create verification history entry
     history_entry = PartnerVerificationHistory(
@@ -291,7 +303,8 @@ def reject_partner(
         "status": "success",
         "message": "Partner rejected",
         "partner_id": partner_id,
-        "verification_status": partner.verification_status
+        "verification_status": partner.verification_status,
+        "is_active": partner.is_active
     }
 
 
@@ -304,7 +317,7 @@ def place_partner_hold(
     partner_id: int,
     payload: PartnerHoldCreate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Place a partner on hold for rule violations.
@@ -327,7 +340,7 @@ def place_partner_hold(
 def get_partner_hold_status(
     partner_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Get current hold status of a partner.
@@ -357,7 +370,7 @@ def lift_partner_hold_endpoint(
     partner_id: int,
     payload: LiftPartnerHoldRequest,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Lift a hold from a partner.
@@ -387,7 +400,7 @@ def lift_partner_hold_endpoint(
 @router.get("/credit-plans", response_model=List[CreditPlanOut])
 def get_credit_plans(
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Get all credit plans"""
     return db.query(CreditPlan).order_by(CreditPlan.credit_amount).all()
@@ -397,7 +410,7 @@ def get_credit_plans(
 def create_credit_plan(
     payload: CreditPlanCreate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Create new credit plan"""
     plan = CreditPlan(
@@ -419,7 +432,7 @@ def update_credit_plan(
     plan_id: int,
     payload: CreditPlanUpdate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Update credit plan"""
     plan = db.query(CreditPlan).filter(CreditPlan.id == plan_id).first()
@@ -439,7 +452,7 @@ def update_credit_plan(
 def delete_credit_plan(
     plan_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Soft delete credit plan (set is_active=False)"""
     plan = db.query(CreditPlan).filter(CreditPlan.id == plan_id).first()
@@ -458,7 +471,7 @@ def adjust_partner_credits(
     partner_id: int,
     payload: AdjustCreditsRequest,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Manual credit adjustment (add or deduct).
@@ -512,7 +525,7 @@ def get_partner_transactions(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Get partner credit transaction history"""
     partner = db.query(Partner).filter(Partner.id == partner_id).first()
@@ -527,13 +540,206 @@ def get_partner_transactions(
 
 
 # ============================================================================
+# PAYMENT REQUEST MANAGEMENT
+# ============================================================================
+
+@router.get("/payment-requests", response_model=List[PartnerPaymentRequestDetailOut])
+def get_payment_requests(
+    approval_status: Optional[str] = Query(None, description="Filter by status: pending, approved, rejected"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Get all partner payment requests with optional status filter"""
+    query = db.query(PartnerPaymentRequest)
+    
+    if approval_status:
+        query = query.filter(PartnerPaymentRequest.approval_status == approval_status)
+    
+    requests = query.order_by(desc(PartnerPaymentRequest.created_at)).offset((page - 1) * limit).limit(limit).all()
+    
+    # Format response with partner details
+    result = []
+    for req in requests:
+        partner = db.query(Partner).filter(Partner.id == req.partner_id).first()
+        if partner:
+            result.append(PartnerPaymentRequestDetailOut(
+                id=req.id,
+                partner_id=req.partner_id,
+                partner_email=partner.email,
+                partner_name=partner.full_name,
+                plan_id=req.plan_id,
+                credit_amount=req.credit_amount,
+                payment_amount=req.payment_amount,
+                bonus_percentage=req.bonus_percentage,
+                approval_status=req.approval_status,
+                approval_notes=req.approval_notes,
+                reviewed_by_admin_id=req.reviewed_by_admin_id,
+                reviewed_at=req.reviewed_at,
+                created_at=req.created_at,
+                has_screenshot=bool(req.payment_screenshot_blob)
+            ))
+    
+    return result
+
+
+@router.get("/payment-requests/{request_id}", response_model=PartnerPaymentRequestDetailOut)
+def get_payment_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Get specific payment request details"""
+    req = db.query(PartnerPaymentRequest).filter(PartnerPaymentRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Payment request not found")
+    
+    partner = db.query(Partner).filter(Partner.id == req.partner_id).first()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Partner not found")
+    
+    return PartnerPaymentRequestDetailOut(
+        id=req.id,
+        partner_id=req.partner_id,
+        partner_email=partner.email,
+        partner_name=partner.full_name,
+        plan_id=req.plan_id,
+        credit_amount=req.credit_amount,
+        payment_amount=req.payment_amount,
+        bonus_percentage=req.bonus_percentage,
+        approval_status=req.approval_status,
+        approval_notes=req.approval_notes,
+        reviewed_by_admin_id=req.reviewed_by_admin_id,
+        reviewed_at=req.reviewed_at,
+        created_at=req.created_at,
+        has_screenshot=bool(req.payment_screenshot_blob)
+    )
+
+
+@router.get("/payment-requests/{request_id}/screenshot")
+def get_payment_screenshot(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Get payment screenshot for a request"""
+    req = db.query(PartnerPaymentRequest).filter(PartnerPaymentRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Payment request not found")
+    
+    if not req.payment_screenshot_blob:
+        raise HTTPException(status_code=404, detail="Screenshot not found")
+    
+    import base64
+    # Return image data as base64
+    image_data = base64.b64encode(req.payment_screenshot_blob).decode('utf-8')
+    return {
+        "data": image_data,
+        "metadata": req.payment_screenshot_metadata
+    }
+
+
+@router.post("/payment-requests/{request_id}/approve", response_model=dict)
+def approve_payment_request(
+    request_id: int,
+    payload: ApprovePaymentRequest,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Approve a payment request and add credits to partner"""
+    req = db.query(PartnerPaymentRequest).filter(PartnerPaymentRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Payment request not found")
+    
+    if req.approval_status != 'pending':
+        raise HTTPException(status_code=400, detail=f"Request already {req.approval_status}")
+    
+    partner = db.query(Partner).filter(Partner.id == req.partner_id).first()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Partner not found")
+    
+    # Update request status
+    req.approval_status = 'approved'
+    req.reviewed_by_admin_id = current_admin.id
+    req.reviewed_at = datetime.now(timezone.utc)
+    req.approval_notes = payload.approval_notes
+    
+    # Add credits to partner
+    balance_before = partner.credit_balance
+    total_credits = req.credit_amount + (req.credit_amount * req.bonus_percentage / 100.0)
+    partner.credit_balance = (partner.credit_balance or 0.0) + total_credits
+    balance_after = partner.credit_balance
+    
+    # Create transaction record
+    transaction = PartnerCreditTransaction(
+        partner_id=partner.id,
+        transaction_type='credit_purchase',
+        amount=total_credits,
+        balance_before=balance_before,
+        balance_after=balance_after,
+        reference_id=req.id,
+        reference_type='payment_request',
+        payment_method='upi',
+        payment_transaction_id=f"PR-{req.id}",
+        notes=f"UPI payment approved for {req.credit_amount} credits",
+        created_by_admin_id=current_admin.id
+    )
+    
+    db.add(req)
+    db.add(partner)
+    db.add(transaction)
+    db.commit()
+    
+    return {
+        "status": "success",
+        "message": "Payment approved and credits added",
+        "request_id": request_id,
+        "credits_added": total_credits,
+        "new_balance": balance_after
+    }
+
+
+@router.post("/payment-requests/{request_id}/reject", response_model=dict)
+def reject_payment_request(
+    request_id: int,
+    payload: RejectPaymentRequest,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Reject a payment request"""
+    req = db.query(PartnerPaymentRequest).filter(PartnerPaymentRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Payment request not found")
+    
+    if req.approval_status != 'pending':
+        raise HTTPException(status_code=400, detail=f"Request already {req.approval_status}")
+    
+    # Update request status
+    req.approval_status = 'rejected'
+    req.reviewed_by_admin_id = current_admin.id
+    req.reviewed_at = datetime.now(timezone.utc)
+    req.approval_notes = payload.approval_notes
+    
+    db.add(req)
+    db.commit()
+    
+    return {
+        "status": "success",
+        "message": "Payment request rejected",
+        "request_id": request_id,
+        "reason": payload.approval_notes
+    }
+
+
+# ============================================================================
 # SYSTEM CONFIGURATION
 # ============================================================================
 
 @router.get("/config", response_model=List[AdminCreditConfigurationOut])
 def get_system_config(
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Get all system configuration"""
     return db.query(AdminCreditConfiguration).all()
@@ -544,7 +750,7 @@ def update_system_config(
     config_key: str,
     payload: UpdateConfigRequest,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Update system configuration value"""
     config = db.query(AdminCreditConfiguration).filter(
@@ -574,7 +780,7 @@ def create_system_config(
     config_value: str,
     description: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Create new system configuration"""
     existing = db.query(AdminCreditConfiguration).filter(
@@ -604,7 +810,7 @@ def create_system_config(
 @router.get("/dashboard/stats", response_model=DashboardStats)
 def get_dashboard_stats(
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Get dashboard statistics"""
     
@@ -666,7 +872,7 @@ def list_all_partners(
     limit: int = Query(20, ge=1, le=100),
     verification_status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """List all partners with optional filtering"""
     query = db.query(Partner)
@@ -685,7 +891,7 @@ def list_all_partners(
 @router.get("/users", response_model=list[AdminUserOut])
 def list_users(
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin),
+    current_admin: Admin = Depends(get_current_admin),
 ):
     """
     List users — only load fields required by the admin UI to avoid fetching everything.
@@ -715,7 +921,7 @@ def list_users(
 def create_user(
     payload: AdminUserCreate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin),
+    current_admin: Admin = Depends(get_current_admin),
 ):
     """
     Create a new user.
@@ -747,7 +953,7 @@ def update_user(
     user_id: int,
     payload: AdminUserUpdate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin),
+    current_admin: Admin = Depends(get_current_admin),
 ):
     """
     Update a user. Role checks removed.
@@ -775,7 +981,7 @@ def update_user(
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin),
+    current_admin: Admin = Depends(get_current_admin),
 ):
     """
     Delete a user. Cannot delete yourself.
@@ -797,7 +1003,7 @@ def list_orders(
     start_date: Optional[str] = Query(None, description="Filter orders from this date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="Filter orders until this date (YYYY-MM-DD)"),
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin),
+    current_admin: Admin = Depends(get_current_admin),
 ):
     """
     List orders with pagination, sorting, and date range filtering.
@@ -887,6 +1093,91 @@ def list_orders(
     }
 
 
+@router.get("/orders/{order_id}/pickup-details")
+def get_order_pickup_details(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin),
+):
+    """
+    Get pickup details for an order (admin only).
+    Returns complete inspection data including photos and inspection form.
+    """
+    from backend.services.sell_phone.schema.agent_pickup_details import AgentPickupDetails
+    from backend.services.partner.schema.models import Agent
+    import base64
+    
+    order = db.query(sell_models.Order).filter(sell_models.Order.id == order_id).first()
+    
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Get pickup/inspection details
+    pickup_details = db.query(AgentPickupDetails).filter(
+        AgentPickupDetails.order_id == order_id
+    ).first()
+    
+    if not pickup_details:
+        # Return basic order info if no inspection details
+        return {
+            "order_id": order_id,
+            "has_pickup_details": False,
+            "scheduled_date": order.pickup_date,
+            "scheduled_time": order.pickup_time,
+            "customer_name": order.customer_name,
+            "customer_phone": order.customer_phone,
+            "address": order.pickup_address_line or order.address_line,
+            "city": order.pickup_city or order.city,
+            "state": order.pickup_state or order.state,
+            "pincode": order.pickup_pincode or order.pincode,
+            "status": order.status,
+        }
+    
+    # Get agent info
+    agent = db.query(Agent).filter(Agent.id == pickup_details.agent_id).first()
+    
+    # Encode photos to base64 for JSON serialization
+    photos_base64 = None
+    if pickup_details.photos_blob:
+        try:
+            photos_base64 = base64.b64encode(pickup_details.photos_blob).decode('utf-8')
+        except Exception as e:
+            print(f"Error encoding photos to base64: {e}")
+            photos_base64 = None
+    
+    return {
+        "order_id": order_id,
+        "has_pickup_details": True,
+        "agent": {
+            "id": agent.id,
+            "name": agent.full_name,
+            "email": agent.email,
+            "phone": agent.phone,
+        } if agent else None,
+        "phone_conditions": pickup_details.phone_conditions,
+        "final_offered_price": pickup_details.final_offered_price,
+        "customer_accepted_offer": pickup_details.customer_accepted_offer == 1,
+        "payment_method": pickup_details.payment_method,
+        "pickup_notes": pickup_details.pickup_notes,
+        "actual_condition": pickup_details.actual_condition,
+        "photos_metadata": pickup_details.photos_metadata,
+        "photos_blob": photos_base64,
+        "photos_count": len(pickup_details.photos_metadata) if pickup_details.photos_metadata else 0,
+        "total_blob_size": len(pickup_details.photos_blob) if pickup_details.photos_blob else 0,
+        "captured_at": pickup_details.captured_at.isoformat() if pickup_details.captured_at else None,
+        "created_at": pickup_details.created_at.isoformat() if pickup_details.created_at else None,
+        "scheduled_date": order.pickup_date,
+        "scheduled_time": order.pickup_time,
+        "customer_name": order.customer_name,
+        "customer_phone": order.customer_phone,
+        "address": order.pickup_address_line or order.address_line,
+        "city": order.pickup_city or order.city,
+        "state": order.pickup_state or order.state,
+        "pincode": order.pickup_pincode or order.pincode,
+        "status": order.status,
+    }
+
+
 # ============================================================================
 # PHONE LIST MANAGEMENT
 # ============================================================================
@@ -897,7 +1188,7 @@ def get_phones_list(
     limit: int = Query(10, ge=1, le=100),
     search: Optional[str] = Query(None, description="Search by brand, series, or model"),
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Get paginated phones from the database with search support.
@@ -938,7 +1229,7 @@ def get_phones_list(
 def get_phone_by_id(
     phone_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Get a specific phone by ID.
@@ -953,7 +1244,7 @@ def get_phone_by_id(
 def create_phone(
     payload: PhoneListCreate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Create a new phone in the database.
@@ -983,7 +1274,7 @@ def update_phone(
     phone_id: int,
     payload: PhoneListUpdate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Update an existing phone.
@@ -1006,7 +1297,7 @@ def update_phone(
 def delete_phone(
     phone_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Delete a phone from the database.
@@ -1018,3 +1309,74 @@ def delete_phone(
     db.delete(phone)
     db.commit()
     return None
+
+
+@router.post("/phones/{phone_id}/upload-image", response_model=PhoneListOut)
+def upload_phone_image(
+    phone_id: int,
+    file: UploadFile,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """
+    Upload an image for a phone and store it as base64.
+    """
+    from backend.services.admin.utils.image_handler import (
+        encode_image_to_base64, validate_image_file, create_base64_data_url
+    )
+    
+    phone = db.query(sell_models.PhoneList).filter(sell_models.PhoneList.id == phone_id).first()
+    if not phone:
+        raise HTTPException(status_code=404, detail="Phone not found")
+    
+    try:
+        # Read file content
+        content = file.file.read()
+        
+        # Validate image
+        is_valid, error_msg = validate_image_file(content, file.filename or "")
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=error_msg)
+        
+        # Encode to base64
+        base64_content = encode_image_to_base64(content)
+        
+        # Store as data URL in image_blob
+        phone.image_blob = create_base64_data_url(base64_content, file.filename or "image.jpg")
+        
+        db.commit()
+        db.refresh(phone)
+        
+        return phone
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error uploading image: {str(e)}")
+
+
+@router.post("/phones/{phone_id}/set-image-url", response_model=PhoneListOut)
+def set_phone_image_url(
+    phone_id: int,
+    image_url: str = Query(..., description="URL of the phone image"),
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """
+    Set the image URL for a phone directly from an external link.
+    """
+    from backend.services.admin.utils.image_handler import is_valid_url
+    
+    phone = db.query(sell_models.PhoneList).filter(sell_models.PhoneList.id == phone_id).first()
+    if not phone:
+        raise HTTPException(status_code=404, detail="Phone not found")
+    
+    if not is_valid_url(image_url):
+        raise HTTPException(status_code=400, detail="Invalid image URL format")
+    
+    phone.image_url = image_url
+    db.commit()
+    db.refresh(phone)
+    
+    return phone

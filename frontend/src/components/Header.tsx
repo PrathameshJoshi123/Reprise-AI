@@ -9,9 +9,11 @@ import {
   Users,
   LogOut,
   LayoutDashboard,
+  Gift,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
+import { toast } from "sonner";
 
 export function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -29,6 +31,23 @@ export function Header() {
   });
   const navigate = useNavigate();
   const location = useLocation();
+
+  const scrollToSection = (id: string) => {
+    if (location.pathname !== "/") {
+      navigate("/");
+      setTimeout(() => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 100);
+    } else {
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  };
   // token / fetched-user quick check used across the header
   const hasToken = Boolean(localStorage.getItem("accessToken"));
   const authPresent = isLoggedIn || hasToken || Boolean(fetchedUser);
@@ -126,7 +145,11 @@ export function Header() {
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center">
               <Link to="/" className="flex items-center">
-                <Phone className="h-6 w-6 text-primary mr-2" />
+                <img
+                  src="/assets/logo.jpeg"
+                  alt="Logo"
+                  className="h-8 w-8 mr-2"
+                />
                 <span className="text-xl font-bold text-primary">CashNow</span>
               </Link>
 
@@ -138,7 +161,11 @@ export function Header() {
                   user?.role === "customer" ? (
                     <Link
                       to="/sell-phone"
-                      className="text-sm font-medium hover:text-primary transition-colors"
+                      className={`text-sm font-medium transition-colors ${
+                        location.pathname === "/sell-phone"
+                          ? "text-primary border-b-2 border-primary"
+                          : "text-gray-600 hover:text-primary"
+                      }`}
                     >
                       Sell Phone
                     </Link>
@@ -146,7 +173,11 @@ export function Header() {
                 ) : (
                   <Link
                     to="/sell-phone"
-                    className="text-sm font-medium hover:text-primary transition-colors"
+                    className={`text-sm font-medium transition-colors ${
+                      location.pathname === "/sell-phone"
+                        ? "text-primary border-b-2 border-primary"
+                        : "text-gray-600 hover:text-primary"
+                    }`}
                   >
                     Sell Phone
                   </Link>
@@ -154,19 +185,53 @@ export function Header() {
 
                 <Link
                   to="/how-it-works"
-                  className="text-sm font-medium hover:text-primary transition-colors"
+                  className={`text-sm font-medium transition-colors ${
+                    location.pathname === "/how-it-works"
+                      ? "text-primary border-b-2 border-primary"
+                      : "text-gray-600 hover:text-primary"
+                  }`}
                 >
                   How It Works
                 </Link>
                 <Link
-                  to="/about-us"
-                  className="text-sm font-medium hover:text-primary transition-colors"
+                  to="/why-cashnow"
+                  className={`text-sm font-medium transition-colors ${
+                    location.pathname === "/why-cashnow"
+                      ? "text-primary border-b-2 border-primary"
+                      : "text-gray-600 hover:text-primary"
+                  }`}
                 >
-                  About Us
+                  Why CashNow?
+                </Link>
+                {authPresent && user?.role === "customer" && (
+                  <Link
+                    to="/referral"
+                    className={`text-sm font-medium transition-colors ${
+                      location.pathname === "/referral"
+                        ? "text-primary border-b-2 border-primary"
+                        : "text-gray-600 hover:text-primary"
+                    }`}
+                  >
+                    Referral
+                  </Link>
+                )}
+                <Link
+                  to="/become-partner"
+                  className={`text-sm font-medium transition-colors ${
+                    location.pathname === "/become-partner"
+                      ? "text-primary border-b-2 border-primary"
+                      : "text-gray-600 hover:text-primary"
+                  }`}
+                >
+                  Become a Partner
                 </Link>
                 <Link
                   to="/contact"
-                  className="text-sm font-medium hover:text-primary transition-colors"
+                  className={`text-sm font-medium transition-colors ${
+                    location.pathname === "/contact"
+                      ? "text-primary border-b-2 border-primary"
+                      : "text-gray-600 hover:text-primary"
+                  }`}
                 >
                   Contact
                 </Link>
@@ -277,7 +342,11 @@ export function Header() {
                       user?.role === "customer" ? (
                         <Link
                           to="/sell-phone"
-                          className="text-base font-medium hover:text-blue-600 transition-colors"
+                          className={`text-base font-medium transition-colors ${
+                            location.pathname === "/sell-phone"
+                              ? "text-primary border-l-4 border-primary pl-2"
+                              : "hover:text-blue-600"
+                          }`}
                         >
                           Sell Phone
                         </Link>
@@ -285,7 +354,11 @@ export function Header() {
                     ) : (
                       <Link
                         to="/sell-phone"
-                        className="text-base font-medium hover:text-blue-600 transition-colors"
+                        className={`text-base font-medium transition-colors ${
+                          location.pathname === "/sell-phone"
+                            ? "text-primary border-l-4 border-primary pl-2"
+                            : "hover:text-blue-600"
+                        }`}
                       >
                         Sell Phone
                       </Link>
@@ -293,26 +366,64 @@ export function Header() {
 
                     <Link
                       to="/how-it-works"
-                      className="text-base font-medium hover:text-blue-600 transition-colors"
+                      className={`text-base font-medium transition-colors ${
+                        location.pathname === "/how-it-works"
+                          ? "text-primary border-l-4 border-primary pl-2"
+                          : "hover:text-blue-600"
+                      }`}
                     >
                       How It Works
                     </Link>
                     <Link
-                      to="/about-us"
-                      className="text-base font-medium hover:text-blue-600 transition-colors"
+                      to="/why-cashnow"
+                      className={`text-base font-medium transition-colors ${
+                        location.pathname === "/why-cashnow"
+                          ? "text-primary border-l-4 border-primary pl-2"
+                          : "hover:text-blue-600"
+                      }`}
                     >
-                      About Us
+                      Why CashNow?
+                    </Link>
+                    {authPresent && user?.role === "customer" && (
+                      <Link
+                        to="/referral"
+                        className={`text-base font-medium transition-colors ${
+                          location.pathname === "/referral"
+                            ? "text-primary border-l-4 border-primary pl-2"
+                            : "hover:text-blue-600"
+                        }`}
+                      >
+                        Referral
+                      </Link>
+                    )}
+                    <Link
+                      to="/become-partner"
+                      className={`text-base font-medium transition-colors ${
+                        location.pathname === "/become-partner"
+                          ? "text-primary border-l-4 border-primary pl-2"
+                          : "hover:text-blue-600"
+                      }`}
+                    >
+                      Become a Partner
                     </Link>
                     <Link
                       to="/contact"
-                      className="text-base font-medium hover:text-blue-600 transition-colors"
+                      className={`text-base font-medium transition-colors ${
+                        location.pathname === "/contact"
+                          ? "text-primary border-l-4 border-primary pl-2"
+                          : "hover:text-blue-600"
+                      }`}
                     >
                       Contact
                     </Link>
                     {showMyOrders && (
                       <Link
                         to="/my-orders"
-                        className="text-base font-medium hover:text-blue-600 transition-colors"
+                        className={`text-base font-medium transition-colors ${
+                          location.pathname === "/my-orders"
+                            ? "text-primary border-l-4 border-primary pl-2"
+                            : "hover:text-blue-600"
+                        }`}
                       >
                         My Orders
                       </Link>
@@ -360,8 +471,16 @@ export function Header() {
                           </Button>
                         </div>
                       ) : (
-                        <div className="text-sm font-semibold mb-3 text-gray-500">
-                          Login
+                        <div className="grid gap-2">
+                          <Link to="/login">
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start"
+                            >
+                              <User size={16} className="mr-2" />
+                              Login
+                            </Button>
+                          </Link>
                         </div>
                       )}
                     </div>
@@ -493,7 +612,11 @@ export function Header() {
                       setEditing(false);
                     } catch (err) {
                       console.error("Failed to save profile", err);
-                      alert("Failed to save profile. Please try again.");
+                      toast.error("Failed to save profile. Please try again.", {
+                        description:
+                          "Could not update your profile information.",
+                        duration: 5000,
+                      });
                     }
                   }}
                 >

@@ -34,6 +34,7 @@ import {
   Mail,
   Briefcase,
 } from "lucide-react";
+import PartnerOnHoldModal from "../components/PartnerOnHoldModal";
 
 export default function PartnerLogin() {
   const navigate = useNavigate();
@@ -52,7 +53,33 @@ export default function PartnerLogin() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { login, signup } = useAuth();
+  const { login, signup, holdInfo, clearHoldInfo } = useAuth();
+
+  const extractErrorMessage = (error: any): string => {
+    // Handle Pydantic validation errors (array of error objects)
+    if (Array.isArray(error?.response?.data?.detail)) {
+      const errors = error.response.data.detail
+        .map((err: any) => {
+          if (typeof err === "object" && err.msg) {
+            const field = err.loc ? err.loc[err.loc.length - 1] : "field";
+            return `${field}: ${err.msg}`;
+          }
+          return "Invalid input";
+        })
+        .filter((msg: string) => msg);
+
+      return errors.length > 0
+        ? errors.slice(0, 2).join(", ") // Show first 2 errors
+        : "Please check your input and try again.";
+    }
+
+    // Handle string error messages
+    if (typeof error?.response?.data?.detail === "string") {
+      return error.response.data.detail;
+    }
+
+    return "An error occurred. Please try again.";
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +130,7 @@ export default function PartnerLogin() {
         navigate("/partner/dashboard");
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || "An error occurred");
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -337,7 +364,7 @@ export default function PartnerLogin() {
 
                   <div className="space-y-2">
                     <Label htmlFor="company" className="text-sm font-medium">
-                      Company/Business Name *
+                      Shop Name *
                     </Label>
                     <div className="relative">
                       <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -346,7 +373,7 @@ export default function PartnerLogin() {
                         type="text"
                         required
                         className="pl-10 h-11"
-                        placeholder="Your Company Name"
+                        placeholder="Your Shop Name"
                         value={formData.company_name}
                         onChange={(e) =>
                           setFormData({
@@ -360,7 +387,7 @@ export default function PartnerLogin() {
 
                   <div className="space-y-2">
                     <Label htmlFor="address" className="text-sm font-medium">
-                      Business Address *
+                      Shop Address *
                     </Label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
@@ -369,7 +396,7 @@ export default function PartnerLogin() {
                         required
                         rows={2}
                         className="pl-10 resize-none"
-                        placeholder="Complete business address"
+                        placeholder="Complete shop address"
                         value={formData.business_address}
                         onChange={(e) =>
                           setFormData({
@@ -489,6 +516,14 @@ export default function PartnerLogin() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Partner On Hold Modal */}
+      <PartnerOnHoldModal
+        isOpen={!!holdInfo}
+        reason={holdInfo?.reason}
+        liftDate={holdInfo?.liftDate}
+        verificationStatus={holdInfo?.verificationStatus}
+      />
     </>
   );
 }

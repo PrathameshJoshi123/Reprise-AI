@@ -1,21 +1,40 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import api from "../lib/api";
+import { handleApiError } from "../lib/errorHandler";
 
 interface User {
   id: number;
   email: string;
   name: string;
+  phone?: string;
   type: "partner" | "agent";
   credit_balance?: number;
   is_on_hold?: boolean;
   hold_reason?: string;
   hold_lift_date?: string;
+  verification_status?: string;
+  rejection_reason?: string | null;
+  is_active?: boolean;
+  created_at?: string;
+}
+
+interface HoldInfo {
+  reason: string;
+  liftDate?: string;
+  verificationStatus?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   userType: "partner" | "agent" | null;
   loading: boolean;
+  holdInfo: HoldInfo | null;
   login: (
     email: string,
     password: string,
@@ -34,6 +53,7 @@ interface AuthContextType {
   ) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  clearHoldInfo: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,6 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<User | null>(null);
   const [userType, setUserType] = useState<"partner" | "agent" | null>(null);
   const [loading, setLoading] = useState(true);
+  const [holdInfo, setHoldInfo] = useState<HoldInfo | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -57,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  const fetchUser = async (type: "partner" | "agent") => {
+  const fetchUser = useCallback(async (type: "partner" | "agent") => {
     try {
       const endpoint = type === "partner" ? "/partner/me" : "/agent/me";
       const response = await api.get(endpoint);
@@ -66,27 +87,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const name = data.full_name ?? data.fullName ?? data.name ?? data.email;
       setUser({ ...data, type, name });
       setUserType(type);
-    } catch (error) {
+      setHoldInfo(null);
+    } catch (error: any) {
       console.error("Failed to fetch user:", error);
+      // Check if error is 403 (account on hold/not approved)
+      if (error.response?.status === 403) {
+        const holdData = error.response?.data;
+        setHoldInfo({
+          reason: holdData?.detail || "Your account is not yet approved",
+          liftDate: holdData?.hold_lift_date,
+          verificationStatus: holdData?.verification_status,
+        });
+        // Keep token but mark user as on hold
+        return;
+      }
+      // Handle other errors with toast
+      handleApiError(error, "auth");
       localStorage.removeItem("token");
       localStorage.removeItem("userType");
+      setHoldInfo(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const login = async (
     email: string,
     password: string,
     type: "partner" | "agent",
   ) => {
-    const endpoint = type === "partner" ? "/partner/login" : "/agent/login";
-    const response = await api.post(endpoint, { email, password });
+    try {
+      const endpoint = type === "partner" ? "/partner/login" : "/agent/login";
+      const response = await api.post(
+        endpoint,
+        { email, password },
+        {
+          headers: { "x-skip-auth-redirect": "true" },
+        },
+      );
 
-    localStorage.setItem("token", response.data.access_token);
-    localStorage.setItem("userType", type);
-    setUserType(type);
-    await fetchUser(type);
+      localStorage.setItem("token", response.data.access_token);
+      localStorage.setItem("userType", type);
+      setUserType(type);
+      await fetchUser(type);
+    } catch (error: any) {
+      // Check if error is 403 (account on hold/not approved)
+      if (error.response?.status === 403) {
+        const holdData = error.response?.data;
+        setHoldInfo({
+          reason: holdData?.detail || "Your account is not yet approved",
+          liftDate: holdData?.hold_lift_date,
+          verificationStatus: holdData?.verification_status,
+        });
+        // Store the type so we know which portal tried to login
+        setUserType(type);
+        return;
+      }
+      // Handle other login errors with toast
+      handleApiError(error, "auth");
+      throw error;
+    }
   };
 
   const signup = async (
@@ -100,22 +160,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     pan_number: string,
     serviceable_pincodes: string[],
   ) => {
-    const response = await api.post("/partner/signup", {
-      full_name,
-      email,
-      password,
-      phone,
-      company_name,
-      business_address,
-      gst_number: gst_number || null,
-      pan_number,
-      serviceable_pincodes,
-    });
+    try {
+      const response = await api.post(
+        "/partner/signup",
+        {
+          full_name,
+          email,
+          password,
+          phone,
+          company_name,
+          business_address,
+          gst_number: gst_number || null,
+          pan_number,
+          serviceable_pincodes,
+        },
+        {
+          headers: { "x-skip-auth-redirect": "true" },
+        },
+      );
 
-    localStorage.setItem("token", response.data.access_token);
-    localStorage.setItem("userType", "partner");
-    setUserType("partner");
-    await fetchUser("partner");
+      localStorage.setItem("token", response.data.access_token);
+      localStorage.setItem("userType", "partner");
+      setUserType("partner");
+      await fetchUser("partner");
+    } catch (error: any) {
+      handleApiError(error, "auth");
+      throw error;
+    }
   };
 
   const logout = () => {
@@ -123,17 +194,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem("userType");
     setUser(null);
     setUserType(null);
+    setHoldInfo(null);
   };
 
-  const refreshUser = async () => {
+  const clearHoldInfo = () => {
+    setHoldInfo(null);
+  };
+
+  const refreshUser = useCallback(async () => {
     if (userType) {
       await fetchUser(userType);
     }
-  };
+  }, [userType, fetchUser]);
 
   return (
     <AuthContext.Provider
-      value={{ user, userType, loading, login, signup, logout, refreshUser }}
+      value={{
+        user,
+        userType,
+        loading,
+        holdInfo,
+        login,
+        signup,
+        logout,
+        refreshUser,
+        clearHoldInfo,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -1,15 +1,22 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { getStatusColor } from '../utils/statusColors';
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { getStatusColor } from "../utils/statusColors";
 
 interface StatusBadgeProps {
-  status: string;
-  size?: 'small' | 'medium' | 'large';
+  status?: string | null;
+  size?: "small" | "medium" | "large";
 }
 
-export default function StatusBadge({ status, size = 'medium' }: StatusBadgeProps) {
+export default function StatusBadge({
+  status,
+  size = "medium",
+}: StatusBadgeProps) {
+  if (!status) {
+    return null;
+  }
+
   const color = getStatusColor(status);
-  const displayText = status.replace(/_/g, ' ').toUpperCase();
+  const displayText = status.replace(/_/g, " ").toUpperCase();
 
   const sizeStyles = {
     small: styles.small,
@@ -24,8 +31,16 @@ export default function StatusBadge({ status, size = 'medium' }: StatusBadgeProp
   };
 
   return (
-    <View style={[styles.badge, sizeStyles[size], { backgroundColor: color + '20' }]}>
-      <Text style={[styles.text, textSizeStyles[size], { color }]}>{displayText}</Text>
+    <View
+      style={[
+        styles.badge,
+        sizeStyles[size],
+        { backgroundColor: color + "20" },
+      ]}
+    >
+      <Text style={[styles.text, textSizeStyles[size], { color }]}>
+        {displayText}
+      </Text>
     </View>
   );
 }
@@ -35,7 +50,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
   small: {
     paddingHorizontal: 6,
@@ -53,7 +68,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   text: {
-    fontWeight: '600',
+    fontWeight: "600",
   },
   textSmall: {
     fontSize: 10,

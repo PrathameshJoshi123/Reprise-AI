@@ -22,3 +22,6 @@ class User(Base):
     # removed latitude/longitude
     # New: optional pincode for customer user
     pincode = Column(String, nullable=True)
+    
+    # Referral points earned by the user
+    referral_points = Column(Integer, default=0, nullable=False)

@@ -24,6 +24,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 export default function CustomerLogin() {
   const [isLogin, setIsLogin] = useState(true);
@@ -34,6 +35,7 @@ export default function CustomerLogin() {
   const [phone, setPhone] = useState("");
   const [pincode, setPincode] = useState("");
   const [address, setAddress] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [pincodeError, setPincodeError] = useState("");
   const [pincodeChecking, setPincodeChecking] = useState(false);
   const [pincodeValid, setPincodeValid] = useState(false);
@@ -203,7 +205,10 @@ export default function CustomerLogin() {
             }
           } catch (err) {
             console.error("Google login failed:", err);
-            alert("Google authentication failed. Please try again.");
+            toast.error("Google authentication failed. Please try again.", {
+              description: "Could not complete sign-in or token exchange.",
+              duration: 5000,
+            });
           } finally {
             sessionStorage.removeItem("google_oauth_state");
             setGoogleProcessing(false);
@@ -233,7 +238,11 @@ export default function CustomerLogin() {
   // submit profile collected after Google signup
   const submitGoogleProfile = async () => {
     if (!googleProfilePhone && !googleProfileAddress) {
-      alert("Please provide phone or address to continue.");
+      toast.warning("Please provide phone or address to continue.", {
+        description:
+          "Additional information is required to complete your profile.",
+        duration: 5000,
+      });
       return;
     }
     try {
@@ -254,317 +263,387 @@ export default function CustomerLogin() {
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to save profile. Please try again.");
+      toast.error("Failed to save profile. Please try again.", {
+        description: "Could not update your profile information.",
+        duration: 5000,
+      });
     } finally {
       setGoogleProcessing(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
 
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-md mx-auto">
-          <div className="text-center mb-8">
-            <div className="bg-primary/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Smartphone className="text-primary" size={32} />
-            </div>
-            <h1 className="text-3xl font-bold mb-2">Customer Portal</h1>
-            <p className="text-gray-600">
-              Sell your phone and track your orders
-            </p>
+      <main className="flex-grow flex items-center justify-center p-4 md:p-8">
+        <div className="w-full max-w-6xl grid lg:grid-cols-2 bg-white rounded-3xl shadow-2xl overflow-hidden min-h-[600px] border border-gray-100">
+          {/* Left Side - Hero Image */}
+          <div className="hidden lg:flex flex-col items-center justify-center relative h-full min-h-[600px] bg-gray-50 p-12">
+            <img
+              src="/assets/client-photos/photo-1.jpeg"
+              alt="Happy Customer"
+              className="w-full max-w-lg h-auto rounded-2xl shadow-2xl object-contain"
+            />
           </div>
 
-          <Card className="border-2">
-            <CardHeader>
-              <CardTitle>
-                {isLogin ? "Welcome Back" : "Create Account"}
-              </CardTitle>
-              <CardDescription>
-                {isLogin
-                  ? "Login to your customer account"
-                  : "Sign up to start selling your phones"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!isLogin && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name *</Label>
-                    <Input
-                      id="name"
-                      placeholder="John Doe"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      required
-                    />
-                  </div>
+          {/* Right Side - Form */}
+          <div className="flex flex-col items-center justify-center h-full p-4 lg:p-12 bg-white">
+            <div className="w-full max-w-md space-y-6">
+              <div className="text-center mb-8">
+                <div className="bg-primary/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Smartphone className="text-primary" size={32} />
+                </div>
+                <h1 className="text-3xl font-bold mb-2">Customer Portal</h1>
+                <p className="text-gray-600">
+                  Sell your phone and track your orders
+                </p>
+              </div>
+
+              <Card className="border-2">
+                <CardHeader>
+                  <CardTitle>
+                    {isLogin ? "Welcome Back" : "Create Account"}
+                  </CardTitle>
+                  <CardDescription>
+                    {isLogin
+                      ? "Login to your customer account"
+                      : "Sign up to start selling your phones"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {!isLogin && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Full Name *</Label>
+                        <Input
+                          id="name"
+                          placeholder="John Doe"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Phone Number *</Label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                          <Input
+                            id="phone"
+                            placeholder="+91 98765 43210"
+                            className="pl-10"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="pincode">Pincode *</Label>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                          <Input
+                            id="pincode"
+                            placeholder="560001"
+                            maxLength={6}
+                            className="pl-10"
+                            value={pincode}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, "");
+                              setPincode(val);
+                            }}
+                            required
+                          />
+                        </div>
+                        {pincodeChecking && (
+                          <p className="text-sm text-blue-600">
+                            Checking pincode...
+                          </p>
+                        )}
+                        {pincodeValid && serviceableInfo && (
+                          <Alert className="bg-green-50 border-green-200">
+                            <AlertDescription className="text-green-800 text-sm">
+                              ✓ Great! {serviceableInfo.partner_count}{" "}
+                              partner(s) service your area
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                        {pincodeError && (
+                          <Alert className="bg-amber-50 border-amber-200">
+                            <AlertTriangle className="h-4 w-4 text-amber-600" />
+                            <AlertDescription className="text-amber-800 text-sm">
+                              Cannot create orders in this pincode area. Please
+                              try a different pincode.
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="address">Address (Optional)</Label>
+                        <Input
+                          id="address"
+                          placeholder="123 Main Street, City"
+                          value={address}
+                          onChange={(e) => setAddress(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="referral">
+                          Referral Code (Optional)
+                        </Label>
+                        <Input
+                          id="referral"
+                          placeholder="6-digit code (e.g., 123456)"
+                          maxLength={6}
+                          value={referralCode}
+                          onChange={(e) =>
+                            setReferralCode(e.target.value.replace(/\D/g, ""))
+                          }
+                        />
+                        <p className="text-xs text-gray-500">
+                          Have a referral code? Enter it to earn bonus points!
+                        </p>
+                      </div>
+                    </>
+                  )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Label htmlFor="email">Email *</Label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
-                        id="phone"
-                        placeholder="+91 98765 43210"
+                        id="email"
+                        placeholder="your@email.com"
                         className="pl-10"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
+                        value={identifier}
+                        onChange={(e) => setIdentifier(e.target.value)}
                         required
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="pincode">Pincode *</Label>
+                    <Label htmlFor="password">Password *</Label>
                     <div className="relative">
-                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
-                        id="pincode"
-                        placeholder="560001"
-                        maxLength={6}
+                        id="password"
+                        type="password"
+                        placeholder="••••••••"
                         className="pl-10"
-                        value={pincode}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, "");
-                          setPincode(val);
-                        }}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         required
                       />
                     </div>
-                    {pincodeChecking && (
-                      <p className="text-sm text-blue-600">
-                        Checking pincode...
-                      </p>
-                    )}
-                    {pincodeValid && serviceableInfo && (
-                      <Alert className="bg-green-50 border-green-200">
-                        <AlertDescription className="text-green-800 text-sm">
-                          ✓ Great! {serviceableInfo.partner_count} partner(s)
-                          service your area
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                    {pincodeError && (
-                      <Alert className="bg-amber-50 border-amber-200">
-                        <AlertTriangle className="h-4 w-4 text-amber-600" />
-                        <AlertDescription className="text-amber-800 text-sm">
-                          Cannot create orders in this pincode area. Please try
-                          a different pincode.
-                        </AlertDescription>
-                      </Alert>
-                    )}
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Address (Optional)</Label>
-                    <Input
-                      id="address"
-                      placeholder="123 Main Street, City"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="email"
-                    placeholder="your@email.com"
-                    className="pl-10"
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password *</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    className="pl-10"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex flex-col gap-4">
-              <Button
-                className="w-full bg-primary text-primary-foreground hover:brightness-95"
-                disabled={!isLogin && pincodeChecking}
-                onClick={async () => {
-                  try {
-                    if (isLogin) {
-                      if (!identifier.includes("@")) {
-                        alert("Please enter a valid email address to login.");
-                        return;
-                      }
-                      const ok = await login(identifier, password, "customer");
-                      if (ok) {
-                        const stateRedirect = (location.state as any)
-                          ?.redirectTo;
-                        const savedRedirect =
-                          localStorage.getItem("postLoginRedirect");
-                        const target = stateRedirect || savedRedirect;
-                        if (target) {
-                          localStorage.removeItem("postLoginRedirect");
-                          navigate(target);
+                </CardContent>
+                <CardFooter className="flex flex-col gap-4">
+                  <Button
+                    className="w-full bg-primary text-primary-foreground hover:brightness-95"
+                    disabled={!isLogin && pincodeChecking}
+                    onClick={async () => {
+                      try {
+                        if (isLogin) {
+                          if (!identifier.includes("@")) {
+                            toast.warning(
+                              "Please enter a valid email address to login.",
+                              {
+                                description:
+                                  "Email format is required for login.",
+                                duration: 5000,
+                              },
+                            );
+                            return;
+                          }
+                          const ok = await login(
+                            identifier,
+                            password,
+                            "customer",
+                          );
+                          if (ok) {
+                            const stateRedirect = (location.state as any)
+                              ?.redirectTo;
+                            const savedRedirect =
+                              localStorage.getItem("postLoginRedirect");
+                            const target = stateRedirect || savedRedirect;
+                            if (target) {
+                              localStorage.removeItem("postLoginRedirect");
+                              navigate(target);
+                            } else {
+                              navigate("/");
+                            }
+                          } else {
+                            // Login toast is already shown by AuthContext
+                          }
                         } else {
-                          navigate("/");
+                          // Validate required fields
+                          if (
+                            !fullName ||
+                            !phone ||
+                            !pincode ||
+                            !identifier ||
+                            !password
+                          ) {
+                            toast.warning(
+                              "Please fill in all required fields",
+                              {
+                                description:
+                                  "All fields marked with * are required.",
+                                duration: 5000,
+                              },
+                            );
+                            return;
+                          }
+
+                          if (!identifier.includes("@")) {
+                            toast.warning(
+                              "Please enter a valid email address for signup.",
+                              {
+                                description:
+                                  "Email format is required for account creation.",
+                                duration: 5000,
+                              },
+                            );
+                            return;
+                          }
+
+                          if (pincode.length !== 6) {
+                            toast.warning(
+                              "Please enter a valid 6-digit pincode",
+                              {
+                                description:
+                                  "Pincode must be exactly 6 digits.",
+                                duration: 5000,
+                              },
+                            );
+                            return;
+                          }
+
+                          // Check pincode one final time if not already checked
+                          if (!serviceableInfo) {
+                            await checkPincode(pincode);
+                          }
+
+                          // ALLOW signup regardless of pincode serviceability
+                          // Show warning but allow user to proceed with non-serviceable pincode
+                          if (!pincodeValid && serviceableInfo) {
+                            const proceed = window.confirm(
+                              "Cannot create orders in this pincode area. Please try a different pincode.",
+                            );
+                            if (!proceed) {
+                              return;
+                            }
+                          }
+
+                          const signupEmail = identifier;
+
+                          const ok = await signup(
+                            signupEmail,
+                            password,
+                            "customer",
+                            fullName,
+                            phone,
+                            address || undefined,
+                            null,
+                            null,
+                            pincode,
+                            referralCode || undefined,
+                          );
+
+                          if (ok) {
+                            const stateRedirect = (location.state as any)
+                              ?.redirectTo;
+                            const savedRedirect =
+                              localStorage.getItem("postLoginRedirect");
+                            const target = stateRedirect || savedRedirect;
+                            if (target) {
+                              localStorage.removeItem("postLoginRedirect");
+                              navigate(target);
+                            } else {
+                              navigate("/");
+                            }
+                          } else {
+                            // Signup toast is already shown by AuthContext
+                          }
                         }
-                      } else {
-                        alert("Login failed. Please check your credentials.");
+                      } catch (err) {
+                        console.error(err);
+                        toast.error("An error occurred. Please try again.", {
+                          description:
+                            "Something went wrong during authentication.",
+                          duration: 5000,
+                        });
                       }
-                    } else {
-                      // Validate required fields
-                      if (
-                        !fullName ||
-                        !phone ||
-                        !pincode ||
-                        !identifier ||
-                        !password
-                      ) {
-                        alert("Please fill in all required fields");
-                        return;
-                      }
-
-                      if (!identifier.includes("@")) {
-                        alert("Please enter a valid email address for signup.");
-                        return;
-                      }
-
-                      if (pincode.length !== 6) {
-                        alert("Please enter a valid 6-digit pincode");
-                        return;
-                      }
-
-                      // Check pincode one final time if not already checked
-                      if (!serviceableInfo) {
-                        await checkPincode(pincode);
-                      }
-
-                      // ALLOW signup regardless of pincode serviceability
-                      // Show warning but allow user to proceed with non-serviceable pincode
-                      if (!pincodeValid && serviceableInfo) {
-                        const proceed = window.confirm(
-                          "Cannot create orders in this pincode area. Please try a different pincode.",
-                        );
-                        if (!proceed) {
-                          return;
-                        }
-                      }
-
-                      const signupEmail = identifier;
-
-                      const ok = await signup(
-                        signupEmail,
-                        password,
-                        "customer",
-                        fullName,
-                        phone,
-                        address || undefined,
-                        null,
-                        null,
-                        pincode,
-                      );
-
-                      if (ok) {
-                        const stateRedirect = (location.state as any)
-                          ?.redirectTo;
-                        const savedRedirect =
-                          localStorage.getItem("postLoginRedirect");
-                        const target = stateRedirect || savedRedirect;
-                        if (target) {
-                          localStorage.removeItem("postLoginRedirect");
-                          navigate(target);
-                        } else {
-                          navigate("/");
-                        }
-                      } else {
-                        alert(
-                          "Signup failed. Email or phone may already be registered.",
-                        );
-                      }
-                    }
-                  } catch (err) {
-                    console.error(err);
-                    alert("An error occurred. Please try again.");
-                  }
-                }}
-              >
-                {pincodeChecking
-                  ? "Checking..."
-                  : isLogin
-                    ? "Login"
-                    : "Create Account"}
-              </Button>
-
-              <div className="text-center text-sm">
-                {isLogin
-                  ? "Don't have an account? "
-                  : "Already have an account? "}
-                <button
-                  onClick={() => setIsLogin(!isLogin)}
-                  className="text-primary hover:underline font-medium"
-                >
-                  {isLogin ? "Sign up" : "Login"}
-                </button>
-              </div>
-
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-gray-500">
-                    Or continue with
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                <Button variant="outline" onClick={onGoogleLogin}>
-                  <svg
-                    className="mr-2 h-4 w-4"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
+                    }}
                   >
-                    <path
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      fill="#4285F4"
-                    />
-                    <path
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      fill="#34A853"
-                    />
-                    <path
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                      fill="#FBBC05"
-                    />
-                    <path
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                      fill="#EA4335"
-                    />
-                  </svg>
-                  Google
-                </Button>
-              </div>
-            </CardFooter>
-          </Card>
+                    {pincodeChecking
+                      ? "Checking..."
+                      : isLogin
+                        ? "Login"
+                        : "Create Account"}
+                  </Button>
+
+                  <div className="text-center text-sm">
+                    {isLogin
+                      ? "Don't have an account? "
+                      : "Already have an account? "}
+                    <button
+                      onClick={() => setIsLogin(!isLogin)}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      {isLogin ? "Sign up" : "Login"}
+                    </button>
+                  </div>
+
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-2 text-gray-500">
+                        Or continue with
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                    <Button variant="outline" onClick={onGoogleLogin}>
+                      <svg
+                        className="mr-2 h-4 w-4"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                          fill="#4285F4"
+                        />
+                        <path
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                          fill="#34A853"
+                        />
+                        <path
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                          fill="#FBBC05"
+                        />
+                        <path
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                          fill="#EA4335"
+                        />
+                      </svg>
+                      Google
+                    </Button>
+                  </div>
+                </CardFooter>
+              </Card>
+            </div>
+          </div>
         </div>
-      </div>
+      </main>
 
       {/* Google pincode modal (simple) */}
       {showGooglePincodeModal && (
@@ -612,7 +691,10 @@ export default function CustomerLogin() {
               <Button
                 onClick={async () => {
                   if (pincode.length !== 6) {
-                    alert("Please enter a valid 6-digit pincode");
+                    toast.warning("Please enter a valid 6-digit pincode", {
+                      description: "Pincode must be exactly 6 digits.",
+                      duration: 5000,
+                    });
                     return;
                   }
                   await checkPincode(pincode);

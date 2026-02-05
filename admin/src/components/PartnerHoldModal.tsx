@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import api from "../lib/api";
+import { showErrorToastWithRetry, showSuccessToast } from "../lib/errorHandler";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -43,12 +44,12 @@ export default function PartnerHoldModal({
 
   const handlePlaceHold = async () => {
     if (!reason.trim()) {
-      toast.error("Please provide a reason for the hold");
+      toast.error("Please provide a reason for the hold", { duration: 4000 });
       return;
     }
 
     if (liftOption === "specific_date" && !liftDate) {
-      toast.error("Please select a lift date");
+      toast.error("Please select a lift date", { duration: 4000 });
       return;
     }
 
@@ -64,16 +65,27 @@ export default function PartnerHoldModal({
       };
 
       await api.post(`/admin/partners/${partnerId}/hold`, payload);
-      toast.success(`Partner "${partnerName}" has been placed on hold`);
+      showSuccessToast(`Partner "${partnerName}" placed on hold!`);
       setReason("");
       setLiftOption("admin_decides");
       setLiftDate("");
       onHoldPlaced();
       onClose();
     } catch (error: any) {
-      toast.error(
-        error.response?.data?.detail || "Failed to place hold on partner",
-      );
+      if (error.response?.status === 404) {
+        toast.error("Partner not found.", { duration: 4000 });
+      } else if (
+        error.response?.status === 400 &&
+        error.response?.data?.detail?.includes("already on hold")
+      ) {
+        toast.error("This partner is already on hold.", { duration: 4000 });
+      } else {
+        showErrorToastWithRetry(
+          error,
+          handlePlaceHold,
+          "Place hold on partner",
+        );
+      }
     } finally {
       setLoading(false);
     }

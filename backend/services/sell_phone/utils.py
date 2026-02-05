@@ -164,11 +164,19 @@ def deduct_partner_credits(
 def get_serviceable_partners(db: Session, pincode: str) -> int:
     """
     Get count of partners that service a given pincode.
+    Only counts approved partners.
     Signature accepts (db, pincode) to match callers across the codebase.
     """
-    count = db.query(PartnerServiceablePincode).filter(
+    from backend.services.partner.schema.models import Partner, PartnerServiceablePincode
+
+    count = db.query(PartnerServiceablePincode).join(
+        Partner,
+        Partner.id == PartnerServiceablePincode.partner_id
+    ).filter(
         PartnerServiceablePincode.pincode == pincode,
-        PartnerServiceablePincode.is_active == True
+        PartnerServiceablePincode.is_active == True,
+        Partner.verification_status == 'approved',
+        Partner.is_active == True
     ).count()
 
     return count

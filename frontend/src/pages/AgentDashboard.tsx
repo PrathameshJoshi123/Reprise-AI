@@ -20,6 +20,7 @@ import {
   AlertCircle,
   Eye,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Order {
   id: number;
@@ -49,7 +50,7 @@ export default function AgentDashboard() {
   const { user, isLoggedIn } = useAuth();
   const queryClient = useQueryClient();
   const [selectedFilter, setSelectedFilter] = useState<
-    "all" | "accepted_by_agent" | "pickup_scheduled"
+    "all" | "accepted_by_agent"
   >("all");
 
   useEffect(() => {
@@ -105,10 +106,8 @@ export default function AgentDashboard() {
   // Compute stats from myOrders
   const stats = {
     total: myOrders.length,
-    pendingPickups: myOrders.filter(
-      (o) =>
-        o.status === "accepted_by_agent" || o.status === "pickup_scheduled",
-    ).length,
+    pendingPickups: myOrders.filter((o) => o.status === "accepted_by_agent")
+      .length,
     completed: myOrders.filter(
       (o) =>
         o.status === "pickup_completed" || o.status === "payment_processed",
@@ -138,10 +137,26 @@ export default function AgentDashboard() {
     (selectedFilter === "all" && isNearbyLoading);
   const error = myOrdersError || (selectedFilter === "all" && nearbyError);
 
+  // Show toast on background refresh errors
+  useEffect(() => {
+    if (error) {
+      toast.info("Background sync failed — data may be stale.", {
+        description: "Failed to refresh orders data.",
+        action: {
+          label: "Retry now",
+          onClick: () =>
+            queryClient.invalidateQueries({
+              queryKey: ["agentMyOrders", "nearbyOrders"],
+            }),
+        },
+        duration: 6000,
+      });
+    }
+  }, [error, queryClient]);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "accepted_by_agent":
-      case "pickup_scheduled":
         return "bg-blue-100 text-blue-700 border-blue-200";
       case "pickup_completed":
       case "payment_processed":
@@ -265,7 +280,6 @@ export default function AgentDashboard() {
             {[
               { value: "all", label: "All Orders" },
               { value: "accepted_by_agent", label: "Accepted" },
-              { value: "pickup_scheduled", label: "Scheduled" },
             ].map((filter) => (
               <button
                 key={filter.value}

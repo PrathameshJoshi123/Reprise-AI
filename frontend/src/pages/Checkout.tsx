@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
+import { toast } from "sonner";
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -191,7 +192,11 @@ export default function Checkout() {
 
     // Validate pincode before allowing order creation
     if (!pincodeVal || pincodeVal.length !== 6) {
-      alert("Please enter a valid 6-digit pincode");
+      toast.warning("Please enter a valid 6-digit pincode", {
+        description:
+          "Pincode must be exactly 6 digits to proceed with checkout.",
+        duration: 5000,
+      });
       return;
     }
 
@@ -204,9 +209,14 @@ export default function Checkout() {
 
     // Block order creation if pincode is not serviceable
     if (!pincodeValid) {
-      alert(
+      toast.warning(
         pincodeError ||
           "Cannot create orders in this pincode area. Please try a different pincode.",
+        {
+          description:
+            "This area is not currently serviced. Choose a different delivery location.",
+          duration: 6000,
+        },
       );
       return;
     }
@@ -234,9 +244,7 @@ export default function Checkout() {
       phone_name: phoneData.name,
       brand: phoneData.brand || phoneData.name.split(" ")[0],
       model: phoneData.model || phoneData.name.split(" ").slice(1).join(" "),
-      ram_gb:
-        phoneData.ram_gb ||
-        parseFloat(phoneData.variant?.match(/\d+/)?.[0] || "0"),
+      ram_gb: phoneData.ram_gb,
       storage_gb:
         phoneData.storage_gb ||
         parseFloat(phoneData.variant?.match(/\d+/)?.[0] || "0"),
@@ -267,8 +275,17 @@ export default function Checkout() {
     } catch (err) {
       console.error("Order create failed", err);
       setIsSubmitting(false);
-      // minimal UX: alert. Replace with toast in app.
-      alert("Failed to create order. Please try again.");
+      toast.error(
+        "We couldn't create your order. Your payment was not processed.",
+        {
+          description: "A server error or validation prevented order creation.",
+          action: {
+            label: "Retry",
+            onClick: () => handleSubmitPayment(e as any),
+          },
+          duration: Infinity,
+        },
+      );
     }
   };
 
@@ -319,7 +336,7 @@ export default function Checkout() {
                       )}
                     </div>
                     <p
-                      className={`text-sm mt-3 font-medium transition-colors ${
+                      className={`text-xs sm:text-sm mt-3 font-medium transition-colors ${
                         step >= index + 1 ? "text-gray-900" : "text-gray-400"
                       }`}
                     >

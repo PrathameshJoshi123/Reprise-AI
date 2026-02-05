@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -77,6 +77,7 @@ class PartnerOut(BaseModel):
     gst_number: Optional[str]
     pan_number: Optional[str]
     verification_status: str
+    rejection_reason: Optional[str] = None
     credit_balance: float
     is_active: bool
     created_at: datetime
@@ -87,8 +88,13 @@ class PartnerOut(BaseModel):
 
 class PartnerCreditNameOut(BaseModel):
     """Schema for partner credit and name only"""
+    email: str
     full_name: str
+    phone: Optional[str] = None
     credit_balance: float
+    verification_status: str
+    rejection_reason: Optional[str] = None
+    is_active: bool
     is_on_hold: bool = False
     hold_reason: Optional[str] = None
     hold_lift_date: Optional[datetime] = None
@@ -121,6 +127,45 @@ class PartnerOrderBriefOut(BaseModel):
     pickup_city: Optional[str] = None
     pickup_state: Optional[str] = None
 
+    model_config = {"from_attributes": True}
+
+
+class PaymentRequestCreate(BaseModel):
+    """Schema for partner to request credit purchase with UPI payment"""
+    plan_id: int
+    credit_amount: float
+    payment_amount: float
+    bonus_percentage: float
+
+
+class PaymentRequestOut(BaseModel):
+    """Schema for payment request response"""
+    id: int
+    plan_id: Optional[int] = None
+    credit_amount: float
+    payment_amount: float
+    bonus_percentage: float
+    approval_status: str
+    approval_notes: Optional[str] = None
+    created_at: datetime
+    reviewed_at: Optional[datetime] = None
+    
+    model_config = {"from_attributes": True}
+
+
+class PaymentRequestWithScreenshot(BaseModel):
+    """Schema for payment request with screenshot metadata"""
+    id: int
+    plan_id: Optional[int] = None
+    credit_amount: float
+    payment_amount: float
+    bonus_percentage: float
+    approval_status: str
+    approval_notes: Optional[str] = None
+    has_screenshot: bool
+    created_at: datetime
+    reviewed_at: Optional[datetime] = None
+    
     model_config = {"from_attributes": True}
 
 
@@ -249,3 +294,41 @@ class AgentLocationUpdate(BaseModel):
     """Schema for updating agent location"""
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
+
+
+# ================================
+# PARTNER SELF-ASSIGNMENT SCHEMAS
+# ================================
+
+class PartnerSelfAssignRequest(BaseModel):
+    """Schema for partner self-assigning as an agent"""
+    email: Optional[EmailStr] = Field(None, description="Email for agent login (defaults to partner email)")
+    phone: Optional[str] = Field(None, min_length=10, max_length=15, description="Phone number for agent (defaults to partner phone)")
+    password: Optional[str] = Field(None, min_length=8, description="Password for agent login (defaults to partner password)")
+    full_name: Optional[str] = Field(None, description="Agent full name (defaults to partner name)")
+    employee_id: Optional[str] = Field(None, description="Optional employee ID")
+    
+    @field_validator('email', 'phone', 'password', 'full_name', 'employee_id', mode='before')
+    @classmethod
+    def empty_string_to_none(cls, v):
+        """Convert empty strings to None so they won't trigger validation"""
+        if isinstance(v, str) and v.strip() == '':
+            return None
+        return v
+    
+    class Config:
+        # Allow empty strings to be treated as None
+        validate_assignment = True
+
+class PartnerSelfAssignResponse(BaseModel):
+    """Response for partner self-assignment"""
+    agent_id: int
+    partner_id: int
+    email: str
+    phone: str
+    full_name: str
+    is_active: bool
+    created_at: datetime
+    message: str
+
+    model_config = {"from_attributes": True}

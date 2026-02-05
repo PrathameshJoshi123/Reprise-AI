@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import api from "../lib/api";
+import { showErrorToastWithRetry, showWarningToast } from "../lib/errorHandler";
 import { formatDateTime, formatCurrency } from "../lib/utils";
 import { getOrderStatusColor } from "../lib/badgeUtils";
+import PickupDetailsModal from "../components/PickupDetailsModal";
 import {
   Card,
   CardContent,
@@ -31,6 +33,27 @@ interface Order {
   status: string;
   quoted_price: number;
   created_at: string;
+  // extended optional fields to match partner details
+  brand?: string;
+  model?: string;
+  ram_gb?: number;
+  storage_gb?: number;
+  ai_estimated_price?: number;
+  final_quoted_price?: number;
+  ai_reasoning?: string;
+  lead_locked_at?: string;
+  lead_lock_expires_at?: string;
+  purchased_at?: string;
+  assigned_at?: string;
+  accepted_at?: string;
+  completed_at?: string;
+  agent_id?: number;
+  agent_phone?: string;
+  pickup_pincode?: string;
+  pickup_city?: string;
+  pickup_state?: string;
+  lead_cost?: number;
+  time_remaining?: number;
 }
 
 interface PaginatedResponse {
@@ -57,6 +80,9 @@ export default function Orders() {
   const [totalPages, setTotalPages] = useState(0);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [showPickupModal, setShowPickupModal] = useState(false);
 
   useEffect(() => {
     setPage(1); // Reset to first page when filter changes
@@ -98,8 +124,16 @@ export default function Orders() {
         setTotal(response.data.total || 0);
         setTotalPages(response.data.total_pages || 1);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch orders:", error);
+      if (error.code === "ECONNABORTED") {
+        showWarningToast(
+          "Request timed out. Try adjusting filters or date range.",
+        );
+      } else {
+        const retryFn = () => fetchOrders();
+        showErrorToastWithRetry(error, retryFn, "Orders");
+      }
       setOrders([]);
       setTotal(0);
       setTotalPages(0);
@@ -116,7 +150,6 @@ export default function Orders() {
       lead_purchased: "PURCHASED",
       accepted_by_agent: "AGENT ASSIGNED",
       assigned_to_agent: "AGENT REASSIGNED",
-      pickup_scheduled: "PICKUP SCHEDULED",
       pickup_completed: "PICKED UP",
       pickup_completed_declined: "PICKUP DECLINED",
       payment_processed: "PAYMENT PROCESSED",
@@ -188,7 +221,6 @@ export default function Orders() {
                   { value: "lead_purchased", label: "Purchased" },
                   { value: "accepted_by_agent", label: "Agent Assigned" },
                   { value: "assigned_to_agent", label: "Agent Reassigned" },
-                  { value: "pickup_scheduled", label: "Pickup Scheduled" },
                   { value: "pickup_completed", label: "Picked Up" },
                   {
                     value: "pickup_completed_declined",
@@ -285,6 +317,7 @@ export default function Orders() {
                           {getSortIndicator("created_at")}
                         </button>
                       </TableHead>
+                      <TableHead className="text-center">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -303,6 +336,18 @@ export default function Orders() {
                         </TableCell>
                         <TableCell>
                           {formatDateTime(order.created_at)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setShowPickupModal(true);
+                            }}
+                          >
+                            View Details
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -360,6 +405,19 @@ export default function Orders() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pickup Details Modal */}
+      {selectedOrder && (
+        <PickupDetailsModal
+          orderId={selectedOrder.id}
+          orderTitle={`${selectedOrder.brand || selectedOrder.phone_name} ${selectedOrder.model || ""}`}
+          isOpen={showPickupModal}
+          onClose={() => {
+            setShowPickupModal(false);
+            setSelectedOrder(null);
+          }}
+        />
+      )}
     </div>
   );
 }

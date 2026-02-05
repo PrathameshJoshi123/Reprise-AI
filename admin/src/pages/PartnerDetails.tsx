@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import api from "../lib/api";
+import { showErrorToastWithRetry, showSuccessToast } from "../lib/errorHandler";
 import { formatDateTime } from "../lib/utils";
 import { Button } from "../components/ui/button";
 import {
@@ -98,13 +99,11 @@ export default function PartnerDetails() {
   // Dialog states
   const [approveDialog, setApproveDialog] = useState(false);
   const [rejectDialog, setRejectDialog] = useState(false);
-  const [clarifyDialog, setClarifyDialog] = useState(false);
   const [holdModalOpen, setHoldModalOpen] = useState(false);
   const [liftModalOpen, setLiftModalOpen] = useState(false);
 
   const [approvalNotes, setApprovalNotes] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
-  const [clarificationMessage, setClarificationMessage] = useState("");
 
   useEffect(() => {
     fetchPartnerDetails();
@@ -112,6 +111,7 @@ export default function PartnerDetails() {
 
   const fetchPartnerDetails = async () => {
     try {
+      setLoading(true);
       const response = await api.get(
         `/admin/partners/${id}/verification-details`,
       );
@@ -124,9 +124,10 @@ export default function PartnerDetails() {
       } catch (error) {
         console.error("Failed to fetch hold status:", error);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch partner details:", error);
-      toast.error("Failed to load partner details");
+      const retryFn = () => fetchPartnerDetails();
+      showErrorToastWithRetry(error, retryFn, "Partner details");
     } finally {
       setLoading(false);
     }
@@ -138,11 +139,20 @@ export default function PartnerDetails() {
       await api.post(`/admin/partners/${id}/approve`, {
         approval_notes: approvalNotes,
       });
-      toast.success("Partner approved successfully");
+      showSuccessToast("Partner approved successfully!");
       setApproveDialog(false);
       await fetchPartnerDetails();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to approve partner");
+      if (error.response?.status === 404) {
+        toast.error("Partner not found.", { duration: 4000 });
+      } else if (
+        error.response?.status === 400 &&
+        error.response?.data?.detail?.includes("already approved")
+      ) {
+        toast.error("Partner is already approved.", { duration: 4000 });
+      } else {
+        showErrorToastWithRetry(error, handleApprove, "Approve partner");
+      }
     } finally {
       setActionLoading(false);
     }
@@ -150,7 +160,7 @@ export default function PartnerDetails() {
 
   const handleReject = async () => {
     if (!rejectionReason.trim()) {
-      toast.error("Please provide a rejection reason");
+      toast.error("Please provide a rejection reason", { duration: 4000 });
       return;
     }
     setActionLoading(true);
@@ -158,34 +168,20 @@ export default function PartnerDetails() {
       await api.post(`/admin/partners/${id}/reject`, {
         rejection_reason: rejectionReason,
       });
-      toast.success("Partner rejected");
+      showSuccessToast("Partner rejected successfully!");
       setRejectDialog(false);
       await fetchPartnerDetails();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to reject partner");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleRequestClarification = async () => {
-    if (!clarificationMessage.trim()) {
-      toast.error("Please provide a message");
-      return;
-    }
-    setActionLoading(true);
-    try {
-      await api.post(`/admin/partners/${id}/request-clarification`, {
-        message: clarificationMessage,
-      });
-      toast.success("Clarification requested");
-      setClarifyDialog(false);
-      setClarificationMessage("");
-      await fetchPartnerDetails();
-    } catch (error: any) {
-      toast.error(
-        error.response?.data?.detail || "Failed to request clarification",
-      );
+      if (error.response?.status === 404) {
+        toast.error("Partner not found.", { duration: 4000 });
+      } else if (
+        error.response?.status === 400 &&
+        error.response?.data?.detail?.includes("already rejected")
+      ) {
+        toast.error("Partner is already rejected.", { duration: 4000 });
+      } else {
+        showErrorToastWithRetry(error, handleReject, "Reject partner");
+      }
     } finally {
       setActionLoading(false);
     }
@@ -326,7 +322,7 @@ export default function PartnerDetails() {
             </div>
             <div>
               <Label className="text-muted-foreground">Credit Balance</Label>
-              <p className="font-medium">₹{partner.credit_balance}</p>
+              <p className="font-medium">◇{partner.credit_balance}</p>
             </div>
             <div>
               <Label className="text-muted-foreground">Applied On</Label>
@@ -488,14 +484,7 @@ export default function PartnerDetails() {
                 <CheckCircle className="h-4 w-4" />
                 Approve Partner
               </Button>
-              <Button
-                onClick={() => setClarifyDialog(true)}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <AlertCircle className="h-4 w-4" />
-                Request Clarification
-              </Button>
+
               <Button
                 onClick={() => setRejectDialog(true)}
                 variant="destructive"
@@ -507,6 +496,50 @@ export default function PartnerDetails() {
             </CardContent>
           </Card>
         )}
+
+      {/* Re-approve Rejected Partner */}
+      {partner.verification_status === "rejected" && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader>
+            <CardTitle className="text-orange-900">
+              Reapproval Available
+            </CardTitle>
+            <CardDescription className="text-orange-800">
+              This partner application was rejected but can be reapproved if
+              conflicts have been resolved
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {partner.rejection_reason && (
+              <div className="bg-white rounded-lg p-4 border border-orange-200">
+                <p className="text-sm font-semibold text-orange-900 mb-2">
+                  Original Rejection Reason:
+                </p>
+                <p className="text-sm text-orange-800">
+                  {partner.rejection_reason}
+                </p>
+              </div>
+            )}
+            <div className="flex gap-4">
+              <Button
+                onClick={() => setApproveDialog(true)}
+                className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
+              >
+                <CheckCircle className="h-4 w-4" />
+                Approve Partner Now
+              </Button>
+              <Button
+                onClick={() => setRejectDialog(true)}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <XCircle className="h-4 w-4" />
+                Reject Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Hold/Lift Partner Card */}
       {partner.verification_status === "approved" && (
@@ -542,10 +575,12 @@ export default function PartnerDetails() {
 
       {/* Approve Dialog */}
       <AlertDialog open={approveDialog} onOpenChange={setApproveDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-white border-gray-200 shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve Partner</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+              Approve Partner
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600">
               This will approve the partner and grant them access to the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -571,10 +606,12 @@ export default function PartnerDetails() {
 
       {/* Reject Dialog */}
       <AlertDialog open={rejectDialog} onOpenChange={setRejectDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-white border-gray-200 shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Reject Application</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-2xl font-bold bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">
+              Reject Application
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600">
               Please provide a reason for rejection. This will be visible to the
               partner.
             </AlertDialogDescription>
@@ -599,39 +636,6 @@ export default function PartnerDetails() {
               className="bg-red-600 hover:bg-red-700"
             >
               {actionLoading ? "Rejecting..." : "Reject"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Clarification Dialog */}
-      <AlertDialog open={clarifyDialog} onOpenChange={setClarifyDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Request Clarification</AlertDialogTitle>
-            <AlertDialogDescription>
-              Request additional information or documents from the partner.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-2">
-            <Label>Message to Partner *</Label>
-            <Textarea
-              value={clarificationMessage}
-              onChange={(e) => setClarificationMessage(e.target.value)}
-              placeholder="What additional information do you need?"
-              rows={4}
-              required
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={actionLoading}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleRequestClarification}
-              disabled={actionLoading}
-            >
-              {actionLoading ? "Sending..." : "Send Request"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

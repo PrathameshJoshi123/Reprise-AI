@@ -1,4 +1,11 @@
-import { View, Text, StyleSheet, Dimensions, Animated } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  Animated,
+  Image,
+} from "react-native";
 import { useEffect, useRef, useState } from "react";
 
 const { width } = Dimensions.get("window");
@@ -101,6 +108,7 @@ export default function OnboardingCarousel({
 
   return (
     <Animated.View
+      pointerEvents="none"
       style={[
         styles.container,
         { backgroundColor: currentSlide.color },
@@ -117,14 +125,22 @@ export default function OnboardingCarousel({
         ]}
       >
         <View style={styles.iconContainer}>
-          <Text style={styles.icon}>{currentSlide.icon}</Text>
+          {currentSlide.id === 1 ? (
+            <Image
+              source={require("../assets/images/icon.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          ) : (
+            <Text style={styles.icon}>{currentSlide.icon}</Text>
+          )}
         </View>
         <Text style={styles.title}>{currentSlide.title}</Text>
         <Text style={styles.description}>{currentSlide.description}</Text>
       </Animated.View>
 
       {/* Pagination Dots */}
-      <View style={styles.pagination} >
+      <View style={styles.pagination}>
         {slides.map((_, index) => (
           <View
             key={index}
@@ -142,6 +158,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 32,
+    borderCurve: "circular",
   },
   content: {
     alignItems: "center",
@@ -160,6 +177,11 @@ const styles = StyleSheet.create({
   },
   icon: {
     fontSize: 64,
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    borderRadius: 40,
   },
   title: {
     fontSize: 32,

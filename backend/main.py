@@ -7,9 +7,13 @@ from backend.services.customer_side_prediction.apis import router as customer_si
 from backend.services.admin.apis.routes import router as admin_router
 from backend.services.partner.apis.routes import router as partner_router
 from backend.services.partner.apis.agent_routes import router as agent_router
+from backend.services.referral.apis.routes import router as referral_router
+from backend.services.referral.apis.admin_routes import router as referral_admin_router
 from backend.shared.db.connections import Base, engine
 from starlette.middleware.sessions import SessionMiddleware
 from backend.config import FRONTEND_URL
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 import asyncio
 from dotenv import load_dotenv
@@ -26,16 +30,19 @@ if os.name == "nt":
 app = FastAPI(title="RepriseAI Backend", version="1.0.0")
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY", "supersecretkey"))
 # Configure CORS
-# Build a safe list of allowed origins. If FRONTEND_URL env is set (single URL or comma-separated), use it.
-# Otherwise include common local dev origins used by Expo and web tooling.
-
-origins = [
-    "http://localhost:5174",  # your frontend dev server
-    "http://localhost:8081",
-    "http://localhost:5173",
-    "https://lying-bobby-eligible-promo.trycloudflare.com",
-    "http://localhost:5175",
-]
+# Build a safe list of allowed origins from environment variable
+# Read CORS_ORIGINS from .env (comma-separated URLs)
+cors_origins_env = os.getenv("CORS_ORIGINS", "")
+if cors_origins_env:
+    origins = [origin.strip() for origin in cors_origins_env.split(",")]
+else:
+    # Fallback to default origins if not set
+    origins = [
+        "http://localhost:5174",
+        "http://localhost:8081",
+        "http://localhost:5173",
+        "http://localhost:5175",
+    ]
 
 
 app.add_middleware(
@@ -49,6 +56,19 @@ app.add_middleware(
 # create tables (models' Base.metadata.create_all also called in services, safe to call again)
 Base.metadata.create_all(bind=engine)
 
+# Exception handler for PartnerNotApprovedException
+from backend.services.auth.utils import PartnerNotApprovedException
+
+@app.exception_handler(PartnerNotApprovedException)
+async def partner_not_approved_exception_handler(request: Request, exc: PartnerNotApprovedException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "verification_status": exc.verification_status
+        }
+    )
+
 # Register service routers
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(sell_phone_router)
@@ -56,6 +76,8 @@ app.include_router(customer_side_prediction_router)
 app.include_router(admin_router)
 app.include_router(partner_router)
 app.include_router(agent_router)
+app.include_router(referral_router)
+app.include_router(referral_admin_router, prefix="/admin")
 # app.include_router(detection_router)
 
 # Register service routes here (e.g., from services.valuation.apis import router; app.include_router(router))

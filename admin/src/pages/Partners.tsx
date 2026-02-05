@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import api from "../lib/api";
+import { showErrorToastWithRetry } from "../lib/errorHandler";
 import { formatDateTime, formatCurrency } from "../lib/utils";
 import { getPartnerStatusColor } from "../lib/badgeUtils";
 import { Button } from "../components/ui/button";
@@ -75,6 +76,7 @@ export default function Partners() {
 
   const fetchPartners = async () => {
     try {
+      setLoading(true);
       const params: any = {};
       if (statusFilter !== "all") {
         params.verification_status = statusFilter;
@@ -98,8 +100,10 @@ export default function Partners() {
         }
       }
       setPartnerHolds(holdsData);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch partners:", error);
+      const retryFn = () => fetchPartners();
+      showErrorToastWithRetry(error, retryFn, "Partners");
     } finally {
       setLoading(false);
     }

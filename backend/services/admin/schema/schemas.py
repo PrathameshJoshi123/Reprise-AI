@@ -196,6 +196,50 @@ class AdjustCreditsRequest(BaseModel):
     notes: str
 
 
+class PartnerPaymentRequestOut(BaseModel):
+    id: int
+    partner_id: int
+    plan_id: Optional[int] = None
+    credit_amount: float
+    payment_amount: float
+    bonus_percentage: float
+    approval_status: str
+    approval_notes: Optional[str] = None
+    reviewed_by_admin_id: Optional[int] = None
+    reviewed_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    
+    model_config = {"from_attributes": True}
+
+
+class PartnerPaymentRequestDetailOut(BaseModel):
+    id: int
+    partner_id: int
+    partner_email: str
+    partner_name: str
+    plan_id: Optional[int] = None
+    credit_amount: float
+    payment_amount: float
+    bonus_percentage: float
+    approval_status: str
+    approval_notes: Optional[str] = None
+    reviewed_by_admin_id: Optional[int] = None
+    reviewed_at: Optional[datetime] = None
+    created_at: datetime
+    has_screenshot: bool
+    
+    model_config = {"from_attributes": True}
+
+
+class ApprovePaymentRequest(BaseModel):
+    approval_notes: Optional[str] = None
+
+
+class RejectPaymentRequest(BaseModel):
+    approval_notes: str
+
+
 class AdminCreditConfigurationOut(BaseModel):
     id: int
     config_key: str
@@ -293,6 +337,8 @@ class PhoneListOut(BaseModel):
     Selling_Price: float
     RAM_GB: Optional[float] = None
     Internal_Storage_GB: float
+    image_url: Optional[str] = None
+    image_blob: Optional[str] = None
     
     model_config = {"from_attributes": True}
 
@@ -306,6 +352,8 @@ class PhoneListCreate(BaseModel):
     Selling_Price: float
     RAM_GB: Optional[float] = None
     Internal_Storage_GB: float
+    image_url: Optional[str] = None
+    image_blob: Optional[str] = None
 
 
 class PhoneListUpdate(BaseModel):
@@ -317,6 +365,8 @@ class PhoneListUpdate(BaseModel):
     Selling_Price: Optional[float] = None
     RAM_GB: Optional[float] = None
     Internal_Storage_GB: Optional[float] = None
+    image_url: Optional[str] = None
+    image_blob: Optional[str] = None
 
 
 class PhoneListPaginatedOut(BaseModel):

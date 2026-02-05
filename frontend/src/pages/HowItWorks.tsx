@@ -11,7 +11,7 @@ export default function HowItWorks() {
         <section className="bg-primary text-primary-foreground py-12">
           <div className="container mx-auto px-4 text-center">
             <h1 className="text-3xl md:text-4xl font-bold mb-4">
-              How MobileTrade Works
+              How CashNow Works
             </h1>
             <p className="text-xl opacity-90 max-w-2xl mx-auto">
               Sell your old phone in 3 simple steps
@@ -24,16 +24,12 @@ export default function HowItWorks() {
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
               {/* Step 1 */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-16">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-16 items-center">
                 <div className="md:col-span-2 order-2 md:order-1">
                   <img
-                    src="/assets/how-it-works-1.png"
+                    src="/assets/client-photos/photo-3.jpeg"
                     alt="Get a quote"
-                    className="w-full rounded-lg shadow-lg"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        "https://placehold.co/600x400?text=Get+a+Quote";
-                    }}
+                    className="w-full max-w-xs h-auto rounded-lg shadow-lg mx-auto"
                   />
                 </div>
                 <div className="md:col-span-3 order-1 md:order-2">
@@ -61,20 +57,13 @@ export default function HowItWorks() {
                         Be honest about your device condition for accurate
                         pricing
                       </li>
-                      <li>
-                        Have your IMEI number ready for a more precise quote
-                      </li>
-                      <li>
-                        Check if any accessories like chargers can increase your
-                        offer
-                      </li>
                     </ul>
                   </div>
                 </div>
               </div>
 
               {/* Step 2 */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-16">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-16 items-center">
                 <div className="md:col-span-3">
                   <div className="flex items-center mb-4">
                     <div className="bg-primary text-primary-foreground w-10 h-10 rounded-full flex items-center justify-center font-bold mr-3">
@@ -86,9 +75,7 @@ export default function HowItWorks() {
                   </div>
                   <p className="text-gray-600 mb-4">
                     Once you're happy with the quote, schedule a pickup at a
-                    time and location that's convenient for you. Our pickup
-                    service is completely free and available in over 1,500
-                    cities and towns across the country.
+                    time and location that's convenient for you.
                   </p>
                   <p className="text-gray-600">
                     Our trained executives will come to your doorstep with all
@@ -106,7 +93,6 @@ export default function HowItWorks() {
                       <li>
                         The condition check takes approximately 10-15 minutes
                       </li>
-                      <li>You'll need to provide a valid ID proof</li>
                       <li>
                         Make sure to back up and reset your device before the
                         pickup
@@ -116,28 +102,20 @@ export default function HowItWorks() {
                 </div>
                 <div className="md:col-span-2">
                   <img
-                    src="/assets/how-it-works-2.png"
+                    src="/assets/client-photos/photo-8.jpeg"
                     alt="Schedule pickup"
-                    className="w-full rounded-lg shadow-lg"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        "https://placehold.co/600x400?text=Schedule+Pickup";
-                    }}
+                    className="w-full max-w-xs h-auto rounded-lg shadow-lg mx-auto"
                   />
                 </div>
               </div>
 
               {/* Step 3 */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-center">
                 <div className="md:col-span-2 order-2 md:order-1">
                   <img
-                    src="/assets/how-it-works-3.png"
+                    src="/assets/client-photos/photo-13.jpeg"
                     alt="Get paid"
-                    className="w-full rounded-lg shadow-lg"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        "https://placehold.co/600x400?text=Get+Paid";
-                    }}
+                    className="w-full max-w-xs h-auto rounded-lg shadow-lg mx-auto"
                   />
                 </div>
                 <div className="md:col-span-3 order-1 md:order-2">
@@ -221,10 +199,10 @@ export default function HowItWorks() {
               </div>
             </div>
           </div>
-        </section>
+        </section >
 
         {/* FAQ Section */}
-        <section className="py-12 bg-white">
+        < section className="py-12 bg-white" >
           <div className="container mx-auto px-4">
             <div className="text-center mb-10">
               <h2 className="text-2xl font-bold">Frequently Asked Questions</h2>
@@ -291,10 +269,10 @@ export default function HowItWorks() {
               </div>
             </div>
           </div>
-        </section>
-      </main>
+        </section >
+      </main >
 
       <Footer />
-    </div>
+    </div >
   );
 }

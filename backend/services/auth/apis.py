@@ -34,6 +34,13 @@ def signup(user_in: schemas.UserCreate, db: Session = Depends(utils.get_db)):
     db.commit()
     db.refresh(user)
     
+    # Handle referral code if provided
+    if user_in.referral_code:
+        from backend.services.referral.utils import redeem_referral_code
+        success, message = redeem_referral_code(db, user_in.referral_code, user.id)
+        # Refresh user to get updated referral_points
+        db.refresh(user)
+    
     # Check pincode serviceability using utility function
     serviceability_info = utils.check_pincode_serviceability(user_in.pincode or "", db)
     
@@ -49,7 +56,6 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(
         (models.User.phone == payload.identifier) | (models.User.email == payload.identifier)
     ).first()
-    print(user)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect credentials")
     if not user.is_active:
@@ -121,6 +127,7 @@ def read_me_details(current_user: models.User = Depends(utils.get_current_user))
         "address": current_user.address,
         "is_active": current_user.is_active,
         "pincode": getattr(current_user, "pincode", None),
+        "referral_points": getattr(current_user, "referral_points", 0),
         "role": role,
     }
 
@@ -140,7 +147,7 @@ def google_auth(payload: dict = Body(...), db: Session = Depends(get_db)):
     Exchange a Google auth code for an id_token, then create or retrieve the user and
     return an access token for the app.
 
-    Expected body: { "auth_code": "..." }
+    Expected body: { "auth_code": "...", "pincode": "...", "signup": true/false, "referral_code": "..." }
     
     For signup flow, pincode is optional. If not provided, we'll allow signup anyway.
     Pincode validation will be enforced at checkout time when creating orders.
@@ -148,6 +155,60 @@ def google_auth(payload: dict = Body(...), db: Session = Depends(get_db)):
     auth_code = payload.get("auth_code")
     pincode = payload.get("pincode")
     signup_flag = bool(payload.get("signup", False))
+    referral_code = payload.get("referral_code")
+
+    if not auth_code:
+        raise HTTPException(status_code=400, detail="auth_code is required")
+
+    try:
+        # Exchange the auth code for an id_token
+        id_token = utils.exchange_auth_code_for_id_token(auth_code)
+
+        # For signup flow, allow pincode to be optional (will validate at checkout)
+        # No longer blocking signup based on pincode serviceability
+        # Pincode validation is now only enforced at order creation time (checkout)
+
+        # Verify id_token and create/get user (pass pincode for new user creation)
+        user, created = utils.create_or_get_user_from_google(id_token, db, pincode=pincode)
+
+        # Handle referral code if provided and user is newly created
+        if created and referral_code:
+            from backend.services.referral.utils import redeem_referral_code
+            success, message = redeem_referral_code(db, referral_code, user.id)
+            # Refresh user to get updated referral_points
+            db.refresh(user)
+
+        # create access token
+        token = utils.create_access_token(data={"user_id": user.id})
+
+        needs_profile = (not user.phone) or (not user.address)
+
+        # infer role for client convenience
+        role = "customer"
+        try:
+            from backend.services.admin.schema.models import Admin
+            from backend.services.partner.schema.models import Agent, Partner
+
+            if db.query(Admin).filter(Admin.email == user.email).first():
+                role = "admin"
+            elif db.query(Agent).filter(Agent.email == user.email).first():
+                role = "agent"
+            elif db.query(Partner).filter(Partner.email == user.email).first():
+                role = "partner"
+        except Exception:
+            role = "customer"
+
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "needs_profile": needs_profile,
+            "new_user": bool(created),
+            "role": role,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
     if not auth_code:
         raise HTTPException(status_code=400, detail="auth_code is required")

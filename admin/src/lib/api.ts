@@ -1,5 +1,4 @@
 import axios from "axios";
-
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "") as string;
 
 if (!BASE_URL) {
@@ -11,6 +10,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  timeout: 10000, // 10 second timeout
 });
 
 // Request interceptor to add token

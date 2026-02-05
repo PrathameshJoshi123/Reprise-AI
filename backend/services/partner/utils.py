@@ -89,6 +89,8 @@ def create_partner_application(
 def authenticate_partner(db: Session, email: str, password: str) -> Partner:
     """
     Authenticate a partner by email and password.
+    Allow login even if partner is rejected/deactivated so they can see their application status.
+    API access will be blocked for non-approved partners by get_current_partner dependency.
     
     Args:
         db: Database session
@@ -109,11 +111,9 @@ def authenticate_partner(db: Session, email: str, password: str) -> Partner:
     if not verify_password(password, partner.hashed_password):
         raise ValueError("Invalid credentials")
     
-    if not partner.is_active:
-        raise ValueError("Partner account is deactivated")
-    
-    # Allow login but warn if not approved
-    # The get_current_partner dependency will block API access for non-approved partners
+    # Allow login regardless of account status
+    # Partner can login to see their application status
+    # API access control is handled by get_current_partner dependency
     
     return partner
 
@@ -182,6 +182,56 @@ def create_agent(
         email=email,
         phone=phone,
         hashed_password=hashed_password,
+        full_name=full_name,
+        employee_id=employee_id,
+        is_active=True
+    )
+    
+    db.add(agent)
+    db.flush()
+    
+    return agent
+
+
+def create_agent_with_existing_password(
+    db: Session,
+    partner_id: int,
+    email: str,
+    phone: str,
+    full_name: str,
+    partner_hashed_password: str,
+    employee_id: str = None
+) -> Agent:
+    """
+    Create a new agent for a partner using the partner's existing hashed password.
+    This allows the agent to use the same credentials as the partner.
+    
+    Args:
+        db: Database session
+        partner_id: ID of the partner who owns this agent
+        email: Agent email (must be unique)
+        phone: Agent phone number
+        full_name: Agent's full name
+        partner_hashed_password: Partner's hashed password (from partner account)
+        employee_id: Optional employee ID
+        
+    Returns:
+        Created Agent object
+        
+    Raises:
+        ValueError: If email already exists
+    """
+    # Check if email already exists
+    existing = db.query(Agent).filter(Agent.email == email).first()
+    if existing:
+        raise ValueError(f"Agent with email {email} already exists")
+    
+    # Create agent with partner's hashed password
+    agent = Agent(
+        partner_id=partner_id,
+        email=email,
+        phone=phone,
+        hashed_password=partner_hashed_password,
         full_name=full_name,
         employee_id=employee_id,
         is_active=True
