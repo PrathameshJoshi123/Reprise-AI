@@ -208,7 +208,8 @@ export default function SellPhone() {
                             <div className="w-full h-44 md:h-56 mb-3 flex items-center justify-center bg-white/60 backdrop-blur-sm rounded-2xl p-0 group-hover:bg-white/80 transition-all overflow-hidden">
                               <img
                                 src={
-                                  phone.image ||
+                                  phone.image_blob ||
+                                  phone.image_url ||
                                   `/assets/phones/${phone.id}.png`
                                 }
                                 alt={phone.Brand + " " + phone.Model}

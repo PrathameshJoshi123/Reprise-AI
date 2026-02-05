@@ -145,7 +145,11 @@ export function Header() {
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center">
               <Link to="/" className="flex items-center">
-                <Phone className="h-6 w-6 text-primary mr-2" />
+                <img
+                  src="/assets/logo.jpeg"
+                  alt="Logo"
+                  className="h-8 w-8 mr-2"
+                />
                 <span className="text-xl font-bold text-primary">CashNow</span>
               </Link>
 
@@ -380,6 +384,18 @@ export function Header() {
                     >
                       Why CashNow?
                     </Link>
+                    {authPresent && user?.role === "customer" && (
+                      <Link
+                        to="/referral"
+                        className={`text-base font-medium transition-colors ${
+                          location.pathname === "/referral"
+                            ? "text-primary border-l-4 border-primary pl-2"
+                            : "hover:text-blue-600"
+                        }`}
+                      >
+                        Referral
+                      </Link>
+                    )}
                     <Link
                       to="/become-partner"
                       className={`text-base font-medium transition-colors ${
@@ -455,8 +471,16 @@ export function Header() {
                           </Button>
                         </div>
                       ) : (
-                        <div className="text-sm font-semibold mb-3 text-gray-500">
-                          Login
+                        <div className="grid gap-2">
+                          <Link to="/login">
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start"
+                            >
+                              <User size={16} className="mr-2" />
+                              Login
+                            </Button>
+                          </Link>
                         </div>
                       )}
                     </div>

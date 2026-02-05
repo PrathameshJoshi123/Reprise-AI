@@ -337,6 +337,8 @@ class PhoneListOut(BaseModel):
     Selling_Price: float
     RAM_GB: Optional[float] = None
     Internal_Storage_GB: float
+    image_url: Optional[str] = None
+    image_blob: Optional[str] = None
     
     model_config = {"from_attributes": True}
 
@@ -350,6 +352,8 @@ class PhoneListCreate(BaseModel):
     Selling_Price: float
     RAM_GB: Optional[float] = None
     Internal_Storage_GB: float
+    image_url: Optional[str] = None
+    image_blob: Optional[str] = None
 
 
 class PhoneListUpdate(BaseModel):
@@ -361,6 +365,8 @@ class PhoneListUpdate(BaseModel):
     Selling_Price: Optional[float] = None
     RAM_GB: Optional[float] = None
     Internal_Storage_GB: Optional[float] = None
+    image_url: Optional[str] = None
+    image_blob: Optional[str] = None
 
 
 class PhoneListPaginatedOut(BaseModel):

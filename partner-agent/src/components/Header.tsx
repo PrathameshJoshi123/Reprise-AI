@@ -83,6 +83,7 @@ export default function Header({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
+                <img src="/assets/logo.jpeg" alt="Logo" className="h-8 w-8" />
                 <div className="text-2xl font-bold text-blue-600">CashNow</div>
                 <div className="text-lg text-gray-600">
                   {user?.type === "agent" ? "Agent Portal" : "Partner Portal"}
@@ -212,6 +213,7 @@ export default function Header({
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
+              <img src="/assets/logo.jpeg" alt="Logo" className="h-6 w-6" />
               <div className="text-xl font-bold text-blue-600">CashNow</div>
               <div className="text-sm text-gray-600">
                 {user?.type === "agent" ? "Agent Portal" : "Partner Portal"}

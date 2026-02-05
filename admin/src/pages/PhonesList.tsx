@@ -61,6 +61,8 @@ interface Phone {
   Selling_Price: number;
   RAM_GB: number | null;
   Internal_Storage_GB: number;
+  image_url?: string | null;
+  image_blob?: string | null;
 }
 
 interface PhoneFormData {
@@ -72,6 +74,8 @@ interface PhoneFormData {
   Selling_Price: string;
   RAM_GB: string;
   Internal_Storage_GB: string;
+  image_url?: string;
+  image_blob?: string;
 }
 
 const initialFormData: PhoneFormData = {
@@ -83,6 +87,8 @@ const initialFormData: PhoneFormData = {
   Selling_Price: "",
   RAM_GB: "",
   Internal_Storage_GB: "",
+  image_url: "",
+  image_blob: "",
 };
 
 export default function PhonesList() {
@@ -99,6 +105,9 @@ export default function PhonesList() {
   const [selectedPhone, setSelectedPhone] = useState<Phone | null>(null);
   const [formData, setFormData] = useState<PhoneFormData>(initialFormData);
   const [submitting, setSubmitting] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     fetchPhones();
@@ -134,6 +143,99 @@ export default function PhonesList() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file.", { duration: 4000 });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size must be less than 5MB.", { duration: 4000 });
+      return;
+    }
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    setSelectedImageFile(file);
+  };
+
+  const uploadImageForPhone = async (phoneId: number) => {
+    if (!selectedImageFile) {
+      toast.error("Please select an image first.", { duration: 4000 });
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+      const formDataForUpload = new FormData();
+      formDataForUpload.append("file", selectedImageFile);
+
+      await api.post(
+        `/admin/phones/${phoneId}/upload-image`,
+        formDataForUpload,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
+
+      showSuccessToast("Image uploaded successfully!");
+      setImagePreview(null);
+      setSelectedImageFile(null);
+
+      // Refresh phone data to show updated image
+      if (selectedPhone) {
+        setSelectedPhone({ ...selectedPhone, image_blob: imagePreview });
+      }
+
+      await fetchPhones();
+    } catch (error: any) {
+      console.error("Error uploading image:", error);
+      showErrorToastWithRetry(
+        error,
+        () => uploadImageForPhone(phoneId),
+        "Upload image",
+      );
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const setImageUrl = async (phoneId: number, imageUrl: string) => {
+    if (!imageUrl.trim()) {
+      toast.error("Please enter a valid image URL.", { duration: 4000 });
+      return;
+    }
+
+    try {
+      await api.post(`/admin/phones/${phoneId}/set-image-url`, null, {
+        params: { image_url: imageUrl },
+      });
+
+      showSuccessToast("Image URL set successfully!");
+      setFormData({ ...formData, image_url: "" });
+      await fetchPhones();
+    } catch (error: any) {
+      console.error("Error setting image URL:", error);
+      showErrorToastWithRetry(
+        error,
+        () => setImageUrl(phoneId, imageUrl),
+        "Set image URL",
+      );
     }
   };
 
@@ -267,7 +369,10 @@ export default function PhonesList() {
       Selling_Price: phone.Selling_Price.toString(),
       RAM_GB: phone.RAM_GB?.toString() || "",
       Internal_Storage_GB: phone.Internal_Storage_GB.toString(),
+      image_url: phone.image_url || "",
+      image_blob: phone.image_blob || "",
     });
+    setImagePreview(phone.image_blob || phone.image_url || null);
     setEditDialog(true);
   };
 
@@ -600,6 +705,58 @@ export default function PhonesList() {
                 />
               </div>
             </div>
+
+            {/* Image Upload Section */}
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="font-semibold text-sm">Phone Image</h3>
+
+              {/* Image URL Input */}
+              <div className="space-y-2">
+                <Label htmlFor="image_url">Image URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="image_url"
+                    placeholder="https://example.com/image.jpg"
+                    value={formData.image_url || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, image_url: e.target.value })
+                    }
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  Enter a direct URL to the phone image (optional)
+                </p>
+              </div>
+
+              {/* Image File Upload */}
+              <div className="space-y-2">
+                <Label htmlFor="image_file">Or Upload Image File</Label>
+                <Input
+                  id="image_file"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                />
+                <p className="text-xs text-gray-500">
+                  Max file size: 5MB. Supported formats: JPG, PNG, GIF, etc.
+                </p>
+              </div>
+
+              {/* Image Preview */}
+              {imagePreview && (
+                <div className="space-y-2">
+                  <Label>Image Preview</Label>
+                  <div className="relative w-full h-40 bg-gray-100 rounded-lg overflow-hidden">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <DialogFooter>
               <Button
                 type="button"
@@ -728,6 +885,101 @@ export default function PhonesList() {
                 />
               </div>
             </div>
+
+            {/* Image Upload Section for Edit */}
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="font-semibold text-sm">Phone Image</h3>
+
+              {/* Current Image Display */}
+              {(selectedPhone?.image_blob || selectedPhone?.image_url) && (
+                <div className="space-y-2">
+                  <Label>Current Image</Label>
+                  <div className="relative w-full h-40 bg-gray-100 rounded-lg overflow-hidden">
+                    <img
+                      src={
+                        selectedPhone.image_blob ||
+                        selectedPhone.image_url ||
+                        ""
+                      }
+                      alt="Current"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Image URL Input */}
+              <div className="space-y-2">
+                <Label htmlFor="edit_image_url">Image URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="edit_image_url"
+                    placeholder="https://example.com/image.jpg"
+                    value={formData.image_url || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, image_url: e.target.value })
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      if (selectedPhone && formData.image_url) {
+                        setImageUrl(selectedPhone.id, formData.image_url);
+                      }
+                    }}
+                    disabled={uploadingImage || !formData.image_url}
+                  >
+                    {uploadingImage ? "Setting..." : "Set"}
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Enter a direct URL to update the phone image
+                </p>
+              </div>
+
+              {/* Image File Upload */}
+              <div className="space-y-2">
+                <Label htmlFor="edit_image_file">Or Upload Image File</Label>
+                <Input
+                  id="edit_image_file"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                />
+                <p className="text-xs text-gray-500">
+                  Max file size: 5MB. Supported formats: JPG, PNG, GIF, etc.
+                </p>
+              </div>
+
+              {/* Image Preview */}
+              {imagePreview && (
+                <div className="space-y-2">
+                  <Label>New Image Preview</Label>
+                  <div className="relative w-full h-40 bg-gray-100 rounded-lg overflow-hidden">
+                    <img
+                      src={imagePreview}
+                      alt="New Preview"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      if (selectedPhone) {
+                        uploadImageForPhone(selectedPhone.id);
+                      }
+                    }}
+                    disabled={uploadingImage}
+                    className="w-full"
+                  >
+                    {uploadingImage ? "Uploading..." : "Upload Image"}
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <DialogFooter>
               <Button
                 type="button"

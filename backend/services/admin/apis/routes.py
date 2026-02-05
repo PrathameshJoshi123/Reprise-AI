@@ -12,7 +12,11 @@ from backend.services.admin.schema.models import (
     Admin, PartnerVerificationHistory, CreditPlan, 
     PartnerCreditTransaction, AdminCreditConfiguration, PartnerPaymentRequest
 )
-from backend.services.admin import utils as admin_utils
+from backend.services.admin.utils.utils import (
+    verify_password, create_admin_access_token, get_current_admin, 
+    require_super_admin, get_password_hash
+)
+from backend.services.admin.utils import image_handler
 from backend.services.admin.schema.schemas import (
     # Admin auth
     AdminLoginRequest, AdminToken, AdminOut, AdminCreate, AdminUpdate,
@@ -64,13 +68,13 @@ def admin_login(payload: AdminLoginRequest, db: Session = Depends(get_db)):
             detail="Admin account is inactive"
         )
     
-    if not admin_utils.verify_password(payload.password, admin.hashed_password):
+    if not verify_password(payload.password, admin.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect credentials"
         )
     
-    token = admin_utils.create_admin_access_token(data={"admin_id": admin.id})
+    token = create_admin_access_token(data={"admin_id": admin.id})
     
     return {
         "access_token": token,
@@ -80,7 +84,7 @@ def admin_login(payload: AdminLoginRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/auth/me", response_model=AdminOut)
-def get_current_admin_profile(current_admin: Admin = Depends(admin_utils.get_current_admin)):
+def get_current_admin_profile(current_admin: Admin = Depends(get_current_admin)):
     """Get current admin profile"""
     return current_admin
 
@@ -89,7 +93,7 @@ def get_current_admin_profile(current_admin: Admin = Depends(admin_utils.get_cur
 def create_admin(
     payload: AdminCreate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.require_super_admin)
+    current_admin: Admin = Depends(require_super_admin)
 ):
     """
     Create new admin (super_admin only).
@@ -98,7 +102,7 @@ def create_admin(
     if existing:
         raise HTTPException(status_code=400, detail="Admin with this email already exists")
     
-    hashed_password = admin_utils.get_password_hash(payload.password)
+    hashed_password = get_password_hash(payload.password)
     admin = Admin(
         email=payload.email,
         full_name=payload.full_name,
@@ -122,7 +126,7 @@ def get_pending_verifications(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Get partners pending verification or in clarification.
@@ -145,7 +149,7 @@ def get_pending_verifications(
 def get_partner_verification_details(
     partner_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Get complete partner details including verification history, pincodes, and agents.
@@ -181,7 +185,7 @@ def request_partner_clarification(
     partner_id: int,
     payload: RequestClarificationRequest,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Request additional information from partner.
@@ -221,7 +225,7 @@ def approve_partner(
     partner_id: int,
     payload: ApprovePartnerRequest,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Approve partner verification.
@@ -265,7 +269,7 @@ def reject_partner(
     partner_id: int,
     payload: RejectPartnerRequest,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Reject partner verification.
@@ -313,7 +317,7 @@ def place_partner_hold(
     partner_id: int,
     payload: PartnerHoldCreate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Place a partner on hold for rule violations.
@@ -336,7 +340,7 @@ def place_partner_hold(
 def get_partner_hold_status(
     partner_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Get current hold status of a partner.
@@ -366,7 +370,7 @@ def lift_partner_hold_endpoint(
     partner_id: int,
     payload: LiftPartnerHoldRequest,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Lift a hold from a partner.
@@ -396,7 +400,7 @@ def lift_partner_hold_endpoint(
 @router.get("/credit-plans", response_model=List[CreditPlanOut])
 def get_credit_plans(
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Get all credit plans"""
     return db.query(CreditPlan).order_by(CreditPlan.credit_amount).all()
@@ -406,7 +410,7 @@ def get_credit_plans(
 def create_credit_plan(
     payload: CreditPlanCreate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Create new credit plan"""
     plan = CreditPlan(
@@ -428,7 +432,7 @@ def update_credit_plan(
     plan_id: int,
     payload: CreditPlanUpdate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Update credit plan"""
     plan = db.query(CreditPlan).filter(CreditPlan.id == plan_id).first()
@@ -448,7 +452,7 @@ def update_credit_plan(
 def delete_credit_plan(
     plan_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Soft delete credit plan (set is_active=False)"""
     plan = db.query(CreditPlan).filter(CreditPlan.id == plan_id).first()
@@ -467,7 +471,7 @@ def adjust_partner_credits(
     partner_id: int,
     payload: AdjustCreditsRequest,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Manual credit adjustment (add or deduct).
@@ -521,7 +525,7 @@ def get_partner_transactions(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Get partner credit transaction history"""
     partner = db.query(Partner).filter(Partner.id == partner_id).first()
@@ -545,7 +549,7 @@ def get_payment_requests(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Get all partner payment requests with optional status filter"""
     query = db.query(PartnerPaymentRequest)
@@ -584,7 +588,7 @@ def get_payment_requests(
 def get_payment_request(
     request_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Get specific payment request details"""
     req = db.query(PartnerPaymentRequest).filter(PartnerPaymentRequest.id == request_id).first()
@@ -617,7 +621,7 @@ def get_payment_request(
 def get_payment_screenshot(
     request_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Get payment screenshot for a request"""
     req = db.query(PartnerPaymentRequest).filter(PartnerPaymentRequest.id == request_id).first()
@@ -641,7 +645,7 @@ def approve_payment_request(
     request_id: int,
     payload: ApprovePaymentRequest,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Approve a payment request and add credits to partner"""
     req = db.query(PartnerPaymentRequest).filter(PartnerPaymentRequest.id == request_id).first()
@@ -701,7 +705,7 @@ def reject_payment_request(
     request_id: int,
     payload: RejectPaymentRequest,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Reject a payment request"""
     req = db.query(PartnerPaymentRequest).filter(PartnerPaymentRequest.id == request_id).first()
@@ -735,7 +739,7 @@ def reject_payment_request(
 @router.get("/config", response_model=List[AdminCreditConfigurationOut])
 def get_system_config(
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Get all system configuration"""
     return db.query(AdminCreditConfiguration).all()
@@ -746,7 +750,7 @@ def update_system_config(
     config_key: str,
     payload: UpdateConfigRequest,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Update system configuration value"""
     config = db.query(AdminCreditConfiguration).filter(
@@ -776,7 +780,7 @@ def create_system_config(
     config_value: str,
     description: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Create new system configuration"""
     existing = db.query(AdminCreditConfiguration).filter(
@@ -806,7 +810,7 @@ def create_system_config(
 @router.get("/dashboard/stats", response_model=DashboardStats)
 def get_dashboard_stats(
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """Get dashboard statistics"""
     
@@ -868,7 +872,7 @@ def list_all_partners(
     limit: int = Query(20, ge=1, le=100),
     verification_status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """List all partners with optional filtering"""
     query = db.query(Partner)
@@ -887,7 +891,7 @@ def list_all_partners(
 @router.get("/users", response_model=list[AdminUserOut])
 def list_users(
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin),
+    current_admin: Admin = Depends(get_current_admin),
 ):
     """
     List users — only load fields required by the admin UI to avoid fetching everything.
@@ -917,7 +921,7 @@ def list_users(
 def create_user(
     payload: AdminUserCreate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin),
+    current_admin: Admin = Depends(get_current_admin),
 ):
     """
     Create a new user.
@@ -949,7 +953,7 @@ def update_user(
     user_id: int,
     payload: AdminUserUpdate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin),
+    current_admin: Admin = Depends(get_current_admin),
 ):
     """
     Update a user. Role checks removed.
@@ -977,7 +981,7 @@ def update_user(
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin),
+    current_admin: Admin = Depends(get_current_admin),
 ):
     """
     Delete a user. Cannot delete yourself.
@@ -999,7 +1003,7 @@ def list_orders(
     start_date: Optional[str] = Query(None, description="Filter orders from this date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="Filter orders until this date (YYYY-MM-DD)"),
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin),
+    current_admin: Admin = Depends(get_current_admin),
 ):
     """
     List orders with pagination, sorting, and date range filtering.
@@ -1093,7 +1097,7 @@ def list_orders(
 def get_order_pickup_details(
     order_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin),
+    current_admin: Admin = Depends(get_current_admin),
 ):
     """
     Get pickup details for an order (admin only).
@@ -1184,7 +1188,7 @@ def get_phones_list(
     limit: int = Query(10, ge=1, le=100),
     search: Optional[str] = Query(None, description="Search by brand, series, or model"),
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Get paginated phones from the database with search support.
@@ -1225,7 +1229,7 @@ def get_phones_list(
 def get_phone_by_id(
     phone_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Get a specific phone by ID.
@@ -1240,7 +1244,7 @@ def get_phone_by_id(
 def create_phone(
     payload: PhoneListCreate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Create a new phone in the database.
@@ -1270,7 +1274,7 @@ def update_phone(
     phone_id: int,
     payload: PhoneListUpdate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Update an existing phone.
@@ -1293,7 +1297,7 @@ def update_phone(
 def delete_phone(
     phone_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(admin_utils.get_current_admin)
+    current_admin: Admin = Depends(get_current_admin)
 ):
     """
     Delete a phone from the database.
@@ -1305,3 +1309,74 @@ def delete_phone(
     db.delete(phone)
     db.commit()
     return None
+
+
+@router.post("/phones/{phone_id}/upload-image", response_model=PhoneListOut)
+def upload_phone_image(
+    phone_id: int,
+    file: UploadFile,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """
+    Upload an image for a phone and store it as base64.
+    """
+    from backend.services.admin.utils.image_handler import (
+        encode_image_to_base64, validate_image_file, create_base64_data_url
+    )
+    
+    phone = db.query(sell_models.PhoneList).filter(sell_models.PhoneList.id == phone_id).first()
+    if not phone:
+        raise HTTPException(status_code=404, detail="Phone not found")
+    
+    try:
+        # Read file content
+        content = file.file.read()
+        
+        # Validate image
+        is_valid, error_msg = validate_image_file(content, file.filename or "")
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=error_msg)
+        
+        # Encode to base64
+        base64_content = encode_image_to_base64(content)
+        
+        # Store as data URL in image_blob
+        phone.image_blob = create_base64_data_url(base64_content, file.filename or "image.jpg")
+        
+        db.commit()
+        db.refresh(phone)
+        
+        return phone
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error uploading image: {str(e)}")
+
+
+@router.post("/phones/{phone_id}/set-image-url", response_model=PhoneListOut)
+def set_phone_image_url(
+    phone_id: int,
+    image_url: str = Query(..., description="URL of the phone image"),
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """
+    Set the image URL for a phone directly from an external link.
+    """
+    from backend.services.admin.utils.image_handler import is_valid_url
+    
+    phone = db.query(sell_models.PhoneList).filter(sell_models.PhoneList.id == phone_id).first()
+    if not phone:
+        raise HTTPException(status_code=404, detail="Phone not found")
+    
+    if not is_valid_url(image_url):
+        raise HTTPException(status_code=400, detail="Invalid image URL format")
+    
+    phone.image_url = image_url
+    db.commit()
+    db.refresh(phone)
+    
+    return phone

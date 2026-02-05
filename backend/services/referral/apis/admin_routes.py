@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from backend.shared.db.connections import get_db
-from backend.services.admin.utils import get_current_admin
+from backend.services.admin.utils.utils import get_current_admin
 from backend.services.referral.models import ReferralSettings
 from backend.services.referral.schemas import ReferralSettingsOut, ReferralSettingsUpdate
 from backend.services.referral.utils import get_or_create_referral_settings

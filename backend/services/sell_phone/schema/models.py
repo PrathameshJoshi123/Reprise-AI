@@ -15,6 +15,10 @@ class PhoneList(Base):
     Selling_Price = Column(Float, nullable=False)
     RAM_GB = Column(Float, nullable=True)
     Internal_Storage_GB = Column(Float, nullable=False)
+    
+    # Image storage fields
+    image_url = Column(String, nullable=True)  # Link to external image URL
+    image_blob = Column(String, nullable=True)  # Base64 encoded image data or file path
 
 
 class Order(Base):

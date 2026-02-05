@@ -271,7 +271,10 @@ export default function PhoneDetail() {
     id: phoneData.id,
     name: phoneData.Brand + " " + phoneData.Model,
     brand: phoneData.Brand,
-    image: `/assets/phones/${phoneData.id}.png`, // Fallback image
+    image:
+      phoneData.image_blob ||
+      phoneData.image_url ||
+      `/assets/phones/${phoneData.id}.png`, // Use new image fields with fallback
     basePrice,
     // Keep options as predefined (not in DB)
     ramOptions,

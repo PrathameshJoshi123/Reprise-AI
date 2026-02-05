@@ -175,7 +175,7 @@ class LeadDetailResponse(BaseModel):
     pickup_date: Optional[datetime] = None
     pickup_time: Optional[str] = None
     customer_phone: str
-    locked_until: datetime
+    locked_until: Optional[datetime] = None
 
 
 class OrderCancel(BaseModel):
