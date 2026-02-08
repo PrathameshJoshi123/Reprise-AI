@@ -79,7 +79,7 @@ export default function SellPhone() {
       });
       if (searchQuery) params.append("search", searchQuery);
       const API_URL = (
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+        import.meta.env.VITE_API_BASE_URL
       ).replace(/\/$/, "");
       const response = await fetch(
         `${API_URL}/sell-phone/phones?${params.toString()}`,

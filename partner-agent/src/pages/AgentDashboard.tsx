@@ -46,7 +46,6 @@ import {
   Map as MapIcon,
   XCircle,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 interface Order {
   id?: number;
@@ -108,9 +107,6 @@ export default function AgentDashboard() {
     cancellation_reason: "",
     notes: "",
   });
-  const [showBuyModal, setShowBuyModal] = useState(false);
-  const [plans, setPlans] = useState<any[]>([]);
-  const [purchaseLoading, setPurchaseLoading] = useState(false);
 
   // Helper function to parse DD/MM/YYYY date format
   const parseDate = (dateInput: string | Date | null | undefined) => {
@@ -338,35 +334,6 @@ export default function AgentDashboard() {
     }
   };
 
-  const openBuyModal = async () => {
-    try {
-      const resp = await api.get("/partner/credit-plans");
-      setPlans(resp.data || []);
-      setShowBuyModal(true);
-    } catch (err) {
-      console.error("Failed to load credit plans:", err);
-      handleApiError(err);
-    }
-  };
-
-  const handleBuyPlan = async (planId: number) => {
-    if (!confirm("Proceed to buy this credit plan?")) return;
-    setPurchaseLoading(true);
-    try {
-      const resp = await api.post("/partner/purchase-credits", {
-        plan_id: planId,
-        payment_method: "manual",
-      });
-      alert(resp.data?.message || "Purchase successful");
-      setShowBuyModal(false);
-    } catch (err: any) {
-      console.error("Purchase failed:", err);
-      handleApiError(err, "purchase");
-    } finally {
-      setPurchaseLoading(false);
-    }
-  };
-
   const handleLogout = () => {
     logout();
     navigate("/");
@@ -564,7 +531,6 @@ export default function AgentDashboard() {
         showLogout={true}
         onLogout={handleLogout}
         showDashboardButton={true}
-        onBuyCredits={openBuyModal}
       />
       <div className="min-h-screen bg-gray-50">
         {/* Main Content */}
@@ -1134,17 +1100,6 @@ export default function AgentDashboard() {
               selectedOrder.phone_name ||
               `${selectedOrder.brand || ""} ${selectedOrder.model || ""}`.trim()
             }
-          />
-        )}
-
-        {/* Buy Credits Modal */}
-        {showBuyModal && (
-          <BuyCreditsModal
-            isOpen={showBuyModal}
-            onClose={() => setShowBuyModal(false)}
-            plans={plans}
-            onBuyPlan={handleBuyPlan}
-            isLoading={purchaseLoading}
           />
         )}
       </div>

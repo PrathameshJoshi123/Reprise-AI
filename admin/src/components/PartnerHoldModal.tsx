@@ -80,11 +80,7 @@ export default function PartnerHoldModal({
       ) {
         toast.error("This partner is already on hold.", { duration: 4000 });
       } else {
-        showErrorToastWithRetry(
-          error,
-          handlePlaceHold,
-          "Place hold on partner",
-        );
+        showErrorToastWithRetry(error, handlePlaceHold);
       }
     } finally {
       setLoading(false);

@@ -2,10 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../lib/api";
 import { toast } from "sonner";
-import {
-  showErrorToastWithRetry,
-  showSuccessToast,
-} from "../lib/errorHandler";
+import { showErrorToastWithRetry, showSuccessToast } from "../lib/errorHandler";
 import {
   Card,
   CardContent,
@@ -67,7 +64,7 @@ export default function Customers() {
     } catch (error: any) {
       console.error("Failed to fetch users:", error);
       const retryFn = () => fetchUsers();
-      showErrorToastWithRetry(error, retryFn, "Users");
+      showErrorToastWithRetry(error, retryFn);
     } finally {
       setFetching(false);
     }
@@ -103,11 +100,7 @@ export default function Customers() {
           duration: 4000,
         });
       } else {
-        showErrorToastWithRetry(
-          error,
-          () => handleCreate(e),
-          "Create customer",
-        );
+        showErrorToastWithRetry(error, () => handleCreate(e));
       }
     }
   };
@@ -138,11 +131,7 @@ export default function Customers() {
           { duration: 4000 },
         );
       } else {
-        showErrorToastWithRetry(
-          error,
-          () => handleDelete(id),
-          "Delete customer",
-        );
+        showErrorToastWithRetry(error, () => handleDelete(id));
       }
     }
   };

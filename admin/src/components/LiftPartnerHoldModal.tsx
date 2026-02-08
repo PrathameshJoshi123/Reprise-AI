@@ -68,7 +68,7 @@ export default function LiftPartnerHoldModal({
       ) {
         toast.error("This partner is not on hold.", { duration: 4000 });
       } else {
-        showErrorToastWithRetry(error, handleLiftHold, "Lift hold");
+        showErrorToastWithRetry(error, handleLiftHold);
       }
     } finally {
       setLoading(false);

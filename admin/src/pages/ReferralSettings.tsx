@@ -51,7 +51,7 @@ export default function ReferralSettings() {
     } catch (error: any) {
       console.error("Failed to fetch referral settings:", error);
       const retryFn = () => fetchSettings();
-      showErrorToastWithRetry(error, retryFn, "Referral Settings");
+      showErrorToastWithRetry(error, retryFn);
     } finally {
       setLoading(false);
     }

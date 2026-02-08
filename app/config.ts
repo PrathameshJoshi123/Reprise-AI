@@ -1,6 +1,6 @@
 // Backend API Base URL - Change this to your production URL when deploying
 export const API_BASE_URL =
-  process.env.VITE_API_BASE_URL || "http://localhost:8000";
+  process.env.VITE_API_BASE_URL;
 
 export const API_ENDPOINTS = {
   PARTNER_LOGIN: "/partner/login",

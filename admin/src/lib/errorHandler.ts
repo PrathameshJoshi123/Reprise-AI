@@ -2,7 +2,6 @@
  * Error handling utilities for consistent error classification and messages
  */
 
-import { AxiosError } from "axios";
 import { toast } from "sonner";
 
 export type ErrorType =
@@ -153,12 +152,13 @@ export const classifyError = (error: any): ErrorInfo => {
 /**
  * Show error toast with context-specific messages
  */
-export const showErrorToast = (
-  error: any,
-  context: string = "Operation",
-  customMessage?: string,
-) => {
-  const errorInfo = classifyError(error);
+export const showErrorToast = (errorOrMessage: any, customMessage?: string) => {
+  if (typeof errorOrMessage === "string") {
+    toast.error(errorOrMessage, { duration: 4000 });
+    return;
+  }
+
+  const errorInfo = classifyError(errorOrMessage);
 
   if (customMessage) {
     toast.error(customMessage, {
@@ -175,11 +175,7 @@ export const showErrorToast = (
 /**
  * Show error toast with retry action
  */
-export const showErrorToastWithRetry = (
-  error: any,
-  onRetry: () => void,
-  context: string = "Operation",
-) => {
+export const showErrorToastWithRetry = (error: any, onRetry: () => void) => {
   const errorInfo = classifyError(error);
 
   if (!errorInfo.retryable) {

@@ -60,7 +60,7 @@ export default function PhoneDetail() {
     queryKey: ["phone", phoneId],
     queryFn: async () => {
       const API_URL = (
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+        import.meta.env.VITE_API_BASE_URL
       ).replace(/\/$/, "");
       const response = await fetch(`${API_URL}/sell-phone/phones/${phoneId}`);
       if (!response.ok) throw new Error("Failed to fetch phone");
@@ -91,7 +91,7 @@ export default function PhoneDetail() {
     queryKey: ["phoneVariants", phoneId],
     queryFn: async () => {
       const API_URL = (
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+        import.meta.env.VITE_API_BASE_URL 
       ).replace(/\/$/, "");
       const response = await fetch(
         `${API_URL}/sell-phone/phones/${phoneId}/variants`,
@@ -119,7 +119,7 @@ export default function PhoneDetail() {
         return match ? parseInt(match[1], 10) : storage === "1tb" ? 1024 : 0;
       };
       const API_URL = (
-        import.meta.env.VITE_API_URL || "http://localhost:8000"
+        import.meta.env.VITE_API_BASE_URL
       ).replace(/\/$/, "");
       const response = await fetch(
         `${API_URL}/sell-phone/phones/${phoneId}/price?ram_gb=${parseRam(
@@ -155,7 +155,7 @@ export default function PhoneDetail() {
     ],
     queryFn: async () => {
       const API_URL = (
-        import.meta.env.VITE_API_URL || "http://localhost:8000"
+        import.meta.env.VITE_API_BASE_URL
       ).replace(/\/$/, "");
       const response = await fetch(
         `${API_URL}/customer-side-prediction/predict-price`,

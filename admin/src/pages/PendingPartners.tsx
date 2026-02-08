@@ -52,7 +52,7 @@ export default function PendingPartners() {
     } catch (error: any) {
       console.error("Failed to fetch pending partners:", error);
       const retryFn = () => fetchPendingPartners();
-      showErrorToastWithRetry(error, retryFn, "Pending partners");
+      showErrorToastWithRetry(error, retryFn);
     } finally {
       setLoading(false);
     }

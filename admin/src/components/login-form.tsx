@@ -18,10 +18,7 @@ import { useNavigate } from "react-router";
 import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
 import { toast } from "sonner";
-import {
-  showSuccessToast,
-  classifyError,
-} from "@/lib/errorHandler";
+import { showSuccessToast } from "@/lib/errorHandler";
 
 export function LoginForm({
   className,

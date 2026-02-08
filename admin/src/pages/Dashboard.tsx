@@ -52,7 +52,7 @@ export default function Dashboard() {
     } catch (error: any) {
       console.error("Failed to fetch stats:", error);
       const retryFn = () => fetchStats();
-      showErrorToastWithRetry(error, retryFn, "Dashboard");
+      showErrorToastWithRetry(error, retryFn);
     } finally {
       setLoading(false);
     }

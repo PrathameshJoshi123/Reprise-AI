@@ -25,11 +25,9 @@ interface HeaderProps {
 
 export default function Header({
   showLoginButtons = true,
-  pageTitle,
   userName,
   showLogout = false,
   onLogout,
-  additionalContent,
   showDashboardButton = false,
   onBuyCredits,
 }: HeaderProps) {

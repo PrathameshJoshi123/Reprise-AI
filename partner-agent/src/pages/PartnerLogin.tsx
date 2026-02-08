@@ -53,7 +53,7 @@ export default function PartnerLogin() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { login, signup, holdInfo, clearHoldInfo } = useAuth();
+  const { login, signup, holdInfo } = useAuth();
 
   const extractErrorMessage = (error: any): string => {
     // Handle Pydantic validation errors (array of error objects)

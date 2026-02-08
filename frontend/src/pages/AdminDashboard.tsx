@@ -43,7 +43,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner"; // Assuming sonner for toasts; adjust if using another library
 
 // API functions (assuming API base URL is configured, e.g., via env)
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 const fetchUsers = async (role?: string) => {
   const params = role ? `?role=${role}` : "";

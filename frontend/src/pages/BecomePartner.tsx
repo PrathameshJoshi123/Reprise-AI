@@ -51,7 +51,7 @@ export default function BecomePartner() {
   ];
 
   const handleBecomePartner = () => {
-    window.location.href = "http://localhost:5174";
+    window.location.href = "http://103.88.83.224:10002";
   };
 
   return (

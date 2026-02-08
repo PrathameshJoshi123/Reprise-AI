@@ -127,7 +127,7 @@ export default function PartnerDetails() {
     } catch (error: any) {
       console.error("Failed to fetch partner details:", error);
       const retryFn = () => fetchPartnerDetails();
-      showErrorToastWithRetry(error, retryFn, "Partner details");
+      showErrorToastWithRetry(error, retryFn);
     } finally {
       setLoading(false);
     }
@@ -151,7 +151,7 @@ export default function PartnerDetails() {
       ) {
         toast.error("Partner is already approved.", { duration: 4000 });
       } else {
-        showErrorToastWithRetry(error, handleApprove, "Approve partner");
+        showErrorToastWithRetry(error, handleApprove);
       }
     } finally {
       setActionLoading(false);
@@ -180,7 +180,7 @@ export default function PartnerDetails() {
       ) {
         toast.error("Partner is already rejected.", { duration: 4000 });
       } else {
-        showErrorToastWithRetry(error, handleReject, "Reject partner");
+        showErrorToastWithRetry(error, handleReject);
       }
     } finally {
       setActionLoading(false);

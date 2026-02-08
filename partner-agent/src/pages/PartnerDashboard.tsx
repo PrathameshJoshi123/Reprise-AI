@@ -142,7 +142,7 @@ export default function PartnerDashboard() {
 
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [plans, setPlans] = useState<any[]>([]);
-  const [loadingPlanId, setLoadingPlanId] = useState<number | null>(null);
+  const [loadingPlanId] = useState<number | null>(null);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [paymentStep, setPaymentStep] = useState<
     "select_plan" | "payment_proof"
@@ -199,7 +199,7 @@ export default function PartnerDashboard() {
       const formData = new FormData();
       formData.append("screenshot", screenshot);
 
-      const resp = await api.post(
+      await api.post(
         `/partner/payment-request/${requestId}/upload-screenshot`,
         formData,
         { headers: { "Content-Type": "multipart/form-data" } },

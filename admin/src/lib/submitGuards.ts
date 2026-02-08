@@ -33,7 +33,7 @@ export const useSubmitGuard = () => {
  * Useful for filter changes, sort changes, etc.
  */
 export const useDebounce = (callback: () => void, delay: number = 500) => {
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<number | null>(null);
 
   const debounced = useCallback(() => {
     // Clear previous timeout
