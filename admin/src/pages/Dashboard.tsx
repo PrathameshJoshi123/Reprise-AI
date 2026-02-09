@@ -16,7 +16,7 @@ import {
   Clock,
   ShoppingCart,
   TrendingUp,
-  DollarSign,
+  IndianRupee,
 } from "lucide-react";
 
 interface DashboardStats {
@@ -112,7 +112,7 @@ export default function Dashboard() {
     {
       title: "Credits in Circulation",
       value: formatCurrency(stats.credits_in_circulation),
-      icon: DollarSign,
+      icon: IndianRupee,
       color: "text-amber-600",
       bgColor: "bg-amber-50",
       onClick: () => navigate("/credit-plans"),
