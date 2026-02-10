@@ -270,6 +270,20 @@ def get_payment_request_details(
 # PARTNER AUTH ENDPOINTS
 # ================================
 
+@router.post("/check-email")
+def check_email_exists(email: str, db: Session = Depends(get_db)):
+    """Check if email already exists for partners."""
+    existing = db.query(Partner).filter(Partner.email == email).first()
+    return {"exists": existing is not None}
+
+
+@router.post("/check-phone")
+def check_phone_exists(phone: str, db: Session = Depends(get_db)):
+    """Check if phone already exists for partners."""
+    existing = db.query(Partner).filter(Partner.phone == phone).first()
+    return {"exists": existing is not None}
+
+
 @router.post("/signup", response_model=partner_schemas.PartnerToken, status_code=201)
 def partner_signup(
     payload: partner_schemas.PartnerApplicationCreate,

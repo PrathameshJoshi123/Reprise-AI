@@ -11,7 +11,6 @@ import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Lazy load less critical pages
-const Brands = lazy(() => import("./pages/Brands"));
 const WhyCashNow = lazy(() => import("./pages/WhyCashNow"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const AboutUs = lazy(() => import("./pages/AboutUs"));
@@ -22,10 +21,8 @@ const BecomePartner = lazy(() => import("./pages/BecomePartner"));
 const Referral = lazy(() => import("./pages/Referral"));
 
 // Auth pages
-const AgentLogin = lazy(() => import("./pages/AgentLogin"));
 const CustomerLogin = lazy(() => import("./pages/CustomerLogin"));
-const AgentDashboard = lazy(() => import("./pages/AgentDashboard"));
-const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+
 
 const queryClient = new QueryClient();
 
@@ -63,8 +60,7 @@ const App = () => (
             <Route path="/agent/register" element={<AgentLogin />} /> */}
 
               {/* Lazy loaded pages */}
-              <Route path="/brands" element={<Brands />} />
-              <Route path="/brands/:brandId" element={<Brands />} />
+          
               <Route path="/why-cashnow" element={<WhyCashNow />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/about-us" element={<AboutUs />} />
@@ -72,10 +68,8 @@ const App = () => (
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/become-partner" element={<BecomePartner />} />
               <Route path="/referral" element={<Referral />} />
-              <Route path="/agent/login" element={<AgentLogin />} />
-              <Route path="/agent/dashboard" element={<AgentDashboard />} />
               <Route path="/my-orders" element={<MyOrders />} />
-              <Route path="/admin" element={<AdminDashboard />} />
+
 
               {/* Catch all */}
               <Route path="*" element={<NotFound />} />

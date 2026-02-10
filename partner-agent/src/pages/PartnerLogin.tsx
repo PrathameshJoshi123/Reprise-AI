@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import api from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -51,9 +52,14 @@ export default function PartnerLogin() {
     serviceable_pincodes: "",
   });
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   const { login, signup, holdInfo } = useAuth();
+
+  const PAN_LENGTH = 10;
+  const GST_LENGTH = 15;
+  const PHONE_LENGTH = 10;
 
   const extractErrorMessage = (error: any): string => {
     // Handle Pydantic validation errors (array of error objects)
@@ -81,40 +87,126 @@ export default function PartnerLogin() {
     return "An error occurred. Please try again.";
   };
 
+  const handleInputChange =
+    (field: keyof typeof formData) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      let value = e.target.value;
+
+      // Sanitize input to prevent XSS
+      value = value.replace(/[<>\"']/g, "");
+
+      // Specific formatting
+      if (field === "pan_number") {
+        value = value.toUpperCase();
+      } else if (field === "gst_number") {
+        value = value.toUpperCase();
+      } else if (field === "phone") {
+        // Allow +91 prefix, but normalize
+        if (value.startsWith("+91")) {
+          value = value.substring(3);
+        }
+        // Remove non-numeric characters except +
+        value = value.replace(/[^0-9]/g, "");
+      }
+
+      setFormData({ ...formData, [field]: value });
+    };
+
+  const validateForm = async (): Promise<string | null> => {
+    // Required fields
+    if (!formData.full_name.trim()) return "Full name is required";
+    if (formData.full_name.length < 2 || formData.full_name.length > 100)
+      return "Full name must be 2-100 characters";
+
+    if (!formData.email.trim()) return "Email is required";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email))
+      return "Please enter a valid email address";
+
+    // Check if email already exists
+    try {
+      const emailCheck = await api.post("/partner/check-email", {
+        email: formData.email,
+      });
+      if (emailCheck.data.exists) return "This email is already registered";
+    } catch (error) {
+      // If check fails, allow submission (backend will handle)
+    }
+
+    if (!formData.password) return "Password is required";
+    if (formData.password.length < 8)
+      return "Password must be at least 8 characters";
+
+    if (!formData.phone.trim()) return "Phone number is required";
+    if (formData.phone.length !== PHONE_LENGTH)
+      return `Phone number must be exactly ${PHONE_LENGTH} digits`;
+    const phoneRegex = /^\d{10}$/;
+    if (!phoneRegex.test(formData.phone))
+      return "Phone number must contain only digits";
+
+    // Check if phone already exists
+    try {
+      const phoneCheck = await api.post("/partner/check-phone", {
+        phone: formData.phone,
+      });
+      if (phoneCheck.data.exists)
+        return "This phone number is already registered";
+    } catch (error) {
+      // If check fails, allow submission (backend will handle)
+    }
+
+    if (!formData.company_name.trim()) return "Shop name is required";
+    if (formData.company_name.length < 2 || formData.company_name.length > 200)
+      return "Shop name must be 2-200 characters";
+
+    if (!formData.business_address.trim()) return "Shop address is required";
+    if (
+      formData.business_address.length < 10 ||
+      formData.business_address.length > 500
+    )
+      return "Shop address must be 10-500 characters";
+
+    if (!formData.pan_number.trim()) return "PAN number is required";
+    if (formData.pan_number.length !== PAN_LENGTH)
+      return `PAN number must be exactly ${PAN_LENGTH} characters`;
+
+    if (formData.gst_number && formData.gst_number.length !== GST_LENGTH)
+      return `GST number must be exactly ${GST_LENGTH} characters if provided`;
+
+    if (!formData.serviceable_pincodes.trim())
+      return "At least one serviceable pincode is required";
+    const pincodes = formData.serviceable_pincodes
+      .split(",")
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+    if (pincodes.length === 0) return "Please enter at least one valid pincode";
+
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
     setLoading(true);
 
     try {
       if (activeTab === "login") {
         await login(formData.email, formData.password, "partner");
       } else {
+        // Client-side validation
+        const validationError = await validateForm();
+        if (validationError) {
+          setError(validationError);
+          setLoading(false);
+          return;
+        }
+
         // Parse comma-separated pincodes
         const pincodes = formData.serviceable_pincodes
           .split(",")
           .map((p) => p.trim())
           .filter((p) => p.length > 0);
-
-        if (pincodes.length === 0) {
-          setError("Please enter at least one serviceable pincode");
-          setLoading(false);
-          return;
-        }
-
-        // Validate PAN format (10 characters)
-        if (formData.pan_number.length !== 10) {
-          setError("PAN number must be 10 characters");
-          setLoading(false);
-          return;
-        }
-
-        // Validate GST format if provided (15 characters)
-        if (formData.gst_number && formData.gst_number.length !== 15) {
-          setError("GST number must be 15 characters");
-          setLoading(false);
-          return;
-        }
 
         await signup(
           formData.full_name,
@@ -123,17 +215,32 @@ export default function PartnerLogin() {
           formData.phone,
           formData.company_name,
           formData.business_address,
-          formData.gst_number,
+          formData.gst_number || "",
           formData.pan_number,
           pincodes,
         );
-        navigate("/partner/dashboard");
+        setSuccess(
+          "Application submitted successfully! You'll receive an email once approved.",
+        );
+        // Navigate after a short delay to show success message
+        setTimeout(() => navigate("/partner/dashboard"), 2000);
       }
     } catch (err: any) {
-      setError(extractErrorMessage(err));
+      if (!err.response) {
+        setError("Network error. Please check your connection and try again.");
+      } else {
+        setError(extractErrorMessage(err));
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setError("");
+    setSuccess("");
+    setLoading(false);
   };
 
   return (
@@ -159,7 +266,7 @@ export default function PartnerLogin() {
           <CardContent className="relative">
             <Tabs
               value={activeTab}
-              onValueChange={setActiveTab}
+              onValueChange={handleTabChange}
               className="w-full"
             >
               <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -197,9 +304,7 @@ export default function PartnerLogin() {
                         className="pl-10 h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                         placeholder="partner@example.com"
                         value={formData.email}
-                        onChange={(e) =>
-                          setFormData({ ...formData, email: e.target.value })
-                        }
+                        onChange={handleInputChange("email")}
                       />
                     </div>
                   </div>
@@ -221,9 +326,7 @@ export default function PartnerLogin() {
                         className="pl-10 h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                         placeholder="Enter your password"
                         value={formData.password}
-                        onChange={(e) =>
-                          setFormData({ ...formData, password: e.target.value })
-                        }
+                        onChange={handleInputChange("password")}
                       />
                     </div>
                   </div>
@@ -232,9 +335,13 @@ export default function PartnerLogin() {
                     <Alert
                       variant="destructive"
                       className="animate-in slide-in-from-top-2"
+                      aria-live="polite"
+                      aria-describedby="error-desc"
                     >
                       <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{error}</AlertDescription>
+                      <AlertDescription id="error-desc">
+                        {error}
+                      </AlertDescription>
                     </Alert>
                   )}
 
@@ -285,12 +392,7 @@ export default function PartnerLogin() {
                           className="pl-10 h-11"
                           placeholder="John Doe"
                           value={formData.full_name}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              full_name: e.target.value,
-                            })
-                          }
+                          onChange={handleInputChange("full_name")}
                         />
                       </div>
                     </div>
@@ -307,9 +409,7 @@ export default function PartnerLogin() {
                           className="pl-10 h-11"
                           placeholder="10-digit mobile number"
                           value={formData.phone}
-                          onChange={(e) =>
-                            setFormData({ ...formData, phone: e.target.value })
-                          }
+                          onChange={handleInputChange("phone")}
                         />
                       </div>
                     </div>
@@ -331,9 +431,7 @@ export default function PartnerLogin() {
                         className="pl-10 h-11"
                         placeholder="partner@example.com"
                         value={formData.email}
-                        onChange={(e) =>
-                          setFormData({ ...formData, email: e.target.value })
-                        }
+                        onChange={handleInputChange("email")}
                       />
                     </div>
                   </div>
@@ -355,9 +453,7 @@ export default function PartnerLogin() {
                         className="pl-10 h-11"
                         placeholder="Minimum 8 characters"
                         value={formData.password}
-                        onChange={(e) =>
-                          setFormData({ ...formData, password: e.target.value })
-                        }
+                        onChange={handleInputChange("password")}
                       />
                     </div>
                   </div>
@@ -375,12 +471,7 @@ export default function PartnerLogin() {
                         className="pl-10 h-11"
                         placeholder="Your Shop Name"
                         value={formData.company_name}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            company_name: e.target.value,
-                          })
-                        }
+                        onChange={handleInputChange("company_name")}
                       />
                     </div>
                   </div>
@@ -395,15 +486,11 @@ export default function PartnerLogin() {
                         id="address"
                         required
                         rows={2}
+                        maxLength={500}
                         className="pl-10 resize-none"
                         placeholder="Complete shop address"
                         value={formData.business_address}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            business_address: e.target.value,
-                          })
-                        }
+                        onChange={handleInputChange("business_address")}
                       />
                     </div>
                   </div>
@@ -423,12 +510,7 @@ export default function PartnerLogin() {
                           className="pl-10 h-11 uppercase"
                           placeholder="ABCDE1234F"
                           value={formData.pan_number}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              pan_number: e.target.value.toUpperCase(),
-                            })
-                          }
+                          onChange={handleInputChange("pan_number")}
                         />
                       </div>
                     </div>
@@ -445,12 +527,7 @@ export default function PartnerLogin() {
                           className="pl-10 h-11 uppercase"
                           placeholder="15-digit GST number"
                           value={formData.gst_number}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              gst_number: e.target.value.toUpperCase(),
-                            })
-                          }
+                          onChange={handleInputChange("gst_number")}
                         />
                       </div>
                     </div>
@@ -469,12 +546,7 @@ export default function PartnerLogin() {
                         className="pl-10 h-11"
                         placeholder="e.g., 110001, 110002, 110003"
                         value={formData.serviceable_pincodes}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            serviceable_pincodes: e.target.value,
-                          })
-                        }
+                        onChange={handleInputChange("serviceable_pincodes")}
                       />
                     </div>
                     <p className="text-xs text-gray-500 pl-10">
@@ -483,13 +555,26 @@ export default function PartnerLogin() {
                     </p>
                   </div>
 
+                  {success && (
+                    <Alert className="animate-in slide-in-from-top-2 bg-green-50 border-green-200">
+                      <AlertCircle className="h-4 w-4 text-green-600" />
+                      <AlertDescription className="text-green-800">
+                        {success}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   {error && (
                     <Alert
                       variant="destructive"
                       className="animate-in slide-in-from-top-2"
+                      aria-live="polite"
+                      aria-describedby="signup-error-desc"
                     >
                       <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{error}</AlertDescription>
+                      <AlertDescription id="signup-error-desc">
+                        {error}
+                      </AlertDescription>
                     </Alert>
                   )}
 

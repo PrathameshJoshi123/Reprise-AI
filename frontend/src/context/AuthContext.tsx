@@ -87,6 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await api.post("/auth/login", {
         identifier,
         password,
+      }, {
+        headers: { "x-skip-auth-redirect": "1" },
       });
       const token = response.data.access_token;
       localStorage.setItem("accessToken", token);

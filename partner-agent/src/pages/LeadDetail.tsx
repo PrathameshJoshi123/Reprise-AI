@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { useBuyCredits } from "../context/BuyCreditsContext";
 import { handleApiError } from "../lib/errorHandler";
 import { Button } from "../components/ui/button";
 import Header from "../components/Header";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 interface Lead {
   id: number;
@@ -52,14 +53,12 @@ export default function LeadDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { openBuyModal } = useBuyCredits();
   const [lead, setLead] = useState<Lead | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [showBuyModal, setShowBuyModal] = useState(false);
-  const [plans, setPlans] = useState<any[]>([]);
-  const [purchaseLoading, setPurchaseLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -100,35 +99,6 @@ export default function LeadDetail() {
       handleApiError(error);
     } finally {
       setActionLoading(false);
-    }
-  };
-
-  const openBuyModal = async () => {
-    try {
-      const resp = await api.get("/partner/credit-plans");
-      setPlans(resp.data || []);
-      setShowBuyModal(true);
-    } catch (err) {
-      console.error("Failed to load credit plans:", err);
-      handleApiError(err);
-    }
-  };
-
-  const handleBuyPlan = async (planId: number) => {
-    if (!confirm("Proceed to buy this credit plan?")) return;
-    setPurchaseLoading(true);
-    try {
-      const resp = await api.post("/partner/purchase-credits", {
-        plan_id: planId,
-        payment_method: "manual",
-      });
-      alert(resp.data?.message || "Purchase successful");
-      setShowBuyModal(false);
-    } catch (err: any) {
-      console.error("Purchase failed:", err);
-      handleApiError(err, "purchase");
-    } finally {
-      setPurchaseLoading(false);
     }
   };
 
@@ -573,95 +543,6 @@ export default function LeadDetail() {
           </motion.div>
         </div>
       </div>
-
-      {/* Buy Credits Modal */}
-      <AnimatePresence>
-        {showBuyModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-            onClick={() => setShowBuyModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    Buy Credits
-                  </h2>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowBuyModal(false)}
-                  >
-                    ✕
-                  </Button>
-                </div>
-
-                <div className="space-y-4">
-                  {plans.map((p: any) => (
-                    <motion.div
-                      key={p.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1 }}
-                    >
-                      <Card className="hover:shadow-lg transition-all duration-200 hover:border-purple-300">
-                        <CardContent className="p-4">
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                            <div className="flex-grow">
-                              <div className="font-semibold text-base">
-                                {p.plan_name}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {p.description}
-                              </div>
-                            </div>
-                            <div className="text-right w-full sm:w-auto">
-                              <div className="text-lg font-bold">
-                                {p.credit_amount} credits
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                ₹{p.price}
-                              </div>
-                              <div className="mt-2">
-                                <Button
-                                  size="sm"
-                                  className="text-xs h-8 w-full sm:w-auto"
-                                  onClick={() => handleBuyPlan(p.id)}
-                                  disabled={purchaseLoading}
-                                >
-                                  {purchaseLoading ? "Processing..." : "Buy"}
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </div>
-
-                <div className="mt-6 text-right">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowBuyModal(false)}
-                  >
-                    Close
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
