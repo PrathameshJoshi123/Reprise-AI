@@ -124,7 +124,7 @@ export default function CreditPlans() {
     } catch (error: any) {
       console.error("Failed to fetch credit plans:", error);
       const retryFn = () => fetchPlans();
-      showErrorToastWithRetry(error, retryFn, "Credit plans");
+      showErrorToastWithRetry(error, retryFn);
     } finally {
       setLoading(false);
     }
@@ -242,11 +242,7 @@ export default function CreditPlans() {
           duration: 4000,
         });
       } else {
-        showErrorToastWithRetry(
-          error,
-          () => handleCreate(e),
-          "Create credit plan",
-        );
+        showErrorToastWithRetry(error, () => handleCreate(e));
       }
     }
   };
@@ -271,11 +267,7 @@ export default function CreditPlans() {
       if (error.response?.status === 404) {
         toast.error("Credit plan not found.", { duration: 4000 });
       } else {
-        showErrorToastWithRetry(
-          error,
-          () => handleEdit(e),
-          "Update credit plan",
-        );
+        showErrorToastWithRetry(error, () => handleEdit(e));
       }
     }
   };
@@ -299,11 +291,7 @@ export default function CreditPlans() {
           duration: 4000,
         });
       } else {
-        showErrorToastWithRetry(
-          error,
-          () => handleDelete(id),
-          "Delete credit plan",
-        );
+        showErrorToastWithRetry(error, () => handleDelete(id));
       }
     }
   };
@@ -348,11 +336,7 @@ export default function CreditPlans() {
       showSuccessToast("Lead cost percentage updated successfully!");
       setConfigDialog(false);
     } catch (error: any) {
-      showErrorToastWithRetry(
-        error,
-        () => handleUpdateLeadCostPercentage(e),
-        "Update lead cost percentage",
-      );
+      showErrorToastWithRetry(error, () => handleUpdateLeadCostPercentage(e));
     } finally {
       setIsUpdatingConfig(false);
     }

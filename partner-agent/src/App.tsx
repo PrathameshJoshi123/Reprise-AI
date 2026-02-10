@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { BuyCreditsProvider } from "./context/BuyCreditsContext";
+import BuyCreditsModal from "./components/BuyCreditsModal";
 import PartnerLogin from "./pages/PartnerLogin";
 import PartnerDashboard from "./pages/PartnerDashboard";
 import Marketplace from "./pages/Marketplace";
@@ -160,8 +162,11 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
-        <Toaster />
+        <BuyCreditsProvider>
+          <AppRoutes />
+          <BuyCreditsModal />
+          <Toaster />
+        </BuyCreditsProvider>
       </AuthProvider>
     </BrowserRouter>
   );

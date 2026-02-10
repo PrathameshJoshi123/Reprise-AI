@@ -26,10 +26,22 @@ import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
+declare global {
+  interface Window {
+    google: {
+      accounts: {
+        oauth2: {
+          initCodeClient: (config: any) => { requestCode: () => void };
+        };
+      };
+    };
+  }
+}
+
 export default function CustomerLogin() {
   const [isLogin, setIsLogin] = useState(true);
   const [googleReady, setGoogleReady] = useState(false);
-  const [identifier, setIdentifier] = useState(""); // email or phone
+  const [identifier, setIdentifier] = useState(""); // email
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -45,9 +57,52 @@ export default function CustomerLogin() {
   const [googleProfilePhone, setGoogleProfilePhone] = useState("");
   const [googleProfileAddress, setGoogleProfileAddress] = useState("");
   const [googleProcessing, setGoogleProcessing] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
+  const [phoneAvailable, setPhoneAvailable] = useState<boolean | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { login, signup, loginWithToken } = useAuth();
+
+  // Helper to normalize phone number
+  const normalizePhone = (phone: string) => {
+    const cleaned = phone.replace(/\D/g, "");
+    if (cleaned.startsWith("91") && cleaned.length === 12) {
+      return cleaned.slice(2);
+    }
+    return cleaned;
+  };
+
+  // Check email availability
+  const checkEmailAvailability = async (email: string) => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailAvailable(null);
+      return;
+    }
+    try {
+      const response = await api.get(`/auth/check-email/${email}`);
+      setEmailAvailable(response.data.available);
+    } catch (error) {
+      console.error("Email check failed:", error);
+      setEmailAvailable(null);
+    }
+  };
+
+  // Check phone availability
+  const checkPhoneAvailability = async (phone: string) => {
+    const normalized = normalizePhone(phone);
+    if (normalized.length !== 10) {
+      setPhoneAvailable(null);
+      return;
+    }
+    try {
+      const response = await api.get(`/auth/check-phone/${normalized}`);
+      setPhoneAvailable(response.data.available);
+    } catch (error) {
+      console.error("Phone check failed:", error);
+      setPhoneAvailable(null);
+    }
+  };
 
   useEffect(() => {
     const id = "google-identity";
@@ -64,8 +119,6 @@ export default function CustomerLogin() {
         setGoogleReady(false);
       };
       document.head.appendChild(s);
-    } else {
-      setGoogleReady(Boolean((window as any).google?.accounts?.oauth2));
     }
   }, []);
 
@@ -90,8 +143,7 @@ export default function CustomerLogin() {
 
       if (!data.serviceable) {
         setPincodeError(
-          data.message ||
-            "Sorry, we don't service this pincode yet. You can still signup, but order processing may be delayed.",
+          "Sorry, we don't service this pincode yet. You can still signup, but order processing may be delayed.",
         );
       }
     } catch (error) {
@@ -114,6 +166,30 @@ export default function CustomerLogin() {
     return () => clearTimeout(timer);
   }, [pincode, isLogin]);
 
+  // Debounced email check
+  useEffect(() => {
+    if (!isLogin && identifier) {
+      const timer = setTimeout(() => {
+        checkEmailAvailability(identifier);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setEmailAvailable(null);
+    }
+  }, [identifier, isLogin]);
+
+  // Debounced phone check
+  useEffect(() => {
+    if (!isLogin && phone) {
+      const timer = setTimeout(() => {
+        checkPhoneAvailability(phone);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setPhoneAvailable(null);
+    }
+  }, [phone, isLogin]);
+
   // PKCE helpers - REMOVE sha256 and code_verifier generation
   const base64UrlEncode = (arrayBuffer: ArrayBuffer) => {
     const bytes = new Uint8Array(arrayBuffer);
@@ -135,7 +211,7 @@ export default function CustomerLogin() {
       console.error("VITE_GOOGLE_CLIENT_ID not set");
       return;
     }
-    if (!(window as any).google?.accounts?.oauth2?.initCodeClient) {
+    if (!window.google?.accounts?.oauth2?.initCodeClient) {
       console.error("Google initCodeClient not available");
       return;
     }
@@ -146,7 +222,7 @@ export default function CustomerLogin() {
     const startGoogleWithPincode = (pincodeForFlow?: string) => {
       setGoogleProcessing(true);
       // @ts-ignore
-      const client = (window as any).google.accounts.oauth2.initCodeClient({
+      const client = window.google.accounts.oauth2.initCodeClient({
         client_id: clientId,
         scope: "openid email profile",
         ux_mode: "popup",
@@ -185,6 +261,12 @@ export default function CustomerLogin() {
                 await loginWithToken(token);
               } catch (err) {
                 console.error("loginWithToken failed:", err);
+                toast.error("Authentication failed. Please try again.", {
+                  description: "Could not initialize user session.",
+                  duration: 5000,
+                });
+                setGoogleProcessing(false);
+                return;
               }
             }
 
@@ -237,10 +319,16 @@ export default function CustomerLogin() {
 
   // submit profile collected after Google signup
   const submitGoogleProfile = async () => {
-    if (!googleProfilePhone && !googleProfileAddress) {
-      toast.warning("Please provide phone or address to continue.", {
-        description:
-          "Additional information is required to complete your profile.",
+    if (!googleProfilePhone) {
+      toast.warning("Please provide your phone number to continue.", {
+        description: "Phone number is required to complete your profile.",
+        duration: 5000,
+      });
+      return;
+    }
+    if (!/^[6-9]\d{9}$/.test(normalizePhone(googleProfilePhone))) {
+      toast.warning("Please enter a valid 10-digit phone number", {
+        description: "Phone number must be 10 digits starting with 6-9.",
         duration: 5000,
       });
       return;
@@ -248,7 +336,7 @@ export default function CustomerLogin() {
     try {
       setGoogleProcessing(true);
       await api.patch("/auth/me", {
-        phone: googleProfilePhone || undefined,
+        phone: normalizePhone(googleProfilePhone),
         address: googleProfileAddress || undefined,
       });
       setShowGoogleProfileModal(false);
@@ -338,6 +426,9 @@ export default function CustomerLogin() {
                             required
                           />
                         </div>
+                        {phoneAvailable === false && (
+                          <p className="text-sm text-red-600">This phone number is already registered.</p>
+                        )}
                       </div>
 
                       <div className="space-y-2">
@@ -371,23 +462,23 @@ export default function CustomerLogin() {
                           </Alert>
                         )}
                         {pincodeError && (
-                          <Alert className="bg-amber-50 border-amber-200">
-                            <AlertTriangle className="h-4 w-4 text-amber-600" />
-                            <AlertDescription className="text-amber-800 text-sm">
-                              Cannot create orders in this pincode area. Please
-                              try a different pincode.
+                          <Alert className="bg-yellow-50 border-yellow-200">
+                            <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                            <AlertDescription className="text-yellow-800 text-sm">
+                              {pincodeError}
                             </AlertDescription>
                           </Alert>
                         )}
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="address">Address (Optional)</Label>
+                        <Label htmlFor="address">Address *</Label>
                         <Input
                           id="address"
                           placeholder="123 Main Street, City"
                           value={address}
                           onChange={(e) => setAddress(e.target.value)}
+                          required
                         />
                       </div>
 
@@ -424,6 +515,9 @@ export default function CustomerLogin() {
                         required
                       />
                     </div>
+                    {emailAvailable === false && (
+                      <p className="text-sm text-red-600">This email is already registered.</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -445,11 +539,12 @@ export default function CustomerLogin() {
                 <CardFooter className="flex flex-col gap-4">
                   <Button
                     className="w-full bg-primary text-primary-foreground hover:brightness-95"
-                    disabled={!isLogin && pincodeChecking}
+                    disabled={(!isLogin && pincodeChecking) || formLoading}
                     onClick={async () => {
+                      setFormLoading(true);
                       try {
                         if (isLogin) {
-                          if (!identifier.includes("@")) {
+                          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
                             toast.warning(
                               "Please enter a valid email address to login.",
                               {
@@ -486,6 +581,7 @@ export default function CustomerLogin() {
                             !fullName ||
                             !phone ||
                             !pincode ||
+                            !address ||
                             !identifier ||
                             !password
                           ) {
@@ -500,7 +596,23 @@ export default function CustomerLogin() {
                             return;
                           }
 
-                          if (!identifier.includes("@")) {
+                          if (emailAvailable === false) {
+                            toast.warning("Email already registered", {
+                              description: "Please use a different email address.",
+                              duration: 5000,
+                            });
+                            return;
+                          }
+
+                          if (phoneAvailable === false) {
+                            toast.warning("Phone number already registered", {
+                              description: "Please use a different phone number.",
+                              duration: 5000,
+                            });
+                            return;
+                          }
+
+                          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
                             toast.warning(
                               "Please enter a valid email address for signup.",
                               {
@@ -512,28 +624,47 @@ export default function CustomerLogin() {
                             return;
                           }
 
-                          if (pincode.length !== 6) {
+                          if (!/^[6-9]\d{9}$/.test(normalizePhone(phone))) {
                             toast.warning(
-                              "Please enter a valid 6-digit pincode",
+                              "Please enter a valid 10-digit phone number",
                               {
                                 description:
-                                  "Pincode must be exactly 6 digits.",
+                                  "Phone number must be 10 digits starting with 6-9.",
                                 duration: 5000,
                               },
                             );
                             return;
                           }
 
-                          // Check pincode one final time if not already checked
-                          if (!serviceableInfo) {
-                            await checkPincode(pincode);
+                          if (referralCode && referralCode.length === 6) {
+                            try {
+                              const refResponse = await api.get(
+                                `/auth/check-referral/${referralCode}`,
+                              );
+                              if (!refResponse.data.valid) {
+                                toast.warning("Invalid referral code", {
+                                  description: "Please check and try again.",
+                                  duration: 5000,
+                                });
+                                return;
+                              }
+                            } catch (err) {
+                              console.error("Referral check failed:", err);
+                              toast.warning("Unable to verify referral code", {
+                                description:
+                                  "Please try again or leave it blank.",
+                                duration: 5000,
+                              });
+                              return;
+                            }
                           }
 
                           // ALLOW signup regardless of pincode serviceability
                           // Show warning but allow user to proceed with non-serviceable pincode
                           if (!pincodeValid && serviceableInfo) {
                             const proceed = window.confirm(
-                              "Cannot create orders in this pincode area. Please try a different pincode.",
+                              pincodeError ||
+                                "This pincode is not currently serviced, but you can still sign up. Order processing may be delayed.",
                             );
                             if (!proceed) {
                               return;
@@ -547,7 +678,7 @@ export default function CustomerLogin() {
                             password,
                             "customer",
                             fullName,
-                            phone,
+                            normalizePhone(phone),
                             address || undefined,
                             null,
                             null,
@@ -578,14 +709,18 @@ export default function CustomerLogin() {
                             "Something went wrong during authentication.",
                           duration: 5000,
                         });
+                      } finally {
+                        setFormLoading(false);
                       }
                     }}
                   >
-                    {pincodeChecking
-                      ? "Checking..."
-                      : isLogin
-                        ? "Login"
-                        : "Create Account"}
+                    {formLoading
+                      ? "Processing..."
+                      : pincodeChecking
+                        ? "Checking..."
+                        : isLogin
+                          ? "Login"
+                          : "Create Account"}
                   </Button>
 
                   <div className="text-center text-sm">
@@ -647,8 +782,14 @@ export default function CustomerLogin() {
 
       {/* Google pincode modal (simple) */}
       {showGooglePincodeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-lg p-6 w-96">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+          onClick={() => setShowGooglePincodeModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg p-6 w-96"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-semibold mb-2">Enter Pincode</h3>
             <p className="text-sm text-gray-600 mb-4">
               Please enter your pincode. You can proceed even if we don't
@@ -673,11 +814,10 @@ export default function CustomerLogin() {
               </Alert>
             )}
             {pincodeError && (
-              <Alert className="bg-amber-50 border-amber-200 mb-3">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-amber-800 text-sm">
-                  Cannot create orders in this pincode area. Please try a
-                  different pincode.
+              <Alert className="bg-yellow-50 border-yellow-200 mb-3">
+                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <AlertDescription className="text-yellow-800 text-sm">
+                  {pincodeError}
                 </AlertDescription>
               </Alert>
             )}
@@ -701,9 +841,8 @@ export default function CustomerLogin() {
                   setShowGooglePincodeModal(false);
                   // Allow proceeding with both serviceable and non-serviceable pincodes
                   // Validation will happen at checkout time
-                  setTimeout(() => {
-                    onGoogleLogin();
-                  }, 150);
+                  await new Promise((resolve) => setTimeout(resolve, 150));
+                  onGoogleLogin();
                 }}
               >
                 Continue with Signup
@@ -715,13 +854,19 @@ export default function CustomerLogin() {
 
       {/* Google profile modal */}
       {showGoogleProfileModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-lg p-6 w-96">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+          onClick={() => setShowGoogleProfileModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg p-6 w-96"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-semibold mb-2">
               Complete your profile
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              We need a phone or address to complete your account.
+              We need your phone number to complete your account.
             </p>
             <input
               className="w-full border px-3 py-2 mb-3"

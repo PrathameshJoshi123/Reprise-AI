@@ -34,6 +34,15 @@ const APPLE_STEPS = [
   { id: 3, name: "Final Quote", icon: DollarSign },
 ];
 
+// Predefined RAM options
+const RAM_OPTIONS = [
+  { id: "4gb", name: "4GB" },
+  { id: "6gb", name: "6GB" },
+  { id: "8gb", name: "8GB" },
+  { id: "12gb", name: "12GB" },
+  { id: "16gb", name: "16GB" },
+];
+
 export default function PhoneDetail() {
   const { phoneId } = useParams<{ phoneId: string }>();
   const navigate = useNavigate();
@@ -42,6 +51,17 @@ export default function PhoneDetail() {
   const [isApplePhone, setIsApplePhone] = useState(false);
   const [STEPS, setSTEPS] = useState(BASE_STEPS);
 
+  if (!phoneId || isNaN(Number(phoneId))) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg mb-4">Invalid phone ID.</p>
+          <Button onClick={() => navigate("/")}>Go to Homepage</Button>
+        </div>
+      </div>
+    );
+  }
+
   // Form state
   const [selectedRam, setSelectedRam] = useState("");
   const [selectedStorage, setSelectedStorage] = useState("");
@@ -49,7 +69,6 @@ export default function PhoneDetail() {
   const [deviceTurnsOn, setDeviceTurnsOn] = useState<string>("");
   const [hasOriginalBox, setHasOriginalBox] = useState<string>("");
   const [hasOriginalBill, setHasOriginalBill] = useState<string>("");
-  const [customRamInput, setCustomRamInput] = useState(""); // New state for custom RAM input
 
   // Fetch phone data from backend
   const {
@@ -60,7 +79,7 @@ export default function PhoneDetail() {
     queryKey: ["phone", phoneId],
     queryFn: async () => {
       const API_URL = (
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+        import.meta.env.VITE_API_BASE_URL
       ).replace(/\/$/, "");
       const response = await fetch(`${API_URL}/sell-phone/phones/${phoneId}`);
       if (!response.ok) throw new Error("Failed to fetch phone");
@@ -87,11 +106,11 @@ export default function PhoneDetail() {
   }, [error]);
 
   // Fetch phone variants
-  const { data: variants } = useQuery({
+  const { data: variants, isLoading: isVariantsLoading } = useQuery({
     queryKey: ["phoneVariants", phoneId],
     queryFn: async () => {
       const API_URL = (
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+        import.meta.env.VITE_API_BASE_URL 
       ).replace(/\/$/, "");
       const response = await fetch(
         `${API_URL}/sell-phone/phones/${phoneId}/variants`,
@@ -119,7 +138,7 @@ export default function PhoneDetail() {
         return match ? parseInt(match[1], 10) : storage === "1tb" ? 1024 : 0;
       };
       const API_URL = (
-        import.meta.env.VITE_API_URL || "http://localhost:8000"
+        import.meta.env.VITE_API_BASE_URL
       ).replace(/\/$/, "");
       const response = await fetch(
         `${API_URL}/sell-phone/phones/${phoneId}/price?ram_gb=${parseRam(
@@ -146,6 +165,7 @@ export default function PhoneDetail() {
   } = useQuery({
     queryKey: [
       "pricePrediction",
+      phoneId,
       selectedRam,
       selectedStorage,
       selectedScreenCondition,
@@ -155,7 +175,7 @@ export default function PhoneDetail() {
     ],
     queryFn: async () => {
       const API_URL = (
-        import.meta.env.VITE_API_URL || "http://localhost:8000"
+        import.meta.env.VITE_API_BASE_URL
       ).replace(/\/$/, "");
       const response = await fetch(
         `${API_URL}/customer-side-prediction/predict-price`,
@@ -196,9 +216,10 @@ export default function PhoneDetail() {
           action: {
             label: "Continue Anyway",
             onClick: () => {
-              // Navigate to checkout with current data
-              localStorage.setItem("phoneData", JSON.stringify(phoneData));
-              navigate("/checkout");
+              if (phoneData) {
+                localStorage.setItem("phoneData", JSON.stringify(phoneData));
+                navigate("/checkout");
+              }
             },
           },
           duration: 8000,
@@ -211,13 +232,14 @@ export default function PhoneDetail() {
   useEffect(() => {
     if (phoneData) {
       const isApple = phoneData.Brand?.toLowerCase() === "apple";
-      setIsApplePhone(isApple);
-
-      // Set STEPS based on brand
-      if (isApple) {
-        setSTEPS(APPLE_STEPS);
-      } else {
-        setSTEPS(BASE_STEPS);
+      if (isApple !== isApplePhone) {
+        setIsApplePhone(isApple);
+        // Set STEPS based on brand
+        if (isApple) {
+          setSTEPS(APPLE_STEPS);
+        } else {
+          setSTEPS(BASE_STEPS);
+        }
       }
 
       // For Apple phones, auto-set RAM
@@ -230,7 +252,7 @@ export default function PhoneDetail() {
         }
       }
     }
-  }, [phoneData]);
+  }, [phoneData, isApplePhone]);
 
   // Dynamically build options from variants (filter out null/invalid entries)
   const ramOptions =
@@ -277,7 +299,7 @@ export default function PhoneDetail() {
       `/assets/phones/${phoneData.id}.png`, // Use new image fields with fallback
     basePrice,
     // Keep options as predefined (not in DB)
-    ramOptions,
+    ramOptions: isApplePhone ? [] : (ramOptions.length > 0 ? ramOptions : RAM_OPTIONS), // Use backend options if available, else predefined
     storageOptions,
     screenConditions: [
       {
@@ -352,10 +374,7 @@ export default function PhoneDetail() {
     } else {
       // Non-Apple phone flow: RAM, Storage, Condition, Final Quote
       if (currentStep === 1) {
-        // Updated: If ramOptions exist, check selectedRam; else check customRamInput
-        return ramOptions.length > 0
-          ? selectedRam !== ""
-          : customRamInput !== "";
+        return selectedRam !== ""; // Always check selectedRam since options are provided
       }
       if (currentStep === 2) return selectedStorage !== "";
       if (currentStep === 3)
@@ -369,7 +388,58 @@ export default function PhoneDetail() {
     }
   };
 
-  const progress = (currentStep / STEPS.length) * 100;
+  const handleProceedToSell = () => {
+    const parseRam = (ram: string) => {
+      const match = ram.match(/^(\d+)gb$/i);
+      return match ? parseInt(match[1], 10) : 0;
+    };
+    const parseStorage = (storage: string) => {
+      const match = storage.match(/^(\d+)gb$/i);
+      return match
+        ? parseInt(match[1], 10)
+        : storage === "1tb"
+          ? 1024
+          : 0;
+    };
+
+    const saleData = {
+      name: phone.name,
+      brand: phoneData.Brand,
+      model: phoneData.Model,
+      ram_gb: parseRam(selectedRam),
+      storage_gb: parseStorage(selectedStorage),
+      variant:
+        `${selectedStorage}`.replace(/gb$/i, "") + "GB",
+      condition:
+        phone.screenConditions.find(
+          (c) => c.id === selectedScreenCondition,
+        )?.name || selectedScreenCondition,
+      price: predictionData?.predicted_price || 0,
+      conditionAnswers: {
+        screen_condition: selectedScreenCondition,
+        device_turns_on: deviceTurnsOn,
+        has_original_box: hasOriginalBox,
+        has_original_bill: hasOriginalBill,
+      },
+    };
+    // Persist selected sale details so checkout (or post-login flow) can pick it up
+    localStorage.setItem(
+      "phoneData",
+      JSON.stringify(saleData),
+    );
+    // mark that this login should resume the sale flow
+    localStorage.setItem("postLoginRedirect", "/checkout");
+    if (isLoggedIn) {
+      navigate("/checkout");
+    } else {
+      // Redirect to login (Login page will remain responsible for auth)
+      navigate("/login", {
+        state: { redirectTo: "/checkout" },
+      });
+    }
+  };
+
+  const progress = STEPS.length > 0 ? (currentStep / STEPS.length) * 100 : 0;
 
   // Helper: safe display for RAM/storage to avoid "null" or "NaN"
   const formatRamDisplay = (selRam: string) => {
@@ -398,7 +468,7 @@ export default function PhoneDetail() {
 
       <main className="flex-grow flex items-center">
         <div className="container mx-auto px-4 py-8 h-full">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full max-h-[calc(100vh-200px)]">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full max-h-[calc(100vh-200px)]">
             {/* Left Side - Question/Info Panel */}
             <div className="flex flex-col justify-between bg-white/40 backdrop-blur-sm rounded-3xl p-8 lg:p-12">
               {/* Header */}
@@ -541,22 +611,19 @@ export default function PhoneDetail() {
 
               {/* Bottom - Navigation */}
               <div>
-                <div className="flex items-center justify-end">
-                  <div className="flex gap-3">
-                    {((isApplePhone && currentStep > 1 && currentStep < 3) ||
-                      (!isApplePhone &&
-                        currentStep > 1 &&
-                        currentStep < 4)) && (
-                      <Button
-                        variant="outline"
-                        onClick={() => setCurrentStep(currentStep - 1)}
-                        className="rounded-full px-6"
-                      >
-                        Previous
-                      </Button>
-                    )}
+                  <div className="flex items-center justify-end">
+                    <div className="flex gap-3">
+                      {currentStep > 1 && (
+                        <Button
+                          variant="outline"
+                          onClick={() => setCurrentStep(currentStep - 1)}
+                          className="rounded-full px-6"
+                        >
+                          Previous
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
               </div>
             </div>
 
@@ -565,69 +632,51 @@ export default function PhoneDetail() {
               <div className="max-w-xl mx-auto w-full space-y-4">
                 {/* Step 1: RAM Selection (Non-Apple phones only) */}
                 {!isApplePhone &&
-                  currentStep === 1 &&
-                  (ramOptions.length > 0 ? (
-                    // Existing radio group if options available
-                    <RadioGroup
-                      value={selectedRam}
-                      onValueChange={setSelectedRam}
-                      className="space-y-4"
-                    >
-                      {ramOptions.map((ram) => (
-                        <div key={ram.id}>
-                          <RadioGroupItem
-                            value={ram.id}
-                            id={`ram-${ram.id}`}
-                            className="peer sr-only"
-                          />
-                          <Label
-                            htmlFor={`ram-${ram.id}`}
-                            className="flex items-center gap-4 border-2 rounded-2xl p-5 cursor-pointer peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 hover:bg-white/80 bg-white/60 backdrop-blur transition-all hover:shadow-lg"
+                  currentStep === 1 && (
+                  <RadioGroup
+                    value={selectedRam}
+                    onValueChange={setSelectedRam}
+                    className="space-y-4"
+                  >
+                    {phone.ramOptions.map((ram) => (
+                      <div key={ram.id}>
+                        <RadioGroupItem
+                          value={ram.id}
+                          id={`ram-${ram.id}`}
+                          className="peer sr-only"
+                        />
+                        <Label
+                          htmlFor={`ram-${ram.id}`}
+                          className="flex items-center gap-4 border-2 rounded-2xl p-5 cursor-pointer peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 hover:bg-white/80 bg-white/60 backdrop-blur transition-all hover:shadow-lg"
+                        >
+                          <div
+                            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                              selectedRam === ram.id
+                                ? "border-blue-600 bg-blue-600"
+                                : "border-gray-300"
+                            }`}
                           >
-                            <div
-                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                                selectedRam === ram.id
-                                  ? "border-blue-600 bg-blue-600"
-                                  : "border-gray-300"
-                              }`}
-                            >
-                              {selectedRam === ram.id && (
-                                <div className="w-3 h-3 rounded-full bg-white" />
-                              )}
-                            </div>
+                            {selectedRam === ram.id && (
+                              <div className="w-3 h-3 rounded-full bg-white" />
+                            )}
+                          </div>
+                          <div className="flex-grow">
                             <span className="font-semibold text-lg flex-grow">
                               {ram.name}
                             </span>
-                          </Label>
-                        </div>
-                      ))}
-                    </RadioGroup>
-                  ) : (
-                    // New input field if no options
-                    <div className="space-y-4">
-                      <Label
-                        htmlFor="custom-ram"
-                        className="text-lg font-semibold"
-                      >
-                        Enter RAM (GB)
-                      </Label>
-                      <input
-                        id="custom-ram"
-                        type="number"
-                        value={customRamInput}
-                        onChange={(e) => {
-                          setCustomRamInput(e.target.value);
-                          setSelectedRam(`${e.target.value}gb`); // Set selectedRam for consistency
-                        }}
-                        placeholder="e.g., 8"
-                        className="w-full border-2 rounded-2xl p-5 bg-white/60 backdrop-blur focus:border-blue-600 focus:bg-blue-50 transition-all"
-                      />
-                    </div>
-                  ))}
+                          </div>
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                )}
 
                 {/* Step 1 (Apple) OR Step 2 (Non-Apple): Storage Selection */}
                 {((!isApplePhone && currentStep === 2) ||
                   (isApplePhone && currentStep === 1)) && (
+                  isVariantsLoading ? (
+                    <p>Loading storage options...</p>
+                  ) : (
                   <RadioGroup
                     value={selectedStorage}
                     onValueChange={setSelectedStorage}
@@ -662,6 +711,7 @@ export default function PhoneDetail() {
                       </div>
                     ))}
                   </RadioGroup>
+                  )
                 )}
 
                 {/* Step 2 (Apple) OR Step 3 (Non-Apple): Condition Assessment */}
@@ -867,56 +917,7 @@ export default function PhoneDetail() {
                     </div>
 
                     <Button
-                      onClick={() => {
-                        const parseRam = (ram: string) => {
-                          const match = ram.match(/^(\d+)gb$/i);
-                          return match ? parseInt(match[1], 10) : 0;
-                        };
-                        const parseStorage = (storage: string) => {
-                          const match = storage.match(/^(\d+)gb$/i);
-                          return match
-                            ? parseInt(match[1], 10)
-                            : storage === "1tb"
-                              ? 1024
-                              : 0;
-                        };
-
-                        const saleData = {
-                          name: phone.name,
-                          brand: phoneData.Brand,
-                          model: phoneData.Model,
-                          ram_gb: parseRam(selectedRam),
-                          storage_gb: parseStorage(selectedStorage),
-                          variant:
-                            `${selectedStorage}`.replace(/gb$/i, "") + "GB",
-                          condition:
-                            phone.screenConditions.find(
-                              (c) => c.id === selectedScreenCondition,
-                            )?.name || selectedScreenCondition,
-                          price: predictionData?.predicted_price || 0,
-                          conditionAnswers: {
-                            screen_condition: selectedScreenCondition,
-                            device_turns_on: deviceTurnsOn,
-                            has_original_box: hasOriginalBox,
-                            has_original_bill: hasOriginalBill,
-                          },
-                        };
-                        // Persist selected sale details so checkout (or post-login flow) can pick it up
-                        localStorage.setItem(
-                          "phoneData",
-                          JSON.stringify(saleData),
-                        );
-                        // mark that this login should resume the sale flow
-                        localStorage.setItem("postLoginRedirect", "/checkout");
-                        if (isLoggedIn) {
-                          navigate("/checkout");
-                        } else {
-                          // Redirect to login (Login page will remain responsible for auth)
-                          navigate("/login", {
-                            state: { redirectTo: "/checkout" },
-                          });
-                        }
-                      }}
+                      onClick={handleProceedToSell}
                       className="w-full h-14 text-lg rounded-2xl"
                     >
                       Proceed to Sell <ArrowRight className="ml-2" />

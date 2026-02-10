@@ -103,7 +103,7 @@ export default function Partners() {
     } catch (error: any) {
       console.error("Failed to fetch partners:", error);
       const retryFn = () => fetchPartners();
-      showErrorToastWithRetry(error, retryFn, "Partners");
+      showErrorToastWithRetry(error, retryFn);
     } finally {
       setLoading(false);
     }

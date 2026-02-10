@@ -81,7 +81,6 @@ export default function Orders() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [showOrderModal, setShowOrderModal] = useState(false);
   const [showPickupModal, setShowPickupModal] = useState(false);
 
   useEffect(() => {
@@ -132,7 +131,7 @@ export default function Orders() {
         );
       } else {
         const retryFn = () => fetchOrders();
-        showErrorToastWithRetry(error, retryFn, "Orders");
+        showErrorToastWithRetry(error, retryFn);
       }
       setOrders([]);
       setTotal(0);
@@ -410,7 +409,6 @@ export default function Orders() {
       {selectedOrder && (
         <PickupDetailsModal
           orderId={selectedOrder.id}
-          orderTitle={`${selectedOrder.brand || selectedOrder.phone_name} ${selectedOrder.model || ""}`}
           isOpen={showPickupModal}
           onClose={() => {
             setShowPickupModal(false);

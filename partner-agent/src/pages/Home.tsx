@@ -19,6 +19,8 @@ import {
   CheckCircle,
   ArrowRight,
 } from "lucide-react";
+import { useState, useEffect } from "react";
+import api from "../lib/api";
 
 // Animation variants
 const fadeInUp = {
@@ -44,10 +46,41 @@ const scaleIn = {
 export default function Home() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [stats, setStats] = useState({
+    phones: 10000,
+    partners: 500,
+    agents: 2000,
+    rating: 4.8,
+  });
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
+  useEffect(() => {
+    // Fetch dynamic stats from API
+    const fetchStats = async () => {
+      try {
+        const response = await api.get("/stats");
+        setStats(response.data);
+      } catch (error) {
+        console.error("Failed to fetch stats:", error);
+        // Keep default values if API fails
+      }
+    };
+    fetchStats();
+  }, []);
+
+  const handleLogout = async () => {
+    if (window.confirm("Are you sure you want to logout?")) {
+      setLoggingOut(true);
+      try {
+        logout();
+        navigate("/");
+      } catch (error) {
+        console.error("Logout failed:", error);
+        // Optionally show error message to user
+      } finally {
+        setLoggingOut(false);
+      }
+    }
   };
 
   return (
@@ -59,6 +92,7 @@ export default function Home() {
         onLogout={handleLogout}
         userName={user?.name}
         showDashboardButton={true}
+        logoutLoading={loggingOut}
       />
 
       {/* Hero Section */}
@@ -296,19 +330,19 @@ export default function Home() {
         >
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
             <motion.div className="text-white" variants={fadeInUp}>
-              <div className="text-3xl font-bold mb-2">10,000+</div>
+              <div className="text-3xl font-bold mb-2">{stats.phones}+</div>
               <div className="text-purple-100">Phones Processed</div>
             </motion.div>
             <motion.div className="text-white" variants={fadeInUp}>
-              <div className="text-3xl font-bold mb-2">500+</div>
+              <div className="text-3xl font-bold mb-2">{stats.partners}+</div>
               <div className="text-purple-100">Active Partners</div>
             </motion.div>
             <motion.div className="text-white" variants={fadeInUp}>
-              <div className="text-3xl font-bold mb-2">2,000+</div>
+              <div className="text-3xl font-bold mb-2">{stats.agents}+</div>
               <div className="text-purple-100">Verified Agents</div>
             </motion.div>
             <motion.div className="text-white" variants={fadeInUp}>
-              <div className="text-3xl font-bold mb-2">4.8★</div>
+              <div className="text-3xl font-bold mb-2">{stats.rating}★</div>
               <div className="text-purple-100">Customer Rating</div>
             </motion.div>
           </div>
@@ -361,49 +395,54 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12 px-4">
-        <div className="container mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-2 rounded-lg">
-                  <Smartphone className="h-5 w-5 text-white" />
-                </div>
-                <span className="font-bold text-lg">RepriseAI</span>
+        <div className="container mx-auto text-center">
+          <div className="space-y-4">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-2 rounded-lg">
+                <Smartphone className="h-5 w-5 text-white" />
               </div>
-              <p className="text-gray-400">
-                Revolutionizing phone trading with AI-powered solutions.
-              </p>
+              <span className="font-bold text-lg">CashNow</span>
             </div>
-            <div>
-              <h3 className="font-semibold mb-4">For Partners</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>Lead Management</li>
-                <li>Agent Oversight</li>
-                <li>Analytics Dashboard</li>
-                <li>Payment Processing</li>
-              </ul>
+            <div className="text-gray-300">
+              <p className="text-lg font-semibold mb-6">Contact Us</p>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="text-center">
+                  <p className="font-medium mb-2">Phone</p>
+                  <p>7888076122</p>
+                </div>
+                <div className="text-center">
+                  <p className="font-medium mb-2">Email</p>
+                  <a
+                    href="mailto:support@cashnow.co.in"
+                    className="text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    support@cashnow.co.in
+                  </a>
+                </div>
+                <div className="text-center">
+                  <p className="font-medium mb-2">Website</p>
+                  <a
+                    href="https://cashnow.co.in"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    cashnow.co.in
+                  </a>
+                </div>
+                <div className="text-center">
+                  <p className="font-medium mb-2">Instagram</p>
+                  <a
+                    href="https://instagram.com/cashnow_india"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    @cashnow_india
+                  </a>
+                </div>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold mb-4">For Agents</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>Pickup Scheduling</li>
-                <li>Device Verification</li>
-                <li>Commission Tracking</li>
-                <li>Mobile App</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-4">Support</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>Help Center</li>
-                <li>Contact Us</li>
-                <li>Terms of Service</li>
-                <li>Privacy Policy</li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2026 RepriseAI. All rights reserved.</p>
           </div>
         </div>
       </footer>

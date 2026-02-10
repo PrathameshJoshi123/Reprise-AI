@@ -78,6 +78,20 @@ export default function PartnerDashboard() {
     number | null
   >(null);
 
+  // Loading states
+  const [assigningLoading, setAssigningLoading] = useState(false);
+  const [purchasingLoading, setPurchasingLoading] = useState<number | null>(
+    null,
+  );
+
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+
   useEffect(() => {
     fetchAllData();
     fetchAgents();
@@ -142,7 +156,6 @@ export default function PartnerDashboard() {
 
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [plans, setPlans] = useState<any[]>([]);
-  const [loadingPlanId, setLoadingPlanId] = useState<number | null>(null);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [paymentStep, setPaymentStep] = useState<
     "select_plan" | "payment_proof"
@@ -154,12 +167,10 @@ export default function PartnerDashboard() {
   const [screenshotPreview, setScreenshotPreview] = useState<string>("");
 
   const openBuyModal = async () => {
-    console.log("openBuyModal function called");
     try {
       const resp = await api.get("/partner/credit-plans");
       setPlans(resp.data || []);
       setShowBuyModal(true);
-      console.log("Buy credits modal opened successfully");
     } catch (err) {
       console.error("Failed to load credit plans:", err);
       handleApiError(err);
@@ -199,7 +210,7 @@ export default function PartnerDashboard() {
       const formData = new FormData();
       formData.append("screenshot", screenshot);
 
-      const resp = await api.post(
+      await api.post(
         `/partner/payment-request/${requestId}/upload-screenshot`,
         formData,
         { headers: { "Content-Type": "multipart/form-data" } },
@@ -226,28 +237,58 @@ export default function PartnerDashboard() {
 
   const handleScreenshotSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setScreenshot(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setScreenshotPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      alert("Please select a valid image file");
+      return;
     }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      alert("File size must be less than 5MB");
+      return;
+    }
+
+    setScreenshot(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setScreenshotPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleAssignAgent = async (orderId: number, agentId: number) => {
-    if (!confirm("Assign this order to the selected agent?")) return;
-    try {
-      await api.post(`/partner/orders/${orderId}/assign?agent_id=${agentId}`);
-      alert("Order assigned successfully");
-      setAssigningOrder(null);
-      setSelectedAgent(null);
-      await fetchAllData();
-    } catch (err: any) {
-      console.error("Assignment failed:", err);
-      handleApiError(err);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: "Assign Agent",
+      message: "Assign this order to the selected agent?",
+      onConfirm: async () => {
+        setAssigningLoading(true);
+        try {
+          await api.post(
+            `/partner/orders/${orderId}/assign?agent_id=${agentId}`,
+          );
+          alert("Order assigned successfully");
+          setAssigningOrder(null);
+          setSelectedAgent(null);
+          await fetchAllData();
+        } catch (err: any) {
+          console.error("Assignment failed:", err);
+          handleApiError(err);
+        } finally {
+          setAssigningLoading(false);
+          setConfirmDialog({
+            isOpen: false,
+            title: "",
+            message: "",
+            onConfirm: () => {},
+          });
+        }
+      },
+    });
   };
 
   const handlePurchaseLockedDeal = async (orderId: number) => {
@@ -266,12 +307,31 @@ export default function PartnerDashboard() {
 
       const confirmMsg = `Purchase this lead for ₹${info.lead_cost} credits?\n\nPhone: ${info.brand} ${info.model}\nPrice: ₹${info.final_quoted_price}\n\nYour balance will be: ₹${info.balance_after}`;
 
-      if (!confirm(confirmMsg)) return;
-
-      await api.post(`/sell-phone/partner/leads/${orderId}/purchase`);
-      alert("Lead purchased successfully!");
-      await refreshUser();
-      await fetchAllData();
+      setConfirmDialog({
+        isOpen: true,
+        title: "Purchase Lead",
+        message: confirmMsg,
+        onConfirm: async () => {
+          setPurchasingLoading(orderId);
+          try {
+            await api.post(`/sell-phone/partner/leads/${orderId}/purchase`);
+            alert("Lead purchased successfully!");
+            await refreshUser();
+            await fetchAllData();
+          } catch (err: any) {
+            console.error("Purchase failed:", err);
+            handleApiError(err, "purchase");
+          } finally {
+            setPurchasingLoading(null);
+            setConfirmDialog({
+              isOpen: false,
+              title: "",
+              message: "",
+              onConfirm: () => {},
+            });
+          }
+        },
+      });
     } catch (err: any) {
       console.error("Purchase failed:", err);
       handleApiError(err, "purchase");
@@ -281,11 +341,16 @@ export default function PartnerDashboard() {
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       lead_created: "bg-blue-500",
-      partner_locked: "bg-purple-500",
-      agent_assigned: "bg-yellow-500",
-      agent_accepted: "bg-green-500",
-      pickup_completed: "bg-indigo-500",
-      payment_processed: "bg-emerald-500",
+      available_for_partners: "bg-cyan-500",
+      lead_locked: "bg-purple-500",
+      lead_purchased: "bg-green-500",
+      assigned_to_agent: "bg-yellow-500",
+      accepted_by_agent: "bg-orange-500",
+      pickup_scheduled: "bg-indigo-500",
+      pickup_completed: "bg-emerald-500",
+      payment_processed: "bg-teal-500",
+      pickup_completed_declined: "bg-red-500",
+      cancelled: "bg-gray-500",
     };
     return colors[status] || "bg-gray-500";
   };
@@ -460,6 +525,8 @@ export default function PartnerDashboard() {
                       ? "text-white"
                       : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                   }`}
+                  aria-pressed={activeTab === tab.key}
+                  aria-label={`${tab.label} tab with ${tab.count} items`}
                 >
                   {activeTab === tab.key && (
                     <motion.div
@@ -609,8 +676,11 @@ export default function PartnerDashboard() {
                                 onClick={() =>
                                   handlePurchaseLockedDeal(lead.id)
                                 }
+                                disabled={purchasingLoading === lead.id}
                               >
-                                Purchase
+                                {purchasingLoading === lead.id
+                                  ? "Purchasing..."
+                                  : "Purchase"}
                               </Button>
                             </div>
                           </CardContent>
@@ -729,9 +799,13 @@ export default function PartnerDashboard() {
                                       selectedAgent &&
                                       handleAssignAgent(lead.id, selectedAgent)
                                     }
-                                    disabled={!selectedAgent}
+                                    disabled={
+                                      !selectedAgent || assigningLoading
+                                    }
                                   >
-                                    Confirm
+                                    {assigningLoading
+                                      ? "Assigning..."
+                                      : "Confirm"}
                                   </Button>
                                   <Button
                                     size="sm"
@@ -831,105 +905,119 @@ export default function PartnerDashboard() {
                 )}
               </motion.div>
             )}
+
+            {activeTab === "credits" && (
+              <motion.div
+                key="credits"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {loading ? (
+                  <div className="text-center py-12">
+                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
+                  </div>
+                ) : (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Payment Requests</CardTitle>
+                      <CardDescription>
+                        Track your credit purchase payment requests and approval
+                        status
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {paymentRequests.length === 0 ? (
+                        <div className="text-center py-12">
+                          <p className="text-gray-500 mb-4">
+                            No payment requests yet
+                          </p>
+                          <Button onClick={openBuyModal}>Buy Credits</Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {paymentRequests.map((req) => (
+                            <motion.div
+                              key={req.id}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex-grow">
+                                <div className="font-semibold">
+                                  {req.credit_amount.toFixed(0)} Credits • ₹
+                                  {req.payment_amount.toFixed(0)}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {new Date(
+                                    req.created_at,
+                                  ).toLocaleDateString()}
+                                </div>
+                                {req.approval_notes && (
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    {req.approval_notes}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                {req.approval_status === "pending" && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-yellow-100 text-yellow-800"
+                                  >
+                                    ⏳ Pending
+                                  </Badge>
+                                )}
+                                {req.approval_status === "approved" && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-green-100 text-green-800"
+                                  >
+                                    ✅ Approved
+                                  </Badge>
+                                )}
+                                {req.approval_status === "rejected" && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-red-100 text-red-800"
+                                  >
+                                    ❌ Rejected
+                                  </Badge>
+                                )}
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {paymentRequests.length > 0 && (
+                  <Card className="bg-blue-50 border-blue-200">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start gap-3">
+                        <div className="text-2xl">ℹ️</div>
+                        <div>
+                          <p className="font-semibold text-sm mb-1">
+                            About Credit Purchases
+                          </p>
+                          <p className="text-sm text-gray-700">
+                            When you submit a payment screenshot, our admin team
+                            will review it within 24 hours. Once approved,
+                            credits will be instantly added to your account.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </motion.div>
+            )}
           </AnimatePresence>
         </div>
       </div>
-
-      {/* Credits Tab */}
-      {activeTab === "credits" && (
-        <div className="mt-0">
-          <motion.div
-            key="credits"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-2 pt-2"
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle>Payment Requests</CardTitle>
-                <CardDescription>
-                  Track your credit purchase payment requests and approval
-                  status
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {paymentRequests.length === 0 ? (
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 mb-1">
-                      No payment requests yet
-                    </p>
-                    <Button onClick={openBuyModal}>Buy Credits</Button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {paymentRequests.map((req) => (
-                      <motion.div
-                        key={req.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex-grow">
-                          <div className="font-semibold">
-                            {req.credit_amount.toFixed(0)} Credits • ₹
-                            {req.payment_amount.toFixed(0)}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {new Date(req.created_at).toLocaleDateString()}
-                          </div>
-                          {req.approval_notes && (
-                            <div className="text-xs text-gray-600 mt-1">
-                              {req.approval_notes}
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          {req.approval_status === "pending" && (
-                            <Badge
-                              variant="secondary"
-                              className="bg-yellow-100 text-yellow-800"
-                            >
-                              ⏳ Pending
-                            </Badge>
-                          )}
-                          {req.approval_status === "approved" && (
-                            <Badge className="bg-green-600">✓ Approved</Badge>
-                          )}
-                          {req.approval_status === "rejected" && (
-                            <Badge variant="destructive">✗ Rejected</Badge>
-                          )}
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {paymentRequests.length > 0 && (
-              <Card className="bg-blue-50 border-blue-200">
-                <CardContent className="pt-6">
-                  <div className="flex items-start gap-3">
-                    <div className="text-2xl">ℹ️</div>
-                    <div>
-                      <p className="font-semibold text-sm mb-1">
-                        About Credit Purchases
-                      </p>
-                      <p className="text-sm text-gray-700">
-                        When you submit a payment screenshot, our admin team
-                        will review it within 24 hours. Once approved, credits
-                        will be instantly added to your account.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </motion.div>
-        </div>
-      )}
 
       {/* Pickup Details Modal */}
       {selectedOrderIdForPickup && (
@@ -1017,9 +1105,9 @@ export default function PartnerDashboard() {
                                     size="sm"
                                     className="text-xs h-8 w-full sm:w-auto bg-purple-600 hover:bg-purple-700"
                                     onClick={() => handleBuyPlan(p.id)}
-                                    disabled={loadingPlanId !== null}
+                                    disabled={purchaseLoading}
                                   >
-                                    {loadingPlanId === p.id
+                                    {purchaseLoading
                                       ? "Processing..."
                                       : "Select"}
                                   </Button>
@@ -1164,6 +1252,54 @@ export default function PartnerDashboard() {
                   </div>
                 </>
               )}
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>
+      )}
+
+      {/* Confirmation Dialog */}
+      {confirmDialog.isOpen && (
+        <AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() =>
+                setConfirmDialog({ ...confirmDialog, isOpen: false })
+              }
+            ></div>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white rounded-lg p-6 shadow-xl max-w-md w-full"
+            >
+              <h3 className="text-lg font-semibold mb-2">
+                {confirmDialog.title}
+              </h3>
+              <p className="text-gray-600 mb-6 whitespace-pre-line">
+                {confirmDialog.message}
+              </p>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    setConfirmDialog({ ...confirmDialog, isOpen: false })
+                  }
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={confirmDialog.onConfirm}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Confirm
+                </Button>
+              </div>
             </motion.div>
           </motion.div>
         </AnimatePresence>

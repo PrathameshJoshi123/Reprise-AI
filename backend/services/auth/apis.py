@@ -81,6 +81,31 @@ def check_pincode_serviceability(pincode: str, db: Session = Depends(get_db)):
         "message": serviceability_info.get("message")
     }
 
+@router.get("/check-email/{email}", tags=["auth"])
+def check_email_availability(email: str, db: Session = Depends(get_db)):
+    """
+    Check if an email is already registered.
+    """
+    existing = db.query(models.User).filter(models.User.email == email).first()
+    return {"available": not bool(existing)}
+
+@router.get("/check-phone/{phone}", tags=["auth"])
+def check_phone_availability(phone: str, db: Session = Depends(get_db)):
+    """
+    Check if a phone number is already registered.
+    """
+    existing = db.query(models.User).filter(models.User.phone == phone).first()
+    return {"available": not bool(existing)}
+
+@router.get("/check-referral/{code}", tags=["auth"])
+def check_referral_code(code: str, db: Session = Depends(get_db)):
+    """
+    Check if a referral code is valid.
+    """
+    from backend.services.referral.utils import validate_referral_code
+    valid, message, _ = validate_referral_code(db, code)
+    return {"valid": valid, "message": message}
+
 
 @router.get("/me", response_model=schemas.FullNameOut, tags=["auth"])
 def read_me(current_user: models.User = Depends(utils.get_current_user)):

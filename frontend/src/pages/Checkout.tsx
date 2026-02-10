@@ -38,20 +38,36 @@ import api from "@/lib/api";
 import { toast } from "sonner";
 
 export default function Checkout() {
+  // Validation functions
+  const validateEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validatePhone = (phone: string) => /^\+?[\d\s-]{10,}$/.test(phone);
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
 
   // Retrieve phoneData from localStorage (set in PhoneDetails) for reliability
   // Fallback to location.state or default if not available
-  const phoneData = JSON.parse(localStorage.getItem("phoneData") || "null") ||
-    location.state?.phoneData || {
+  let phoneData;
+  try {
+    phoneData = JSON.parse(localStorage.getItem("phoneData") || "null") ||
+      location.state?.phoneData || {
+        id: "default",
+        name: "Unknown Phone",
+        variant: "N/A",
+        condition: "N/A",
+        price: 0,
+      };
+  } catch (error) {
+    console.error("Invalid phoneData in localStorage:", error);
+    phoneData = location.state?.phoneData || {
       id: "default",
       name: "Unknown Phone",
       variant: "N/A",
       condition: "N/A",
       price: 0,
     };
+  }
 
   // Form state for pre-filling from user data
   const [firstName, setFirstName] = useState("");
@@ -84,6 +100,24 @@ export default function Checkout() {
   const [originalHad, setOriginalHad] = useState({
     phone: false,
     address: false,
+  });
+
+  const [retrying, setRetrying] = useState(false);
+
+  const [updatingProfile, setUpdatingProfile] = useState(false);
+
+  // Error states for inline validation
+  const [fieldErrors, setFieldErrors] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    addressLine: "",
+    cityVal: "",
+    stateVal: "",
+    pincodeVal: "",
+    pickupDateVal: "",
+    pickupTimeVal: "",
   });
 
   // Check pincode serviceability
@@ -146,9 +180,7 @@ export default function Checkout() {
       const token = localStorage.getItem("accessToken");
       if (!token) return;
       try {
-        const API_URL = (
-          import.meta.env.VITE_API_URL || "http://localhost:8000"
-        ).replace(/\/$/, "");
+        const API_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
         const res = await fetch(`${API_URL}/auth/me/details`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -179,8 +211,86 @@ export default function Checkout() {
     })();
   }, [user]);
 
+  // Auto-save form data to localStorage
+  useEffect(() => {
+    const formData = {
+      firstName,
+      lastName,
+      phone,
+      email,
+      addressLine,
+      cityVal,
+      stateVal,
+      pincodeVal,
+      pickupDateVal,
+      pickupTimeVal,
+      paymentMethod,
+      step,
+    };
+    localStorage.setItem("checkoutFormData", JSON.stringify(formData));
+  }, [
+    firstName,
+    lastName,
+    phone,
+    email,
+    addressLine,
+    cityVal,
+    stateVal,
+    pincodeVal,
+    pickupDateVal,
+    pickupTimeVal,
+    paymentMethod,
+    step,
+  ]);
+
+  // Load saved form data on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("checkoutFormData");
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        setFirstName(data.firstName || "");
+        setLastName(data.lastName || "");
+        setPhone(data.phone || "");
+        setEmail(data.email || "");
+        setAddressLine(data.addressLine || "");
+        setCityVal(data.cityVal || "");
+        setStateVal(data.stateVal || "");
+        setPincodeVal(data.pincodeVal || "");
+        setPickupDateVal(data.pickupDateVal || "");
+        setPickupTimeVal(data.pickupTimeVal || "");
+        setPaymentMethod(data.paymentMethod || "upi");
+        setStep(data.step || 1);
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, []);
+
   const handleSubmitAddress = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const errors = {
+      firstName: firstName ? "" : "First name is required",
+      lastName: lastName ? "" : "Last name is required",
+      phone: validatePhone(phone) ? "" : "Please enter a valid phone number",
+      email: validateEmail(email) ? "" : "Please enter a valid email address",
+      addressLine: addressLine ? "" : "Address is required",
+      cityVal: cityVal ? "" : "City is required",
+      stateVal: stateVal ? "" : "State is required",
+      pincodeVal: pincodeVal.length === 6 ? "" : "Pincode must be 6 digits",
+      pickupDateVal: pickupDateVal ? "" : "Pickup date is required",
+      pickupTimeVal: pickupTimeVal ? "" : "Pickup time is required",
+    };
+
+    setFieldErrors(errors);
+
+    const hasErrors = Object.values(errors).some((error) => error);
+    if (hasErrors) {
+      toast.error("Please fix the errors in the form.");
+      return;
+    }
+
     setStep(2);
     window.scrollTo(0, 0);
   };
@@ -204,7 +314,6 @@ export default function Checkout() {
     if (!serviceableInfo) {
       await checkPincode(pincodeVal);
       // Wait for check to complete
-      return;
     }
 
     // Block order creation if pincode is not serviceable
@@ -232,10 +341,16 @@ export default function Checkout() {
         updatePayload.address = addressLine;
 
       if (Object.keys(updatePayload).length > 0) {
+        setUpdatingProfile(true);
         try {
           await api.patch("/auth/me", updatePayload);
         } catch (err) {
           console.error("Failed to update profile during checkout", err);
+          toast.error(
+            "Profile update failed, but order was created. You can update details later.",
+          );
+        } finally {
+          setUpdatingProfile(false);
         }
       }
     }
@@ -281,7 +396,12 @@ export default function Checkout() {
           description: "A server error or validation prevented order creation.",
           action: {
             label: "Retry",
-            onClick: () => handleSubmitPayment(e as any),
+            onClick: () => {
+              if (!retrying) {
+                setRetrying(true);
+                handleSubmitPayment(e as any).finally(() => setRetrying(false));
+              }
+            },
           },
           duration: Infinity,
         },
@@ -297,9 +417,35 @@ export default function Checkout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Skip Links for Accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-blue-600 text-white px-4 py-2 rounded z-50"
+      >
+        Skip to main content
+      </a>
+      <a
+        href="#step-1"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-32 bg-blue-600 text-white px-4 py-2 rounded z-50"
+      >
+        Skip to pickup details
+      </a>
+      <a
+        href="#step-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-64 bg-blue-600 text-white px-4 py-2 rounded z-50"
+      >
+        Skip to payment
+      </a>
+      <a
+        href="#step-3"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:right-4 bg-blue-600 text-white px-4 py-2 rounded z-50"
+      >
+        Skip to confirmation
+      </a>
+
       <Header />
 
-      <main className="flex-grow py-8">
+      <main id="main-content" className="flex-grow py-8">
         <div className="container mx-auto px-4">
           {/* Enhanced Steps Indicator */}
           <div className="mb-10">
@@ -353,7 +499,10 @@ export default function Checkout() {
               <div className="lg:col-span-2">
                 {/* Step 1: Pickup Details */}
                 {step === 1 && (
-                  <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                  <div
+                    id="step-1"
+                    className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+                  >
                     <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
                       <h2 className="text-xl font-bold text-white flex items-center gap-2">
                         <MapPin size={22} />
@@ -362,6 +511,28 @@ export default function Checkout() {
                       <p className="text-blue-100 text-sm mt-1">
                         Where should we pick up your device?
                       </p>
+                      {user && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            if (fetchedUser) {
+                              const parts = (fetchedUser.full_name || "").split(
+                                " ",
+                              );
+                              setFirstName(parts[0] || "");
+                              setLastName(parts.slice(1).join(" ") || "");
+                              setPhone(fetchedUser.phone || "");
+                              setEmail(fetchedUser.email || "");
+                              setAddressLine(fetchedUser.address || "");
+                              toast.success("Fields filled from your profile!");
+                            }
+                          }}
+                          className="mt-2 bg-white/20 text-white hover:bg-white/30"
+                        >
+                          Fill from Profile
+                        </Button>
+                      )}
                     </div>
 
                     <form
@@ -381,9 +552,23 @@ export default function Checkout() {
                             value={firstName}
                             onChange={(e) => setFirstName(e.target.value)}
                             required
-                            className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                            className={`h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${fieldErrors.firstName ? "border-red-500" : ""}`}
                             placeholder="John"
+                            aria-describedby={
+                              fieldErrors.firstName
+                                ? "first-name-error"
+                                : undefined
+                            }
                           />
+                          {fieldErrors.firstName && (
+                            <p
+                              id="first-name-error"
+                              className="text-sm text-red-600"
+                              role="alert"
+                            >
+                              {fieldErrors.firstName}
+                            </p>
+                          )}
                         </div>
                         <div className="space-y-2">
                           <Label
@@ -397,9 +582,23 @@ export default function Checkout() {
                             value={lastName}
                             onChange={(e) => setLastName(e.target.value)}
                             required
-                            className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                            className={`h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${fieldErrors.lastName ? "border-red-500" : ""}`}
                             placeholder="Doe"
+                            aria-describedby={
+                              fieldErrors.lastName
+                                ? "last-name-error"
+                                : undefined
+                            }
                           />
+                          {fieldErrors.lastName && (
+                            <p
+                              id="last-name-error"
+                              className="text-sm text-red-600"
+                              role="alert"
+                            >
+                              {fieldErrors.lastName}
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -416,9 +615,21 @@ export default function Checkout() {
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
                             required
-                            className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                            className={`h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${fieldErrors.phone ? "border-red-500" : ""}`}
                             placeholder="+91 98765 43210"
+                            aria-describedby={
+                              fieldErrors.phone ? "phone-error" : undefined
+                            }
                           />
+                          {fieldErrors.phone && (
+                            <p
+                              id="phone-error"
+                              className="text-sm text-red-600"
+                              role="alert"
+                            >
+                              {fieldErrors.phone}
+                            </p>
+                          )}
                         </div>
                         <div className="space-y-2">
                           <Label
@@ -433,9 +644,21 @@ export default function Checkout() {
                             onChange={(e) => setEmail(e.target.value)}
                             type="email"
                             required
-                            className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                            className={`h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${fieldErrors.email ? "border-red-500" : ""}`}
                             placeholder="john@example.com"
+                            aria-describedby={
+                              fieldErrors.email ? "email-error" : undefined
+                            }
                           />
+                          {fieldErrors.email && (
+                            <p
+                              id="email-error"
+                              className="text-sm text-red-600"
+                              role="alert"
+                            >
+                              {fieldErrors.email}
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -451,9 +674,23 @@ export default function Checkout() {
                           value={addressLine}
                           onChange={(e) => setAddressLine(e.target.value)}
                           required
-                          className="min-h-[80px] border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                          className={`min-h-[80px] border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${fieldErrors.addressLine ? "border-red-500" : ""}`}
                           placeholder="House/Flat No., Street, Landmark..."
+                          aria-describedby={
+                            fieldErrors.addressLine
+                              ? "address-error"
+                              : undefined
+                          }
                         />
+                        {fieldErrors.addressLine && (
+                          <p
+                            id="address-error"
+                            className="text-sm text-red-600"
+                            role="alert"
+                          >
+                            {fieldErrors.addressLine}
+                          </p>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -469,9 +706,21 @@ export default function Checkout() {
                             value={cityVal}
                             onChange={(e) => setCityVal(e.target.value)}
                             required
-                            className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                            className={`h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${fieldErrors.cityVal ? "border-red-500" : ""}`}
                             placeholder="Mumbai"
+                            aria-describedby={
+                              fieldErrors.cityVal ? "city-error" : undefined
+                            }
                           />
+                          {fieldErrors.cityVal && (
+                            <p
+                              id="city-error"
+                              className="text-sm text-red-600"
+                              role="alert"
+                            >
+                              {fieldErrors.cityVal}
+                            </p>
+                          )}
                         </div>
                         <div className="space-y-2">
                           <Label
@@ -483,7 +732,7 @@ export default function Checkout() {
                           <Select value={stateVal} onValueChange={setStateVal}>
                             <SelectTrigger
                               id="state"
-                              className="h-11 border-gray-200"
+                              className={`h-11 border-gray-200 ${fieldErrors.stateVal ? "border-red-500" : ""}`}
                             >
                               <SelectValue placeholder="Select state" />
                             </SelectTrigger>
@@ -568,6 +817,15 @@ export default function Checkout() {
                               </SelectItem>
                             </SelectContent>
                           </Select>
+                          {fieldErrors.stateVal && (
+                            <p
+                              id="state-error"
+                              className="text-sm text-red-600"
+                              role="alert"
+                            >
+                              {fieldErrors.stateVal}
+                            </p>
+                          )}
                         </div>
                         <div className="space-y-2">
                           <Label
@@ -597,7 +855,8 @@ export default function Checkout() {
                             <Alert className="bg-green-50 border-green-200">
                               <AlertDescription className="text-green-800 text-sm">
                                 ✓ Great! {serviceableInfo.partner_count}{" "}
-                                partner(s) service your area
+                                partner(s) service your area. Estimated pickup:
+                                1-2 days.
                               </AlertDescription>
                             </Alert>
                           )}
@@ -625,6 +884,7 @@ export default function Checkout() {
                             type="date"
                             value={pickupDateVal}
                             onChange={(e) => setPickupDateVal(e.target.value)}
+                            min={new Date().toISOString().split("T")[0]}
                             required
                             className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                           />
@@ -679,7 +939,15 @@ export default function Checkout() {
                           Continue to Payment
                           <ArrowLeft size={18} className="ml-2 rotate-180" />
                         </Button>
-                        <div className="text-center">
+                        <div className="flex justify-between">
+                          <Button
+                            variant="outline"
+                            type="button"
+                            onClick={() => toast.success("Draft saved!")}
+                            className="text-sm"
+                          >
+                            Save Draft
+                          </Button>
                           <Link
                             to="/sell-phone"
                             className="text-sm text-gray-500 hover:text-blue-600 inline-flex items-center transition-colors"
@@ -695,7 +963,10 @@ export default function Checkout() {
 
                 {/* Step 2: Payment Method */}
                 {step === 2 && (
-                  <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                  <div
+                    id="step-2"
+                    className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+                  >
                     <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
                       <h2 className="text-xl font-bold text-white flex items-center gap-2">
                         <CreditCard size={22} />
@@ -836,7 +1107,10 @@ export default function Checkout() {
 
                 {/* Step 3: Confirmation */}
                 {step === 3 && (
-                  <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                  <div
+                    id="step-3"
+                    className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+                  >
                     <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-8 text-center">
                       <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 animate-in zoom-in duration-300">
                         <CheckCircle className="h-10 w-10 text-white" />
@@ -916,7 +1190,7 @@ export default function Checkout() {
                     <div className="flex items-center mb-4 p-3 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl">
                       <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center mr-3 shadow-sm">
                         <img
-                          src={`https://placehold.co/200x200?text=${phoneData.name}`}
+                          src={`https://placehold.co/200x200?text=${encodeURIComponent(phoneData.name)}`}
                           alt={phoneData.name}
                           className="max-h-14"
                         />
@@ -1029,6 +1303,8 @@ export default function Checkout() {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           aria-modal="true"
+          role="dialog"
+          aria-labelledby="order-details-title"
         >
           <div
             className="absolute inset-0 bg-black/40"
@@ -1036,10 +1312,14 @@ export default function Checkout() {
           />
           <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 p-6 z-10">
             <div className="flex justify-between items-start mb-4">
-              <h3 className="text-lg font-semibold">Order Details</h3>
+              <h3 id="order-details-title" className="text-lg font-semibold">
+                Order Details
+              </h3>
               <button
                 onClick={() => setShowOrderModal(false)}
                 className="text-gray-500 hover:text-gray-700"
+                aria-label="Close order details modal"
+                autoFocus
               >
                 Close
               </button>

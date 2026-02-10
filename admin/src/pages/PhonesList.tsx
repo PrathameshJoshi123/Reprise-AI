@@ -139,7 +139,7 @@ export default function PhonesList() {
         );
       } else {
         const retryFn = () => fetchPhones();
-        showErrorToastWithRetry(error, retryFn, "Phones");
+        showErrorToastWithRetry(error, retryFn);
       }
     } finally {
       setLoading(false);
@@ -205,11 +205,7 @@ export default function PhonesList() {
       await fetchPhones();
     } catch (error: any) {
       console.error("Error uploading image:", error);
-      showErrorToastWithRetry(
-        error,
-        () => uploadImageForPhone(phoneId),
-        "Upload image",
-      );
+      showErrorToastWithRetry(error, () => uploadImageForPhone(phoneId));
     } finally {
       setUploadingImage(false);
     }
@@ -231,11 +227,7 @@ export default function PhonesList() {
       await fetchPhones();
     } catch (error: any) {
       console.error("Error setting image URL:", error);
-      showErrorToastWithRetry(
-        error,
-        () => setImageUrl(phoneId, imageUrl),
-        "Set image URL",
-      );
+      showErrorToastWithRetry(error, () => setImageUrl(phoneId, imageUrl));
     }
   };
 
@@ -269,7 +261,7 @@ export default function PhonesList() {
           duration: 4000,
         });
       } else {
-        showErrorToastWithRetry(error, () => handleCreate(e), "Create phone");
+        showErrorToastWithRetry(error, () => handleCreate(e));
       }
     } finally {
       setSubmitting(false);
@@ -325,7 +317,7 @@ export default function PhonesList() {
       ) {
         toast.error("This phone model already exists.", { duration: 4000 });
       } else {
-        showErrorToastWithRetry(error, () => handleEdit(e), "Update phone");
+        showErrorToastWithRetry(error, () => handleEdit(e));
       }
     } finally {
       setSubmitting(false);
@@ -346,7 +338,7 @@ export default function PhonesList() {
       if (error.response?.status === 404) {
         toast.error("Phone not found or already deleted.", { duration: 4000 });
       } else {
-        showErrorToastWithRetry(error, handleDelete, "Delete phone");
+        showErrorToastWithRetry(error, handleDelete);
       }
     } finally {
       setSubmitting(false);
