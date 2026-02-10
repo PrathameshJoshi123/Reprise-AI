@@ -32,12 +32,11 @@ const Wallet = () => {
   const [plans, setPlans] = useState<CreditPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [purchasing, setPurchasing] = useState(false);
+  const [processingPlanId, setProcessingPlanId] = useState<number | null>(null);
 
   // Payment Modal State
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<CreditPlan | null>(null);
-  const [paymentRequestId, setPaymentRequestId] = useState<number | null>(null);
   const [screenshot, setScreenshot] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -79,23 +78,18 @@ const Wallet = () => {
         { text: "Cancel", style: "cancel" },
         {
           text: "Proceed to Pay",
-          onPress: async () => {
-            try {
-              await createPaymentRequest(plan);
-            } catch (error: any) {
-              Alert.alert(
-                "Error",
-                getErrorMessage(error, "Failed to purchase credits"),
-              );
-            }
+          onPress: () => {
+            setSelectedPlan(plan);
+            setModalVisible(true);
           },
         },
       ],
     );
   };
 
-  const createPaymentRequest = async (plan: CreditPlan) => {
-    setPurchasing(true);
+  const createPaymentRequest = async (
+    plan: CreditPlan,
+  ): Promise<number | null> => {
     try {
       // The API expects x-www-form-urlencoded for plan_id
       const params = new URLSearchParams();
@@ -119,20 +113,17 @@ const Wallet = () => {
             "Could not create payment request. Please try again.",
           ),
         );
-        return;
+        return null;
       }
 
-      setPaymentRequestId(requestId);
-      setSelectedPlan(plan);
-      setModalVisible(true);
+      return requestId;
     } catch (error: any) {
       console.error("Payment request error:", error);
       Alert.alert(
         "Error",
         getErrorMessage(error, "Failed to initiate payment request"),
       );
-    } finally {
-      setPurchasing(false);
+      return null;
     }
   };
 
@@ -150,10 +141,17 @@ const Wallet = () => {
   };
 
   const uploadScreenshot = async () => {
-    if (!paymentRequestId || !screenshot) return;
+    if (!selectedPlan || !screenshot) return;
 
     setUploading(true);
     try {
+      // First create the payment request
+      const requestId = await createPaymentRequest(selectedPlan);
+      if (!requestId) {
+        return; // Error already shown in createPaymentRequest
+      }
+
+      // Now upload the screenshot
       const formData = new FormData();
 
       // Prepare file for upload
@@ -167,7 +165,7 @@ const Wallet = () => {
       formData.append("screenshot", fileToUpload);
 
       await api.post(
-        `/partner/payment-request/${paymentRequestId}/upload-screenshot`,
+        `/partner/payment-request/${requestId}/upload-screenshot`,
         formData,
         {
           headers: {
@@ -178,7 +176,6 @@ const Wallet = () => {
 
       setModalVisible(false);
       setScreenshot(null);
-      setPaymentRequestId(null);
       setSelectedPlan(null);
 
       Alert.alert(
@@ -202,7 +199,6 @@ const Wallet = () => {
   const closePaymentModal = () => {
     setModalVisible(false);
     setScreenshot(null);
-    setPaymentRequestId(null);
     setSelectedPlan(null);
   };
 
@@ -334,11 +330,13 @@ const Wallet = () => {
                     <TouchableOpacity
                       className="bg-teal-600 rounded-xl py-4 items-center"
                       onPress={() => handlePurchasePlan(plan)}
-                      disabled={purchasing}
+                      disabled={processingPlanId === plan.id}
                       activeOpacity={0.8}
                     >
                       <Text className="text-white font-bold text-base">
-                        {purchasing ? "Processing..." : "Purchase Plan"}
+                        {processingPlanId === plan.id
+                          ? "Processing..."
+                          : "Purchase Plan"}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -407,7 +405,7 @@ const Wallet = () => {
                 <View className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
                   {/* Using require for local assets */}
                   <Image
-                    source={require("../../assets/images/qr_code.jpg")}
+                    source={require("../../assets/images/qr_code.png")}
                     style={{ width: 250, height: 250 }}
                     resizeMode="contain"
                   />

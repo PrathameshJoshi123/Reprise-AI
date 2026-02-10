@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, type Router } from "expo-router";
 import api from "../../lib/api";
 import { Order } from "../../types";
 import { formatPrice, formatCountdown } from "../../utils/formatting";
@@ -53,7 +53,6 @@ export default function DashboardScreen() {
         api.get<Order[]>("/partner/locked-deals"),
         api.get("/partner/me"),
       ]);
-
       setOrders(ordersRes.data);
       setLockedDeals(lockedRes.data);
       setCreditBalance(partnerRes.data.credit_balance || 0);
@@ -304,7 +303,7 @@ function OrderCard({
   order: Order;
   activeTab: TabType;
   onPurchase: (id: number) => void;
-  router: any;
+  router: Router;
 }) {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
 

@@ -1,6 +1,6 @@
 // Backend API Base URL - Change this to your production URL when deploying
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
-
+console.log(API_BASE_URL);
 export const API_ENDPOINTS = {
   PARTNER_LOGIN: "/partner/login",
   PARTNER_SIGNUP: "/partner/signup",

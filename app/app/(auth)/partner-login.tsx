@@ -24,7 +24,14 @@ import {
   validatePassword,
   validatePhone,
   validatePincodes,
-  validateRequired,
+  validateFullName,
+  validateCompanyName,
+  validateBusinessAddress,
+  checkEmailExists,
+  checkPhoneExists,
+  sanitizeInput,
+  formatPhoneNumber,
+  formatUppercase,
 } from "../../utils/validation";
 
 export default function PartnerLoginScreen() {
@@ -54,7 +61,7 @@ export default function PartnerLoginScreen() {
     serviceable_pincodes: "",
   });
 
-  const validateForm = (): boolean => {
+  const validateForm = async (): Promise<boolean> => {
     const newErrors: Record<string, string> = {};
 
     // Common validations
@@ -66,22 +73,16 @@ export default function PartnerLoginScreen() {
 
     // Signup-only validations
     if (!isLogin) {
-      const nameError = validateRequired(formData.full_name, "Full Name");
+      const nameError = validateFullName(formData.full_name);
       if (nameError) newErrors.full_name = nameError;
 
       const phoneError = validatePhone(formData.phone);
       if (phoneError) newErrors.phone = phoneError;
 
-      const companyError = validateRequired(
-        formData.company_name,
-        "Company Name",
-      );
+      const companyError = validateCompanyName(formData.company_name);
       if (companyError) newErrors.company_name = companyError;
 
-      const addressError = validateRequired(
-        formData.business_address,
-        "Business Address",
-      );
+      const addressError = validateBusinessAddress(formData.business_address);
       if (addressError) newErrors.business_address = addressError;
 
       const panError = validatePAN(formData.pan_number);
@@ -92,6 +93,17 @@ export default function PartnerLoginScreen() {
 
       const pincodesError = validatePincodes(formData.serviceable_pincodes);
       if (pincodesError) newErrors.serviceable_pincodes = pincodesError;
+
+      // Async validations - check email and phone uniqueness
+      if (!emailError) {
+        const emailExists = await checkEmailExists(formData.email);
+        if (emailExists) newErrors.email = 'This email is already registered';
+      }
+
+      if (!phoneError) {
+        const phoneExists = await checkPhoneExists(formData.phone);
+        if (phoneExists) newErrors.phone = 'This phone number is already registered';
+      }
     }
 
     setErrors(newErrors);
@@ -99,7 +111,8 @@ export default function PartnerLoginScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+    const isValid = await validateForm();
+    if (!isValid) return;
 
     setLoading(true);
     try {
@@ -241,7 +254,7 @@ export default function PartnerLoginScreen() {
                       placeholderTextColor="#94a3b8"
                       value={formData.email}
                       onChangeText={(text) =>
-                        setFormData({ ...formData, email: text })
+                        setFormData({ ...formData, email: sanitizeInput(text.trim()) })
                       }
                       keyboardType="email-address"
                       autoCapitalize="none"
@@ -269,7 +282,7 @@ export default function PartnerLoginScreen() {
                       placeholderTextColor="#94a3b8"
                       value={formData.password}
                       onChangeText={(text) =>
-                        setFormData({ ...formData, password: text })
+                        setFormData({ ...formData, password: sanitizeInput(text) })
                       }
                       secureTextEntry
                       autoCapitalize="none"
@@ -430,9 +443,10 @@ export default function PartnerLoginScreen() {
               }}
               value={formData.full_name}
               onChangeText={(text) =>
-                setFormData({ ...formData, full_name: text })
+                setFormData({ ...formData, full_name: sanitizeInput(text) })
               }
               placeholder="Enter your full name"
+              maxLength={100}
             />
             {errors.full_name && (
               <Text style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>
@@ -455,7 +469,7 @@ export default function PartnerLoginScreen() {
                 backgroundColor: "#fff",
               }}
               value={formData.phone}
-              onChangeText={(text) => setFormData({ ...formData, phone: text })}
+              onChangeText={(text) => setFormData({ ...formData, phone: formatPhoneNumber(text) })}
               placeholder="10-digit mobile number"
               keyboardType="phone-pad"
               maxLength={10}
@@ -482,9 +496,10 @@ export default function PartnerLoginScreen() {
               }}
               value={formData.company_name}
               onChangeText={(text) =>
-                setFormData({ ...formData, company_name: text })
+                setFormData({ ...formData, company_name: sanitizeInput(text) })
               }
               placeholder="Enter company name"
+              maxLength={200}
             />
             {errors.company_name && (
               <Text style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>
@@ -510,11 +525,12 @@ export default function PartnerLoginScreen() {
               }}
               value={formData.business_address}
               onChangeText={(text) =>
-                setFormData({ ...formData, business_address: text })
+                setFormData({ ...formData, business_address: sanitizeInput(text) })
               }
               placeholder="Complete business address"
               multiline
               numberOfLines={3}
+              maxLength={500}
             />
             {errors.business_address && (
               <Text style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>
@@ -538,7 +554,7 @@ export default function PartnerLoginScreen() {
               }}
               value={formData.pan_number}
               onChangeText={(text) =>
-                setFormData({ ...formData, pan_number: text.toUpperCase() })
+                setFormData({ ...formData, pan_number: formatUppercase(sanitizeInput(text)) })
               }
               placeholder="ABCDE1234F"
               maxLength={10}
@@ -566,7 +582,7 @@ export default function PartnerLoginScreen() {
               }}
               value={formData.gst_number}
               onChangeText={(text) =>
-                setFormData({ ...formData, gst_number: text.toUpperCase() })
+                setFormData({ ...formData, gst_number: formatUppercase(sanitizeInput(text)) })
               }
               placeholder="15-digit GST number"
               maxLength={15}
@@ -593,11 +609,12 @@ export default function PartnerLoginScreen() {
                 backgroundColor: "#fff",
               }}
               value={formData.email}
-              onChangeText={(text) => setFormData({ ...formData, email: text })}
+              onChangeText={(text) => setFormData({ ...formData, email: sanitizeInput(text.trim()) })}
               placeholder="email@example.com"
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
+              maxLength={255}
             />
             {errors.email && (
               <Text style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>
@@ -622,10 +639,11 @@ export default function PartnerLoginScreen() {
               }}
               value={formData.password}
               onChangeText={(text) =>
-                setFormData({ ...formData, password: text })
+                setFormData({ ...formData, password: sanitizeInput(text) })
               }
-              placeholder="Create a password"
+              placeholder="Create a password (min 8 characters)"
               secureTextEntry
+              maxLength={128}
             />
             {errors.password && (
               <Text style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>
@@ -653,7 +671,7 @@ export default function PartnerLoginScreen() {
               }}
               value={formData.serviceable_pincodes}
               onChangeText={(text) =>
-                setFormData({ ...formData, serviceable_pincodes: text })
+                setFormData({ ...formData, serviceable_pincodes: sanitizeInput(text) })
               }
               placeholder="e.g. 110001, 110002"
               multiline

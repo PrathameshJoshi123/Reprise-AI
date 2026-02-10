@@ -14,6 +14,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
+import {
+  validateEmail,
+  validatePassword,
+  sanitizeInput,
+} from "../../utils/validation";
 
 export default function AgentLoginScreen() {
   const { login } = useAuth();
@@ -21,12 +26,23 @@ export default function AgentLoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    const emailError = validateEmail(email);
+    if (emailError) newErrors.email = emailError;
+
+    const passwordError = validatePassword(password);
+    if (passwordError) newErrors.password = passwordError;
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please enter both email and password");
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
     try {
@@ -59,7 +75,10 @@ export default function AgentLoginScreen() {
 
           <View style={styles.contentContainer}>
             {/* Back Button */}
-            <TouchableOpacity onPress={()=>router.push("/")} style={styles.backButton}>
+            <TouchableOpacity
+              onPress={() => router.push("/")}
+              style={styles.backButton}
+            >
               <Ionicons name="chevron-back" size={24} color="#475569" />
             </TouchableOpacity>
 
@@ -95,12 +114,18 @@ export default function AgentLoginScreen() {
                     placeholder="Enter your email"
                     placeholderTextColor="#94a3b8"
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={(text) =>
+                      setEmail(sanitizeInput(text.trim()))
+                    }
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoComplete="email"
+                    maxLength={255}
                   />
                 </View>
+                {errors.email && (
+                  <Text style={styles.errorText}>{errors.email}</Text>
+                )}
               </View>
 
               {/* Password Input */}
@@ -118,10 +143,11 @@ export default function AgentLoginScreen() {
                     placeholder="Enter your password"
                     placeholderTextColor="#94a3b8"
                     value={password}
-                    onChangeText={setPassword}
+                    onChangeText={(text) => setPassword(sanitizeInput(text))}
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
                     autoComplete="password"
+                    maxLength={128}
                   />
                   <TouchableOpacity
                     onPress={() => setShowPassword(!showPassword)}
@@ -134,6 +160,9 @@ export default function AgentLoginScreen() {
                     />
                   </TouchableOpacity>
                 </View>
+                {errors.password && (
+                  <Text style={styles.errorText}>{errors.password}</Text>
+                )}
               </View>
 
               {/* Login Button */}
@@ -147,8 +176,6 @@ export default function AgentLoginScreen() {
                   {loading ? "Logging in..." : "Log In"}
                 </Text>
               </TouchableOpacity>
-
-              
             </View>
 
             {/* Footer Note */}
@@ -259,6 +286,11 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 4,
   },
+  errorText: {
+    color: "#dc2626",
+    fontSize: 12,
+    marginTop: 4,
+  },
   loginButton: {
     backgroundColor: "#16a34a",
     borderRadius: 12,
@@ -271,44 +303,6 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
-  },
-  forgotPassword: {
-    alignItems: "center",
-    marginTop: 16,
-  },
-  forgotPasswordText: {
-    color: "#64748b",
-    fontSize: 14,
-  },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#e2e8f0",
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    color: "#94a3b8",
-    fontSize: 14,
-  },
-  socialContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 16,
-  },
-  socialButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: "#f8fafc",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    alignItems: "center",
-    justifyContent: "center",
   },
   footerText: {
     textAlign: "center",

@@ -45,7 +45,7 @@ export default function LeadDetailScreen() {
         "Error",
         error.response?.data?.detail || "Failed to fetch lead details",
       );
-      console.error("this is the error ",error)
+      console.error("this is the error ", error);
     } finally {
       setLoading(false);
     }
@@ -306,7 +306,7 @@ export default function LeadDetailScreen() {
               {assigning ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.lockButtonText}>👤 Assign Agent</Text>
+                <Text style={styles.lockButtonText}> Assign Agent</Text>
               )}
             </TouchableOpacity>
           )}

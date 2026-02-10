@@ -28,6 +28,7 @@ export default function CompletedOrdersScreen() {
         ),
       );
       setOrders(completed);
+      console.log("customer orders", orders);
     } catch (error: any) {
       if (error.response?.status !== 401) {
         Alert.alert("Error", "Failed to fetch completed orders");
@@ -108,17 +109,19 @@ function CompletedOrderCard({ order }: { order: Order }) {
 
       <View style={styles.orderInfo}>
         <Text style={styles.infoLabel}>Customer:</Text>
-        <Text style={styles.infoValue}>{order.customer}</Text>
+        <Text style={styles.infoValue}>{order.customer_name}</Text>
       </View>
 
       <View style={styles.orderInfo}>
         <Text style={styles.infoLabel}>Phone:</Text>
-        <Text style={styles.infoValue}>{order.phone}</Text>
+        <Text style={styles.infoValue}>
+          {order.customer_phone || order.phone_number}
+        </Text>
       </View>
 
       <View style={styles.orderInfo}>
         <Text style={styles.infoLabel}>Location:</Text>
-        <Text style={styles.infoValue}>{order.pickup_address}</Text>
+        <Text style={styles.infoValue}>{order.pickup_address_line + " " + order.pickup_city + " " + order.pickup_state + " " + order.pickup_pincode}</Text>
       </View>
 
       {order.pickup_schedule_date && (

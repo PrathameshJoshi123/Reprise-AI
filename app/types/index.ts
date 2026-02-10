@@ -63,8 +63,6 @@ export interface Order {
   pickup_schedule_date: string;
   pickup_address: string;
   payment_mode: string;
-  phone: number;
-  customer: string;
   ai_estimated_price: number;
   // quoted_price: number;
 
@@ -81,7 +79,7 @@ export interface Order {
   // Pricing
   final_quoted_price?: number;
   quoted_price: number;
-  lead_cost: number | null;
+  lead_cost: number;
   final_price?: number; // Final agreed price
 
   // AI details
