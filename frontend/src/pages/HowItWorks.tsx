@@ -217,7 +217,7 @@ export default function HowItWorks() {
                   Is it safe to sell my phone online?
                 </h3>
                 <p className="text-gray-600 mt-2">
-                  Yes, it's completely safe with MobileTrade. We ensure secure
+                  Yes, it's completely safe with CashNow. We ensure secure
                   data wiping of your device, and our executives are trained
                   professionals who follow strict protocols.
                 </p>

@@ -11,7 +11,7 @@ export default function AboutUs() {
         <section className="bg-primary text-primary-foreground py-12">
           <div className="container mx-auto px-4 text-center">
             <h1 className="text-3xl md:text-4xl font-bold mb-4">
-              About MobileTrade
+              About CashNow
             </h1>
             <p className="text-xl opacity-90 max-w-2xl mx-auto">
               India's leading platform for selling used smartphones
@@ -26,9 +26,9 @@ export default function AboutUs() {
               <h2 className="text-2xl font-bold mb-6">Our Story</h2>
               <div className="prose prose-lg">
                 <p>
-                  Founded in 2018, MobileTrade started with a simple idea: to
-                  create a transparent, hassle-free way for people to sell their
-                  used smartphones for the best possible price.
+                  Founded in 2018, CashNow started with a simple idea: to create
+                  a transparent, hassle-free way for people to sell their used
+                  smartphones for the best possible price.
                 </p>
                 <p>
                   What began as a small startup operating out of a single office
@@ -168,7 +168,7 @@ export default function AboutUs() {
             <div className="text-center mb-10">
               <h2 className="text-2xl font-bold">Our Leadership Team</h2>
               <p className="text-gray-600">
-                The people behind MobileTrade's success
+                The people behind CashNow's success
               </p>
             </div>
 

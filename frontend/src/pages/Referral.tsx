@@ -99,12 +99,17 @@ export default function Referral() {
     }
   };
 
-  const handleCopyCode = () => {
+  const handleCopyCode = async () => {
     if (referralCode?.code) {
-      navigator.clipboard.writeText(referralCode.code);
-      setCopied(true);
-      toast.success("Code copied to clipboard!");
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        await navigator.clipboard.writeText(referralCode.code);
+        setCopied(true);
+        toast.success("Code copied to clipboard!");
+        setTimeout(() => setCopied(false), 2000);
+      } catch (error) {
+        console.error("Failed to copy to clipboard:", error);
+        toast.error("Failed to copy to clipboard");
+      }
     }
   };
 
