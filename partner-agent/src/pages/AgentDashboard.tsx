@@ -32,7 +32,7 @@ import {
   Map as MapIcon,
   XCircle,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import {
