@@ -78,9 +78,7 @@ export default function PhoneDetail() {
   } = useQuery({
     queryKey: ["phone", phoneId],
     queryFn: async () => {
-      const API_URL = (
-        import.meta.env.VITE_API_BASE_URL
-      ).replace(/\/$/, "");
+      const API_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
       const response = await fetch(`${API_URL}/sell-phone/phones/${phoneId}`);
       if (!response.ok) throw new Error("Failed to fetch phone");
       return response.json();
@@ -109,9 +107,7 @@ export default function PhoneDetail() {
   const { data: variants, isLoading: isVariantsLoading } = useQuery({
     queryKey: ["phoneVariants", phoneId],
     queryFn: async () => {
-      const API_URL = (
-        import.meta.env.VITE_API_BASE_URL 
-      ).replace(/\/$/, "");
+      const API_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
       const response = await fetch(
         `${API_URL}/sell-phone/phones/${phoneId}/variants`,
       );
@@ -137,9 +133,7 @@ export default function PhoneDetail() {
         const match = storage.match(/^(\d+)gb$/i);
         return match ? parseInt(match[1], 10) : storage === "1tb" ? 1024 : 0;
       };
-      const API_URL = (
-        import.meta.env.VITE_API_BASE_URL
-      ).replace(/\/$/, "");
+      const API_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
       const response = await fetch(
         `${API_URL}/sell-phone/phones/${phoneId}/price?ram_gb=${parseRam(
           selectedRam,
@@ -174,9 +168,7 @@ export default function PhoneDetail() {
       hasOriginalBill,
     ],
     queryFn: async () => {
-      const API_URL = (
-        import.meta.env.VITE_API_BASE_URL
-      ).replace(/\/$/, "");
+      const API_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
       const response = await fetch(
         `${API_URL}/customer-side-prediction/predict-price`,
         {
@@ -293,13 +285,18 @@ export default function PhoneDetail() {
     id: phoneData.id,
     name: phoneData.Brand + " " + phoneData.Model,
     brand: phoneData.Brand,
-    image:
-      phoneData.image_blob ||
-      phoneData.image_url ||
-      `/assets/phones/${phoneData.id}.png`, // Use new image fields with fallback
+    image: phoneData.image_blob
+      ? `data:image/jpeg;base64,${phoneData.image_blob}`
+      : phoneData.image_url
+        ? `${import.meta.env.VITE_API_BASE_URL}${phoneData.image_url}`
+        : `/assets/phones/${phoneData.id}.png`, // Use new image fields with fallback
     basePrice,
     // Keep options as predefined (not in DB)
-    ramOptions: isApplePhone ? [] : (ramOptions.length > 0 ? ramOptions : RAM_OPTIONS), // Use backend options if available, else predefined
+    ramOptions: isApplePhone
+      ? []
+      : ramOptions.length > 0
+        ? ramOptions
+        : RAM_OPTIONS, // Use backend options if available, else predefined
     storageOptions,
     screenConditions: [
       {
@@ -395,11 +392,7 @@ export default function PhoneDetail() {
     };
     const parseStorage = (storage: string) => {
       const match = storage.match(/^(\d+)gb$/i);
-      return match
-        ? parseInt(match[1], 10)
-        : storage === "1tb"
-          ? 1024
-          : 0;
+      return match ? parseInt(match[1], 10) : storage === "1tb" ? 1024 : 0;
     };
 
     const saleData = {
@@ -408,12 +401,10 @@ export default function PhoneDetail() {
       model: phoneData.Model,
       ram_gb: parseRam(selectedRam),
       storage_gb: parseStorage(selectedStorage),
-      variant:
-        `${selectedStorage}`.replace(/gb$/i, "") + "GB",
+      variant: `${selectedStorage}`.replace(/gb$/i, "") + "GB",
       condition:
-        phone.screenConditions.find(
-          (c) => c.id === selectedScreenCondition,
-        )?.name || selectedScreenCondition,
+        phone.screenConditions.find((c) => c.id === selectedScreenCondition)
+          ?.name || selectedScreenCondition,
       price: predictionData?.predicted_price || 0,
       conditionAnswers: {
         screen_condition: selectedScreenCondition,
@@ -423,10 +414,7 @@ export default function PhoneDetail() {
       },
     };
     // Persist selected sale details so checkout (or post-login flow) can pick it up
-    localStorage.setItem(
-      "phoneData",
-      JSON.stringify(saleData),
-    );
+    localStorage.setItem("phoneData", JSON.stringify(saleData));
     // mark that this login should resume the sale flow
     localStorage.setItem("postLoginRedirect", "/checkout");
     if (isLoggedIn) {
@@ -611,19 +599,19 @@ export default function PhoneDetail() {
 
               {/* Bottom - Navigation */}
               <div>
-                  <div className="flex items-center justify-end">
-                    <div className="flex gap-3">
-                      {currentStep > 1 && (
-                        <Button
-                          variant="outline"
-                          onClick={() => setCurrentStep(currentStep - 1)}
-                          className="rounded-full px-6"
-                        >
-                          Previous
-                        </Button>
-                      )}
-                    </div>
+                <div className="flex items-center justify-end">
+                  <div className="flex gap-3">
+                    {currentStep > 1 && (
+                      <Button
+                        variant="outline"
+                        onClick={() => setCurrentStep(currentStep - 1)}
+                        className="rounded-full px-6"
+                      >
+                        Previous
+                      </Button>
+                    )}
                   </div>
+                </div>
               </div>
             </div>
 
@@ -631,8 +619,7 @@ export default function PhoneDetail() {
             <div className="flex flex-col justify-center">
               <div className="max-w-xl mx-auto w-full space-y-4">
                 {/* Step 1: RAM Selection (Non-Apple phones only) */}
-                {!isApplePhone &&
-                  currentStep === 1 && (
+                {!isApplePhone && currentStep === 1 && (
                   <RadioGroup
                     value={selectedRam}
                     onValueChange={setSelectedRam}
@@ -673,46 +660,45 @@ export default function PhoneDetail() {
 
                 {/* Step 1 (Apple) OR Step 2 (Non-Apple): Storage Selection */}
                 {((!isApplePhone && currentStep === 2) ||
-                  (isApplePhone && currentStep === 1)) && (
-                  isVariantsLoading ? (
+                  (isApplePhone && currentStep === 1)) &&
+                  (isVariantsLoading ? (
                     <p>Loading storage options...</p>
                   ) : (
-                  <RadioGroup
-                    value={selectedStorage}
-                    onValueChange={setSelectedStorage}
-                    className="space-y-4"
-                  >
-                    {phone.storageOptions.map((storage) => (
-                      <div key={storage.id}>
-                        <RadioGroupItem
-                          value={storage.id}
-                          id={`storage-${storage.id}`}
-                          className="peer sr-only"
-                        />
-                        <Label
-                          htmlFor={`storage-${storage.id}`}
-                          className="flex items-center gap-4 border-2 rounded-2xl p-5 cursor-pointer peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 hover:bg-white/80 bg-white/60 backdrop-blur transition-all hover:shadow-lg"
-                        >
-                          <div
-                            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                              selectedStorage === storage.id
-                                ? "border-blue-600 bg-blue-600"
-                                : "border-gray-300"
-                            }`}
+                    <RadioGroup
+                      value={selectedStorage}
+                      onValueChange={setSelectedStorage}
+                      className="space-y-4"
+                    >
+                      {phone.storageOptions.map((storage) => (
+                        <div key={storage.id}>
+                          <RadioGroupItem
+                            value={storage.id}
+                            id={`storage-${storage.id}`}
+                            className="peer sr-only"
+                          />
+                          <Label
+                            htmlFor={`storage-${storage.id}`}
+                            className="flex items-center gap-4 border-2 rounded-2xl p-5 cursor-pointer peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 hover:bg-white/80 bg-white/60 backdrop-blur transition-all hover:shadow-lg"
                           >
-                            {selectedStorage === storage.id && (
-                              <div className="w-3 h-3 rounded-full bg-white" />
-                            )}
-                          </div>
-                          <span className="font-semibold text-lg flex-grow">
-                            {storage.name}
-                          </span>
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                  )
-                )}
+                            <div
+                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                                selectedStorage === storage.id
+                                  ? "border-blue-600 bg-blue-600"
+                                  : "border-gray-300"
+                              }`}
+                            >
+                              {selectedStorage === storage.id && (
+                                <div className="w-3 h-3 rounded-full bg-white" />
+                              )}
+                            </div>
+                            <span className="font-semibold text-lg flex-grow">
+                              {storage.name}
+                            </span>
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  ))}
 
                 {/* Step 2 (Apple) OR Step 3 (Non-Apple): Condition Assessment */}
                 {((!isApplePhone && currentStep === 3) ||

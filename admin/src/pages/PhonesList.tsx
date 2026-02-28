@@ -364,7 +364,13 @@ export default function PhonesList() {
       image_url: phone.image_url || "",
       image_blob: phone.image_blob || "",
     });
-    setImagePreview(phone.image_blob || phone.image_url || null);
+    setImagePreview(
+      phone.image_blob
+        ? `data:image/jpeg;base64,${phone.image_blob}`
+        : phone.image_url
+          ? `${import.meta.env.VITE_API_BASE_URL}${phone.image_url}`
+          : null,
+    );
     setEditDialog(true);
   };
 
@@ -889,9 +895,11 @@ export default function PhonesList() {
                   <div className="relative w-full h-40 bg-gray-100 rounded-lg overflow-hidden">
                     <img
                       src={
-                        selectedPhone.image_blob ||
-                        selectedPhone.image_url ||
-                        ""
+                        selectedPhone.image_blob
+                          ? `data:image/jpeg;base64,${selectedPhone.image_blob}`
+                          : selectedPhone.image_url
+                            ? `${import.meta.env.VITE_API_BASE_URL}${selectedPhone.image_url}`
+                            : ""
                       }
                       alt="Current"
                       className="w-full h-full object-contain"

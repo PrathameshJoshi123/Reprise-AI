@@ -77,7 +77,7 @@ export function FeaturedPhones() {
                   <img
                     src={phone.image}
                     alt={phone.name}
-                    className="max-h-full max-w-full object-contain drop-shadow-xl group-hover:scale-110 transition-transform duration-300"
+                    className="w-full h-full object-contain object-center drop-shadow-xl group-hover:scale-110 transition-transform duration-300"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src =
                         `https://placehold.co/400x400/e0e7ff/6366f1?text=${encodeURIComponent(

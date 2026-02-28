@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from backend.services.auth.apis import router as auth_router
 from backend.services.sell_phone.apis.routes import router as sell_phone_router
 from backend.services.customer_side_prediction.apis import router as customer_side_prediction_router
@@ -52,6 +53,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files
+app.mount("/images", StaticFiles(directory="Images"), name="images")
 
 # create tables (models' Base.metadata.create_all also called in services, safe to call again)
 Base.metadata.create_all(bind=engine)

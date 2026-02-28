@@ -39,10 +39,38 @@ def get_phones_list(
     
     if search:
         # Decode '+' back to spaces for proper search
-        search = search.replace('+', ' ')
-        query = query.filter(
-            PhoneList.Brand.ilike(f"%{search}%") | PhoneList.Model.ilike(f"%{search}%")
-        )
+        search = search.replace('+', ' ').strip()
+        
+        # Split search into words to handle "brand model" queries like "samsung s23"
+        search_words = [word.strip() for word in search.split() if word.strip()]
+        
+        if len(search_words) == 1:
+            # Single word search - match in either Brand or Model
+            word = search_words[0]
+            query = query.filter(
+                PhoneList.Brand.ilike(f"%{word}%") | PhoneList.Model.ilike(f"%{word}%")
+            )
+        elif len(search_words) == 2:
+            # Two-word search - match "brand model" or "model brand"
+            # e.g., "samsung s23" or "s23 samsung" should both work
+            word1, word2 = search_words[0], search_words[1]
+            query = query.filter(
+                or_(
+                    # Try: word1 in Brand AND word2 in Model
+                    and_(PhoneList.Brand.ilike(f"%{word1}%"), PhoneList.Model.ilike(f"%{word2}%")),
+                    # Try: word2 in Brand AND word1 in Model (reversed order)
+                    and_(PhoneList.Brand.ilike(f"%{word2}%"), PhoneList.Model.ilike(f"%{word1}%"))
+                )
+            )
+        else:
+            # 3+ words - each word must match somewhere (Brand or Model)
+            filter_conditions = []
+            for word in search_words:
+                filter_conditions.append(
+                    PhoneList.Brand.ilike(f"%{word}%") | PhoneList.Model.ilike(f"%{word}%")
+                )
+            # All conditions must be true (AND logic between words)
+            query = query.filter(and_(*filter_conditions))
     
     total = query.count()
     phones = query.offset((page - 1) * limit).limit(limit).all()

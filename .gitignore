@@ -88,3 +88,6 @@ QR_CODE.jpg
 phones.csv
 final_mobile_master_data.csv
 build/
+Images/
+Images_Seeder.py
+phone_image_downloader.py

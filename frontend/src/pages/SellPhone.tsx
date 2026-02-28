@@ -12,7 +12,13 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { Search, ArrowRight, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import {
+  Search,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import Autoplay from "embla-carousel-autoplay";
 import { useQuery } from "@tanstack/react-query";
@@ -83,23 +89,29 @@ export default function SellPhone() {
         limit: limit.toString(),
       });
       if (searchQuery) params.append("search", searchQuery);
-      const API_URL = (
-        import.meta.env.VITE_API_BASE_URL
-      ).replace(/\/$/, "");
+      const API_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
       const response = await fetch(
         `${API_URL}/sell-phone/phones?${params.toString()}`,
       );
       if (!response.ok) {
-        const errorMessage = response.status === 404 ? "No phones found for your search." : 
-                             response.status >= 500 ? "Server error. Please try again later." : 
-                             "Failed to fetch phones.";
+        const errorMessage =
+          response.status === 404
+            ? "No phones found for your search."
+            : response.status >= 500
+              ? "Server error. Please try again later."
+              : "Failed to fetch phones.";
         throw { status: response.status, message: errorMessage };
       }
       return response.json();
     },
     retry: (failureCount, error) => {
       // Don't retry on 4xx errors
-      if ((error as unknown as {status?: number})?.status && (error as unknown as {status: number}).status >= 400 && (error as unknown as {status: number}).status < 500) return false;
+      if (
+        (error as unknown as { status?: number })?.status &&
+        (error as unknown as { status: number }).status >= 400 &&
+        (error as unknown as { status: number }).status < 500
+      )
+        return false;
       return failureCount < 2;
     },
   });
@@ -234,11 +246,12 @@ export default function SellPhone() {
                                 src={
                                   phone.image_blob
                                     ? `data:image/jpeg;base64,${phone.image_blob}`
-                                    : phone.image_url ||
-                                      `/assets/phones/${phone.id}.png`
+                                    : phone.image_url
+                                      ? `${import.meta.env.VITE_API_BASE_URL}${phone.image_url}`
+                                      : `/assets/phones/${phone.id}.png`
                                 }
                                 alt={phone.Brand + " " + phone.Model}
-                                className="w-full h-full object-cover drop-shadow-lg group-hover:scale-110 transition-transform duration-300"
+                                className="w-full h-full object-contain object-center drop-shadow-lg group-hover:scale-110 transition-transform duration-300"
                                 onError={(e) => {
                                   const img = e.target as HTMLImageElement;
                                   if (img.dataset.attempt === "1") {
@@ -264,8 +277,11 @@ export default function SellPhone() {
                               <div className="pt-2 flex flex-col">
                                 <p className="text-sm font-bold text-green-600 mb-2">
                                   ₹
-                                  {typeof phone.Selling_Price === 'number' && !isNaN(phone.Selling_Price)
-                                    ? phone.Selling_Price.toLocaleString("en-IN")
+                                  {typeof phone.Selling_Price === "number" &&
+                                  !isNaN(phone.Selling_Price)
+                                    ? phone.Selling_Price.toLocaleString(
+                                        "en-IN",
+                                      )
                                     : "Price unavailable"}
                                 </p>
                                 <div className="flex items-center justify-between gap-2">
@@ -286,7 +302,9 @@ export default function SellPhone() {
                 </div>
 
                 {!isLoading && !error && phones.length === 0 && (
-                  <p className="text-center text-gray-500 py-8">No phones found. Try adjusting your search.</p>
+                  <p className="text-center text-gray-500 py-8">
+                    No phones found. Try adjusting your search.
+                  </p>
                 )}
 
                 {/* Pagination Controls */}
@@ -301,7 +319,9 @@ export default function SellPhone() {
                     <ChevronLeft className="w-4 h-4 sm:mr-1" />
                     <span className="hidden sm:inline">Previous</span>
                   </Button>
-                  <span className="text-sm">Page {page} of {totalPages}</span>
+                  <span className="text-sm">
+                    Page {page} of {totalPages}
+                  </span>
                   <Button
                     variant="outline"
                     size="sm"

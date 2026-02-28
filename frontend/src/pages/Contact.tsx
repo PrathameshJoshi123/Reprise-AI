@@ -36,7 +36,9 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Phone</h3>
-                  <p className="text-gray-600">Customer Support: 7378339989</p>
+                  <p className="text-gray-600">
+                    Customer Support: +917378339989
+                  </p>
                 </div>
               </div>
 
