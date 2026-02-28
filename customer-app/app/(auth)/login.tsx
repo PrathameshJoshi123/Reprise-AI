@@ -20,6 +20,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
 
+  const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -30,9 +31,14 @@ export default function LoginScreen() {
     const newErrors: Record<string, string> = {};
 
     if (!identifier.trim()) {
-      newErrors.identifier = "Email or phone is required";
-    } else if (!validateEmail(identifier) && !validatePhone(identifier)) {
-      newErrors.identifier = "Enter a valid email or phone number";
+      newErrors.identifier =
+        loginMethod === "email"
+          ? "Email is required"
+          : "Phone number is required";
+    } else if (loginMethod === "email" && !validateEmail(identifier)) {
+      newErrors.identifier = "Enter a valid email address";
+    } else if (loginMethod === "phone" && !validatePhone(identifier)) {
+      newErrors.identifier = "Enter a valid 10-digit phone number";
     }
 
     if (!password) {
@@ -63,6 +69,12 @@ export default function LoginScreen() {
     }
   };
 
+  const handleMethodSwitch = (method: "email" | "phone") => {
+    setLoginMethod(method);
+    setIdentifier("");
+    setErrors({});
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -83,18 +95,74 @@ export default function LoginScreen() {
           </Text>
         </View>
 
+        {/* Login method toggle */}
+        <View style={styles.methodToggle}>
+          <TouchableOpacity
+            style={[
+              styles.methodButton,
+              loginMethod === "email" && styles.methodButtonActive,
+            ]}
+            onPress={() => handleMethodSwitch("email")}
+          >
+            <Ionicons
+              name="mail-outline"
+              size={16}
+              color={loginMethod === "email" ? "#ffffff" : "#6b7280"}
+            />
+            <Text
+              style={[
+                styles.methodButtonText,
+                loginMethod === "email" && styles.methodButtonTextActive,
+              ]}
+            >
+              Email
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.methodButton,
+              loginMethod === "phone" && styles.methodButtonActive,
+            ]}
+            onPress={() => handleMethodSwitch("phone")}
+          >
+            <Ionicons
+              name="call-outline"
+              size={16}
+              color={loginMethod === "phone" ? "#ffffff" : "#6b7280"}
+            />
+            <Text
+              style={[
+                styles.methodButtonText,
+                loginMethod === "phone" && styles.methodButtonTextActive,
+              ]}
+            >
+              Phone Number
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Form */}
         <View style={styles.form}>
           <Input
-            label="Email or Phone"
+            label={loginMethod === "email" ? "Email" : "Phone Number"}
             value={identifier}
             onChangeText={setIdentifier}
-            placeholder="Enter your email or phone"
-            keyboardType="email-address"
+            placeholder={
+              loginMethod === "email"
+                ? "Enter your email address"
+                : "Enter your 10-digit phone number"
+            }
+            keyboardType={
+              loginMethod === "email" ? "email-address" : "phone-pad"
+            }
             autoCapitalize="none"
             error={errors.identifier}
             leftIcon={
-              <Ionicons name="person-outline" size={20} color="#9ca3af" />
+              <Ionicons
+                name={loginMethod === "email" ? "mail-outline" : "call-outline"}
+                size={20}
+                color="#9ca3af"
+              />
             }
           />
 
@@ -182,7 +250,35 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    marginBottom: 32,
+    marginBottom: 24,
+  },
+  methodToggle: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 10,
+    overflow: "hidden",
+    marginBottom: 24,
+  },
+  methodButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    backgroundColor: "#f9fafb",
+  },
+  methodButtonActive: {
+    backgroundColor: "#2563eb",
+  },
+  methodButtonText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#6b7280",
+  },
+  methodButtonTextActive: {
+    color: "#ffffff",
   },
   title: {
     fontSize: 28,
