@@ -26,13 +26,14 @@ import {
 } from "../../utils/validation";
 
 export default function AgentsScreen() {
-  const { user } = useAuth();
+  const { user, switchToAgentPortal } = useAuth();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
   const [selfAssigning, setSelfAssigning] = useState(false);
+  const [switchingToAgent, setSwitchingToAgent] = useState(false);
 
   const [formData, setFormData] = useState({
     full_name: "",
@@ -235,6 +236,32 @@ export default function AgentsScreen() {
             <Text style={styles.selfAssignedText}>
               ✅ You are self assigned agent !!!
             </Text>
+            <TouchableOpacity
+              style={styles.switchToAgentButton}
+              onPress={async () => {
+                setSwitchingToAgent(true);
+                try {
+                  await switchToAgentPortal();
+                  // Navigation is handled automatically by root layout
+                } catch {
+                  Alert.alert(
+                    "Error",
+                    "Failed to switch to Agent Portal. Please try again.",
+                  );
+                } finally {
+                  setSwitchingToAgent(false);
+                }
+              }}
+              disabled={switchingToAgent}
+            >
+              {switchingToAgent ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <Text style={styles.switchToAgentButtonText}>
+                  Switch to Agent Portal →
+                </Text>
+              )}
+            </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity
@@ -770,5 +797,19 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  switchToAgentButton: {
+    backgroundColor: "#7c3aed",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 12,
+    width: "100%",
+  },
+  switchToAgentButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "700",
   },
 });

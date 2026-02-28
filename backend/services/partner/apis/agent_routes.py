@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, Form, Uplo
 from sqlalchemy.orm import Session
 from backend.shared.db.connections import get_db
 from backend.services.partner.schema import schemas as partner_schemas
-from backend.services.partner.schema.models import Agent
+from backend.services.partner.schema.models import Agent, Partner
 from backend.services.partner import utils as partner_utils
 from backend.services.auth import utils as auth_utils
 from backend.services.sell_phone.schema.models import Order
@@ -53,13 +53,53 @@ def get_current_agent_profile(
     # Check if agent's partner is on hold
     hold = partner_utils.get_partner_hold_details(db, current_agent.partner_id)
     is_on_hold = hold is not None
-    
+
+    # Check if this agent is self-assigned (agent email == partner email)
+    partner = db.query(Partner).filter(
+        Partner.id == current_agent.partner_id,
+        Partner.email == current_agent.email,
+    ).first()
+    is_self_assigned = partner is not None
+
     return partner_schemas.AgentNameOut(
         full_name=current_agent.full_name,
         is_on_hold=is_on_hold,
         hold_reason=hold.reason if hold else None,
-        hold_lift_date=hold.lift_date if hold else None
+        hold_lift_date=hold.lift_date if hold else None,
+        is_self_assigned=is_self_assigned,
     )
+
+
+@router.post("/switch-to-partner", response_model=dict)
+def switch_to_partner_portal(
+    db: Session = Depends(get_db),
+    current_agent: Agent = Depends(auth_utils.get_current_agent),
+):
+    """
+    Returns a partner JWT token for the partner associated with this self-assigned agent.
+    Allows a self-assigned agent (whose email matches their partner account) to switch
+    back to the partner portal without logging out and back in.
+    """
+    # Check that this agent is self-assigned (agent.email == partner.email)
+    partner = db.query(Partner).filter(
+        Partner.id == current_agent.partner_id,
+        Partner.email == current_agent.email,
+    ).first()
+
+    if not partner:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This agent account is not self-assigned. Only self-assigned agents can switch to the partner portal.",
+        )
+
+    if partner.verification_status != "approved":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Partner account is not approved.",
+        )
+
+    token = partner_utils.create_partner_token(partner)
+    return {"access_token": token, "token_type": "bearer"}
 
 
 # ================================

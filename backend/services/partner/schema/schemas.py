@@ -211,6 +211,7 @@ class AgentNameOut(BaseModel):
     is_on_hold: bool = False
     hold_reason: Optional[str] = None
     hold_lift_date: Optional[datetime] = None
+    is_self_assigned: bool = False
 
     model_config = {"from_attributes": True}
 

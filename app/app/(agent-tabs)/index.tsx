@@ -26,8 +26,9 @@ import AgentOrderDetailModal from "../../components/AgentOrderDetailModal";
 import HoldNotificationBanner from "../../components/HoldNotificationBanner";
 
 export default function AgentDashboardScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, switchToPartnerPortal } = useAuth();
   const router = useRouter();
+  const [switchingToPartner, setSwitchingToPartner] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -156,9 +157,34 @@ export default function AgentDashboardScreen() {
           <Text style={styles.welcomeText}>Welcome back,</Text>
           <Text style={styles.agentName}>{user?.name || "Agent"}</Text>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+          {(user as any)?.is_self_assigned && (
+            <TouchableOpacity
+              onPress={async () => {
+                setSwitchingToPartner(true);
+                try {
+                  await switchToPartnerPortal();
+                  // Navigation handled automatically by root layout
+                } catch {
+                  Alert.alert("Error", "Failed to switch to Partner Portal.");
+                } finally {
+                  setSwitchingToPartner(false);
+                }
+              }}
+              disabled={switchingToPartner}
+              style={styles.switchToPartnerButton}
+            >
+              {switchingToPartner ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text style={styles.switchToPartnerText}>Partner Portal</Text>
+              )}
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Stats */}
@@ -325,7 +351,15 @@ function AgentOrderCard({
 
       <View style={styles.orderInfo}>
         <Text style={styles.infoLabel}>Location:</Text>
-        <Text style={styles.infoValue}>{order.pickup_address_line + " " + order.pickup_city + " " + order.pickup_state + " " + order.pickup_pincode}</Text>
+        <Text style={styles.infoValue}>
+          {order.pickup_address_line +
+            " " +
+            order.pickup_city +
+            " " +
+            order.pickup_state +
+            " " +
+            order.pickup_pincode}
+        </Text>
       </View>
 
       {order.pickup_schedule_date && (
@@ -399,6 +433,17 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 14,
     color: "#dc2626",
+    fontWeight: "600",
+  },
+  switchToPartnerButton: {
+    backgroundColor: "#7c3aed",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  switchToPartnerText: {
+    fontSize: 13,
+    color: "#ffffff",
     fontWeight: "600",
   },
   statsContainer: {

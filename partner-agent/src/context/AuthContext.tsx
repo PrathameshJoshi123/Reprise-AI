@@ -22,6 +22,7 @@ interface User {
   rejection_reason?: string | null;
   is_active?: boolean;
   created_at?: string;
+  is_self_assigned?: boolean;
 }
 
 interface HoldInfo {
@@ -54,6 +55,8 @@ interface AuthContextType {
   logout: () => void;
   refreshUser: () => Promise<void>;
   clearHoldInfo: () => void;
+  switchToAgentPortal: () => Promise<void>;
+  switchToPartnerPortal: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -197,6 +200,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setHoldInfo(null);
   };
 
+  const switchToAgentPortal = async () => {
+    try {
+      const response = await api.post("/partner/switch-to-agent", {});
+      localStorage.setItem("token", response.data.access_token);
+      localStorage.setItem("userType", "agent");
+      setUserType("agent");
+      await fetchUser("agent");
+    } catch (error: any) {
+      handleApiError(error, "auth");
+      throw error;
+    }
+  };
+
+  const switchToPartnerPortal = async () => {
+    try {
+      const response = await api.post("/agent/switch-to-partner", {});
+      localStorage.setItem("token", response.data.access_token);
+      localStorage.setItem("userType", "partner");
+      setUserType("partner");
+      await fetchUser("partner");
+    } catch (error: any) {
+      handleApiError(error, "auth");
+      throw error;
+    }
+  };
+
   const clearHoldInfo = () => {
     setHoldInfo(null);
   };
@@ -219,6 +248,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         logout,
         refreshUser,
         clearHoldInfo,
+        switchToAgentPortal,
+        switchToPartnerPortal,
       }}
     >
       {children}

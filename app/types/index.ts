@@ -44,6 +44,7 @@ export interface Agent {
   is_on_hold?: boolean; // Agent's partner may be on hold
   hold_reason?: string; // Reason partner is on hold
   hold_lift_date?: string; // Date when partner hold will be lifted
+  is_self_assigned?: boolean; // True if this agent is the partner who self-assigned
   created_at: string;
   credit_balance?: number; // Agents don't have credits, but optional for User type compatibility
 }

@@ -32,6 +32,8 @@ interface AuthContextType {
   ) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  switchToAgentPortal: () => Promise<void>;
+  switchToPartnerPortal: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -155,6 +157,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  const switchToAgentPortal = async () => {
+    const response = await api.post("/partner/switch-to-agent", {});
+    const token = response.data.access_token;
+    await tokenManager.setToken(token);
+    await tokenManager.setUserType("agent");
+    setUserType("agent");
+    await fetchUser("agent");
+  };
+
+  const switchToPartnerPortal = async () => {
+    const response = await api.post("/agent/switch-to-partner", {});
+    const token = response.data.access_token;
+    await tokenManager.setToken(token);
+    await tokenManager.setUserType("partner");
+    setUserType("partner");
+    await fetchUser("partner");
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -167,6 +187,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         signup,
         logout,
         refreshUser,
+        switchToAgentPortal,
+        switchToPartnerPortal,
       }}
     >
       {children}
