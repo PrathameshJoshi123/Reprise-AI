@@ -1,7 +1,7 @@
 import { Slot, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { AuthProvider, useAuth } from "../context/AuthContext";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
 
 function RootLayoutNav() {
   const { user, userType, isAuthenticated, isLoading } = useAuth();
@@ -23,6 +23,28 @@ function RootLayoutNav() {
       }
       // If at root or auth pages, allow it
     } else if (isAuthenticated && user) {
+      // Check for partner verification status
+      if (userType === "partner") {
+        const status = (user as any).verification_status;
+        const isApproved = status === "approved";
+        const isOnStatusPage =
+          segments[0] === "(auth)" && segments[1] === "verification-status";
+
+        if (!isApproved) {
+          // If not approved, force redirection to status page
+          if (!isOnStatusPage) {
+            router.replace("/(auth)/verification-status");
+          }
+          return;
+        }
+
+        // If approved but on status page, redirect to dashboard
+        if (isOnStatusPage) {
+          router.replace("/(tabs)");
+          return;
+        }
+      }
+
       // Authenticated - route based on userType
       if (atRoot) {
         // At root while authenticated, redirect to appropriate dashboard

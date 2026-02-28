@@ -57,16 +57,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
       if (token && storedType) {
         setUserType(storedType);
-        await fetchUser(storedType);
+        await fetchUser(storedType, true);
       }
     } catch (error) {
-      console.error("Failed to check stored auth:", error);
+      // Silently fail on initial auth check - user may not be logged in
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchUser = async (type: "partner" | "agent") => {
+  const fetchUser = async (
+    type: "partner" | "agent",
+    isInitialCheck = false,
+  ) => {
     try {
       const endpoint = type === "partner" ? "/partner/me" : "/agent/me";
       const response = await api.get(endpoint);
@@ -77,7 +80,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       setUser({ ...data, type, name });
       setUserType(type);
     } catch (error) {
-      console.error("Failed to fetch user:", error);
+      // Only log errors if not during initial check (user interaction)
+      if (!isInitialCheck) {
+        console.error("Failed to fetch user:", error);
+      }
       await tokenManager.clearAuth();
       throw error;
     }

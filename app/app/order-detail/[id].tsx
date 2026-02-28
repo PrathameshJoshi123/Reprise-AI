@@ -98,7 +98,7 @@ export default function OrderDetailScreen() {
               style={styles.assignAgentButton}
               onPress={() => setShowAssignModal(true)}
             >
-              <Text style={styles.assignAgentButtonText}>👤 Assign Agent</Text>
+              <Text style={styles.assignAgentButtonText}> Assign Agent</Text>
             </TouchableOpacity>
           </View>
         )}

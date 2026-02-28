@@ -3,6 +3,8 @@
 # dependencies
 node_modules/
 
+qr_code.jpg
+
 # Expo
 .expo/
 dist/

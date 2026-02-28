@@ -407,13 +407,6 @@ def reschedule_pickup(
     """
     Reschedule a pickup that was previously scheduled.
     """
-    # Check if agent's partner is on hold
-    if partner_utils.check_partner_on_hold(db, current_agent.partner_id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your partner account is on hold. You cannot reschedule pickups at this time. Contact your partner administrator."
-        )
-    
     order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
     
     # Validate order status
@@ -466,13 +459,6 @@ def cancel_pickup(
     Cancel a pickup when customer is not willing to sell.
     Marks the order as cancelled (terminal state).
     """
-    # Check if agent's partner is on hold
-    if partner_utils.check_partner_on_hold(db, current_agent.partner_id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your partner account is on hold. You cannot cancel pickups at this time. Contact your partner administrator."
-        )
-    
     order = partner_utils.validate_agent_order_access(db, current_agent.id, order_id)
     
     # Validate order status

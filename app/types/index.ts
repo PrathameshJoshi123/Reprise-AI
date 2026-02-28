@@ -17,6 +17,14 @@ export interface Partner {
   gst_number: string | null;
   pan_number: string;
   is_verified: boolean;
+  verification_status:
+    | "pending"
+    | "under_review"
+    | "clarification_needed"
+    | "approved"
+    | "rejected"
+    | "suspended";
+  rejection_reason?: string;
   is_on_hold: boolean;
   hold_reason?: string;
   hold_lift_date?: string;
@@ -55,9 +63,8 @@ export interface Order {
   pickup_schedule_date: string;
   pickup_address: string;
   payment_mode: string;
-  phone: number;
-  customer: string;
   ai_estimated_price: number;
+  // quoted_price: number;
 
   // Phone details - backend uses these names
   phone_name: string;
@@ -71,8 +78,8 @@ export interface Order {
 
   // Pricing
   final_quoted_price?: number;
-  quoted_price?: number;
-  lead_cost: number | null;
+  quoted_price: number;
+  lead_cost: number;
   final_price?: number; // Final agreed price
 
   // AI details
