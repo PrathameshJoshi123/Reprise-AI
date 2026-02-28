@@ -229,15 +229,33 @@ export default function AgentDashboard() {
     const phoneNumber =
       selectedOrder?.customer_phone || selectedOrder?.phone || "";
     if (phoneNumber) {
-      // Copy to clipboard
-      navigator.clipboard
-        .writeText(phoneNumber)
-        .then(() => {
+      // Copy to clipboard — navigator.clipboard requires a secure context (HTTPS)
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard
+          .writeText(phoneNumber)
+          .then(() => {
+            alert(`Phone number copied: ${phoneNumber}`);
+          })
+          .catch(() => {
+            alert(`Phone number: ${phoneNumber}`);
+          });
+      } else {
+        // Fallback for non-secure contexts
+        try {
+          const textarea = document.createElement("textarea");
+          textarea.value = phoneNumber;
+          textarea.style.position = "fixed";
+          textarea.style.opacity = "0";
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          document.execCommand("copy");
+          document.body.removeChild(textarea);
           alert(`Phone number copied: ${phoneNumber}`);
-        })
-        .catch(() => {
+        } catch {
           alert(`Phone number: ${phoneNumber}`);
-        });
+        }
+      }
     }
     setCallInProgress(true);
   };
