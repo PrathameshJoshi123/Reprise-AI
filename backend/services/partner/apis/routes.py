@@ -454,6 +454,38 @@ def partner_self_assign_as_agent(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+@router.post("/switch-to-agent", response_model=dict)
+def switch_to_agent_portal(
+    db: Session = Depends(get_db),
+    current_partner: Partner = Depends(auth_utils.get_current_partner),
+):
+    """
+    Returns an agent JWT token for the self-assigned agent of the current partner.
+    Allows a partner who has self-assigned as an agent to switch to the agent portal
+    without logging out and back in.
+    """
+    # Find the self-assigned agent record (same email as partner, owned by this partner)
+    agent = db.query(Agent).filter(
+        Agent.partner_id == current_partner.id,
+        Agent.email == current_partner.email,
+    ).first()
+
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No self-assigned agent found. Please go to Agents Management and self-assign as an agent first.",
+        )
+
+    if not agent.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your agent account is inactive. Contact support.",
+        )
+
+    token = partner_utils.create_agent_token(agent)
+    return {"access_token": token, "token_type": "bearer"}
+
+
 @router.post("/agents", response_model=partner_schemas.AgentOut, status_code=201)
 def create_agent(
     payload: partner_schemas.AgentCreate,

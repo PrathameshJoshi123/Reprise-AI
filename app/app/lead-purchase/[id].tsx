@@ -150,7 +150,7 @@ export default function LeadPurchaseScreen() {
     );
   }
 
-  const creditCost = lead.ai_estimated_price ;
+  const creditCost = lead.lead_cost ;
   const remainingBalance = (user?.credit_balance || 0) - creditCost;
   const hasEnoughCredits = remainingBalance >= 0;
 

@@ -32,6 +32,8 @@ interface AuthContextType {
   ) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  switchToAgentPortal: () => Promise<void>;
+  switchToPartnerPortal: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -57,16 +59,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
       if (token && storedType) {
         setUserType(storedType);
-        await fetchUser(storedType);
+        await fetchUser(storedType, true);
       }
     } catch (error) {
-      console.error("Failed to check stored auth:", error);
+      // Silently fail on initial auth check - user may not be logged in
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchUser = async (type: "partner" | "agent") => {
+  const fetchUser = async (
+    type: "partner" | "agent",
+    isInitialCheck = false,
+  ) => {
     try {
       const endpoint = type === "partner" ? "/partner/me" : "/agent/me";
       const response = await api.get(endpoint);
@@ -77,7 +82,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       setUser({ ...data, type, name });
       setUserType(type);
     } catch (error) {
-      console.error("Failed to fetch user:", error);
+      // Only log errors if not during initial check (user interaction)
+      if (!isInitialCheck) {
+        console.error("Failed to fetch user:", error);
+      }
       await tokenManager.clearAuth();
       throw error;
     }
@@ -149,6 +157,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  const switchToAgentPortal = async () => {
+    const response = await api.post("/partner/switch-to-agent", {});
+    const token = response.data.access_token;
+    await tokenManager.setToken(token);
+    await tokenManager.setUserType("agent");
+    setUserType("agent");
+    await fetchUser("agent");
+  };
+
+  const switchToPartnerPortal = async () => {
+    const response = await api.post("/agent/switch-to-partner", {});
+    const token = response.data.access_token;
+    await tokenManager.setToken(token);
+    await tokenManager.setUserType("partner");
+    setUserType("partner");
+    await fetchUser("partner");
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -161,6 +187,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         signup,
         logout,
         refreshUser,
+        switchToAgentPortal,
+        switchToPartnerPortal,
       }}
     >
       {children}

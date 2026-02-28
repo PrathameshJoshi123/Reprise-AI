@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
@@ -18,18 +19,26 @@ import { Order } from "../../types";
 import StatusBadge from "../../components/StatusBadge";
 import EmptyState from "../../components/EmptyState";
 import SchedulePickupModal from "../../components/SchedulePickupModal";
-import CompletePickupModal from "../../components/CompletePickupModal";
+import CompletePickupWizard from "../../components/CompletePickupWizard";
+import ReschedulePickupModal from "../../components/ReschedulePickupModal";
+import CancelPickupModal from "../../components/CancelPickupModal";
+import AgentOrderDetailModal from "../../components/AgentOrderDetailModal";
 import HoldNotificationBanner from "../../components/HoldNotificationBanner";
 
 export default function AgentDashboardScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, switchToPartnerPortal } = useAuth();
   const router = useRouter();
+  const [switchingToPartner, setSwitchingToPartner] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showOrderDetailModal, setShowOrderDetailModal] = useState(false);
 
   const fetchOrders = async () => {
     try {
@@ -93,6 +102,33 @@ export default function AgentDashboardScreen() {
     setShowCompleteModal(true);
   };
 
+  const handleReschedule = (orderId: number) => {
+    setSelectedOrderId(orderId);
+    setShowRescheduleModal(true);
+  };
+
+  const handleCancel = (orderId: number) => {
+    setSelectedOrderId(orderId);
+    setShowCancelModal(true);
+  };
+
+  const handleViewDetails = (order: Order) => {
+    const orderId = order.id || order.order_id;
+    setSelectedOrderId(orderId || null);
+    setSelectedOrder(order);
+    setShowOrderDetailModal(true);
+  };
+
+  const closeAllModals = () => {
+    setShowScheduleModal(false);
+    setShowCompleteModal(false);
+    setShowRescheduleModal(false);
+    setShowCancelModal(false);
+    setShowOrderDetailModal(false);
+    setSelectedOrderId(null);
+    setSelectedOrder(null);
+  };
+
   const currentOrders = orders.filter((o) =>
     ["accepted_by_agent"].includes(o.status),
   );
@@ -121,9 +157,34 @@ export default function AgentDashboardScreen() {
           <Text style={styles.welcomeText}>Welcome back,</Text>
           <Text style={styles.agentName}>{user?.name || "Agent"}</Text>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+          {(user as any)?.is_self_assigned && (
+            <TouchableOpacity
+              onPress={async () => {
+                setSwitchingToPartner(true);
+                try {
+                  await switchToPartnerPortal();
+                  // Navigation handled automatically by root layout
+                } catch {
+                  Alert.alert("Error", "Failed to switch to Partner Portal.");
+                } finally {
+                  setSwitchingToPartner(false);
+                }
+              }}
+              disabled={switchingToPartner}
+              style={styles.switchToPartnerButton}
+            >
+              {switchingToPartner ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text style={styles.switchToPartnerText}>Partner Portal</Text>
+              )}
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Stats */}
@@ -156,6 +217,7 @@ export default function AgentDashboardScreen() {
                 order={order}
                 onSchedule={handleSchedule}
                 onComplete={handleComplete}
+                onViewDetails={handleViewDetails}
               />
             ))}
           </View>
@@ -176,9 +238,13 @@ export default function AgentDashboardScreen() {
               fetchOrders();
             }}
           />
-          <CompletePickupModal
+          <CompletePickupWizard
             visible={showCompleteModal}
             orderId={selectedOrderId}
+            estimatedPrice={
+              selectedOrder?.ai_estimated_price ||
+              selectedOrder?.estimated_value
+            }
             onClose={() => {
               setShowCompleteModal(false);
               setSelectedOrderId(null);
@@ -187,8 +253,53 @@ export default function AgentDashboardScreen() {
               fetchOrders();
             }}
           />
+          <ReschedulePickupModal
+            visible={showRescheduleModal}
+            orderId={selectedOrderId}
+            onClose={() => {
+              setShowRescheduleModal(false);
+              setSelectedOrderId(null);
+            }}
+            onSuccess={() => {
+              fetchOrders();
+            }}
+          />
+          <CancelPickupModal
+            visible={showCancelModal}
+            orderId={selectedOrderId}
+            onClose={() => {
+              setShowCancelModal(false);
+              setSelectedOrderId(null);
+            }}
+            onSuccess={() => {
+              fetchOrders();
+            }}
+          />
         </>
       )}
+
+      {/* Order Detail Modal */}
+      <AgentOrderDetailModal
+        visible={showOrderDetailModal}
+        order={selectedOrder}
+        onClose={() => {
+          setShowOrderDetailModal(false);
+          setSelectedOrder(null);
+          setSelectedOrderId(null);
+        }}
+        onCompletePickup={() => {
+          setShowOrderDetailModal(false);
+          setShowCompleteModal(true);
+        }}
+        onReschedule={() => {
+          setShowOrderDetailModal(false);
+          setShowRescheduleModal(true);
+        }}
+        onCancel={() => {
+          setShowOrderDetailModal(false);
+          setShowCancelModal(true);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -197,10 +308,12 @@ function AgentOrderCard({
   order,
   onSchedule,
   onComplete,
+  onViewDetails,
 }: {
   order: Order;
   onSchedule: (id: number) => void;
   onComplete: (id: number) => void;
+  onViewDetails: (order: Order) => void;
 }) {
   const orderIdentifier = order.id || order.order_id;
   return (
@@ -219,24 +332,34 @@ function AgentOrderCard({
 
       <View style={styles.orderInfo}>
         <Text style={styles.infoLabel}>Customer:</Text>
-        <Text style={styles.infoValue}>{order.customer}</Text>
+        <Text style={styles.infoValue}>{order.customer_name}</Text>
       </View>
 
       <View style={styles.orderInfo}>
         <Text style={styles.infoLabel}>Phone:</Text>
-        <Text style={styles.infoValue}>{order.phone}</Text>
+        <Text style={styles.infoValue}>
+          {order.customer_phone || order.phone_number}
+        </Text>
       </View>
 
       <View style={styles.orderInfo}>
         <Text style={styles.infoLabel}>Payment:</Text>
         <Text style={styles.infoValue}>
-          {order.payment_mode?.toUpperCase() || "N/A"}
+          {order.payment_method?.toUpperCase() || "N/A"}
         </Text>
       </View>
 
       <View style={styles.orderInfo}>
         <Text style={styles.infoLabel}>Location:</Text>
-        <Text style={styles.infoValue}>{order.pickup_address}</Text>
+        <Text style={styles.infoValue}>
+          {order.pickup_address_line +
+            " " +
+            order.pickup_city +
+            " " +
+            order.pickup_state +
+            " " +
+            order.pickup_pincode}
+        </Text>
       </View>
 
       {order.pickup_schedule_date && (
@@ -249,15 +372,25 @@ function AgentOrderCard({
       )}
 
       <View style={styles.orderActions}>
+        {/* View Details Button - Always shown */}
+        <TouchableOpacity
+          style={styles.viewDetailsButton}
+          onPress={() => onViewDetails(order)}
+        >
+          <Text style={styles.viewDetailsButtonText}>📋 View Details</Text>
+        </TouchableOpacity>
+
+        {/* Schedule Pickup Button - Only for unscheduled orders */}
         {(order.status === "assigned_to_agent" ||
-          order.status === "accepted_by_agent") && (
-          <TouchableOpacity
-            style={styles.scheduleButton}
-            onPress={() => orderIdentifier && onSchedule(orderIdentifier)}
-          >
-            <Text style={styles.scheduleButtonText}>Schedule Pickup</Text>
-          </TouchableOpacity>
-        )}
+          order.status === "accepted_by_agent") &&
+          !order.pickup_schedule_date && (
+            <TouchableOpacity
+              style={styles.scheduleButton}
+              onPress={() => orderIdentifier && onSchedule(orderIdentifier)}
+            >
+              <Text style={styles.scheduleButtonText}>📅 Schedule</Text>
+            </TouchableOpacity>
+          )}
       </View>
     </View>
   );
@@ -300,6 +433,17 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 14,
     color: "#dc2626",
+    fontWeight: "600",
+  },
+  switchToPartnerButton: {
+    backgroundColor: "#7c3aed",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  switchToPartnerText: {
+    fontSize: 13,
+    color: "#ffffff",
     fontWeight: "600",
   },
   statsContainer: {
@@ -417,6 +561,19 @@ const styles = StyleSheet.create({
   orderActions: {
     flexDirection: "row",
     marginTop: 12,
+    gap: 10,
+  },
+  viewDetailsButton: {
+    flex: 1,
+    backgroundColor: "#9333ea",
+    borderRadius: 8,
+    padding: 12,
+    alignItems: "center",
+  },
+  viewDetailsButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "600",
   },
   scheduleButton: {
     flex: 1,

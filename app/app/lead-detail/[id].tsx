@@ -30,41 +30,22 @@ export default function LeadDetailScreen() {
 
   const fetchLeadDetail = async () => {
     try {
-      const marketplaceRes = await api.get<Order[]>(
-        "/sell-phone/partner/leads/available",
-      );
-      let foundLead = marketplaceRes.data.find(
-        (l: any) => (l.id || l.order_id)?.toString() === id,
-      );
+      const response = await api.get(`/sell-phone/partner/leads/${id}`);
+      const leadData = response.data;
 
-      if (!foundLead) {
-        // Try locked deals
-        try {
-          const lockedRes = await api.get<Order[]>("/partner/locked-deals");
-          foundLead = lockedRes.data.find((l: any) => l.id?.toString() === id);
-        } catch (e) {
-          // Ignore if locked-deals fails
-        }
-      }
+      // Map order_id to id for consistency
+      const lead = {
+        ...leadData,
+        id: leadData.order_id || leadData.id,
+      };
 
-      if (!foundLead) {
-        // Try partner orders for purchased leads
-        try {
-          const ordersRes = await api.get<Order[]>("/partner/orders");
-          foundLead = ordersRes.data.find((l: any) => l.id?.toString() === id);
-        } catch (e) {
-          // Ignore if orders fails
-        }
-      }
-
-      // Map order_id to id for marketplace leads
-      if (foundLead && !foundLead.id && (foundLead as any).order_id) {
-        foundLead = { ...foundLead, id: (foundLead as any).order_id };
-      }
-
-      setLead(foundLead || null);
+      setLead(lead);
     } catch (error: any) {
-      Alert.alert("Error", "Failed to fetch lead details");
+      Alert.alert(
+        "Error",
+        error.response?.data?.detail || "Failed to fetch lead details",
+      );
+      console.error("this is the error ", error);
     } finally {
       setLoading(false);
     }
@@ -154,7 +135,7 @@ export default function LeadDetailScreen() {
           <View style={styles.priceSection}>
             <Text style={styles.priceLabel}>Est. Price</Text>
             <Text style={styles.priceValue}>
-              {formatPrice(lead.ai_estimated_price)}
+              {formatPrice(lead.quoted_price)}
             </Text>
           </View>
 
@@ -192,7 +173,9 @@ export default function LeadDetailScreen() {
 
           <View style={styles.twoColumnGrid}>
             <View style={styles.infoBlock}>
-              <Text style={styles.infoBlockValue}>{lead.pickup_state || "—"}</Text>
+              <Text style={styles.infoBlockValue}>
+                {lead.pickup_state || "—"}
+              </Text>
               <Text style={styles.infoBlockLabel}>State</Text>
             </View>
             <View style={styles.infoBlock}>
@@ -202,12 +185,16 @@ export default function LeadDetailScreen() {
           </View>
 
           <View style={styles.infoBlock}>
-            <Text style={styles.infoBlockValue}>{lead.customer_email || "—"}</Text>
+            <Text style={styles.infoBlockValue}>
+              {lead.customer_email || "—"}
+            </Text>
             <Text style={styles.infoBlockLabel}>Email</Text>
           </View>
 
           <View style={styles.infoBlock}>
-            <Text style={styles.infoBlockValue}>{lead.pickup_address_line}</Text>
+            <Text style={styles.infoBlockValue}>
+              {lead.pickup_address_line}
+            </Text>
             <Text style={styles.infoBlockLabel}>Address</Text>
           </View>
         </View>
@@ -222,13 +209,17 @@ export default function LeadDetailScreen() {
               <Text style={styles.infoBlockLabel}>Lead ID</Text>
             </View>
             <View style={styles.infoBlock}>
-              <Text style={styles.infoBlockValue}>{(lead as any).agent_name || "—"}</Text>
+              <Text style={styles.infoBlockValue}>
+                {(lead as any).agent_name || "—"}
+              </Text>
               <Text style={styles.infoBlockLabel}>Agent</Text>
             </View>
           </View>
 
           <View style={styles.infoBlock}>
-            <Text style={styles.infoBlockValue}>{formatDate(lead.created_at)}</Text>
+            <Text style={styles.infoBlockValue}>
+              {formatDate(lead.created_at)}
+            </Text>
             <Text style={styles.infoBlockLabel}>Created</Text>
           </View>
         </View>
@@ -237,16 +228,22 @@ export default function LeadDetailScreen() {
         <View style={[styles.card, styles.aiCard]}>
           <Text style={styles.sectionTitle}>AI Analysis</Text>
           <View style={styles.infoBlock}>
-            <Text style={styles.infoBlockValue}>{(lead as any).ai_reasoning || "—"}</Text>
+            <Text style={styles.infoBlockValue}>
+              {(lead as any).ai_reasoning || "—"}
+            </Text>
             <Text style={styles.infoBlockLabel}>Reasoning</Text>
           </View>
 
-          <Text style={[styles.sectionTitle, { marginTop: 12 }]}>Device Condition</Text>
+          <Text style={[styles.sectionTitle, { marginTop: 12 }]}>
+            Device Condition
+          </Text>
           {lead.customer_condition_answers ? (
             <View style={styles.conditionGrid}>
               {Object.entries(lead.customer_condition_answers).map(([k, v]) => (
                 <View style={styles.conditionTag} key={k}>
-                  <Text style={styles.conditionLabel}>{k.replace(/_/g, " ")}</Text>
+                  <Text style={styles.conditionLabel}>
+                    {k.replace(/_/g, " ")}
+                  </Text>
                   <Text style={styles.conditionValue}>{String(v)}</Text>
                 </View>
               ))}
@@ -265,7 +262,7 @@ export default function LeadDetailScreen() {
           <View style={styles.footerInfo}>
             <Text style={styles.footerLabel}>Lead Price</Text>
             <Text style={styles.footerPrice}>
-              {formatPrice(lead.ai_estimated_price)}
+              {formatPrice(lead.quoted_price)}
             </Text>
           </View>
           {source === "marketplace" && (
@@ -309,7 +306,7 @@ export default function LeadDetailScreen() {
               {assigning ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.lockButtonText}>👤 Assign Agent</Text>
+                <Text style={styles.lockButtonText}> Assign Agent</Text>
               )}
             </TouchableOpacity>
           )}
@@ -550,7 +547,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
-  
+
   specValueLarge: {
     fontSize: 20,
     fontWeight: "bold",

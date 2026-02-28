@@ -183,7 +183,7 @@ function LeadCard({
         <Text className="text-xs text-slate-500 mb-1">Estimated Value</Text>
         <Text className="text-3xl font-bold text-green-600">
           {formatPrice(
-            lead.ai_estimated_price
+            lead.quoted_price
           )}
         </Text>
       </View>

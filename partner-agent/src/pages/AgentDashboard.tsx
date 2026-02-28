@@ -15,23 +15,9 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "../components/ui/tabs";
+
 import { Badge } from "../components/ui/badge";
-import { Label } from "../components/ui/label";
-import { Input } from "../components/ui/input";
-import { Textarea } from "../components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/ui/select";
+
 import {
   Calendar,
   Clock,
@@ -46,6 +32,18 @@ import {
   Map as MapIcon,
   XCircle,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@radix-ui/react-label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@radix-ui/react-select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Order {
   id?: number;
@@ -84,8 +82,9 @@ interface Order {
 }
 
 export default function AgentDashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, switchToPartnerPortal } = useAuth();
   const navigate = useNavigate();
+  const [switchingToPartner, setSwitchingToPartner] = useState(false);
   const [currentOrders, setCurrentOrders] = useState<Order[]>([]);
   const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -339,6 +338,18 @@ export default function AgentDashboard() {
     navigate("/");
   };
 
+  const handleSwitchToPartner = async () => {
+    setSwitchingToPartner(true);
+    try {
+      await switchToPartnerPortal();
+      navigate("/partner/dashboard");
+    } catch {
+      // error handled by context
+    } finally {
+      setSwitchingToPartner(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       accepted_by_agent: "bg-blue-100 text-blue-800 border border-blue-200",
@@ -540,6 +551,40 @@ export default function AgentDashboard() {
               reason={user.hold_reason}
               liftDate={user.hold_lift_date}
             />
+          )}
+          {user?.is_self_assigned && (
+            <div className="mb-4 flex justify-end">
+              <Button
+                onClick={handleSwitchToPartner}
+                disabled={switchingToPartner}
+                className="bg-purple-600 hover:bg-purple-700 text-white gap-2"
+              >
+                {switchingToPartner ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
+                    Switching...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                      />
+                    </svg>
+                    Switch to Partner Portal
+                  </span>
+                )}
+              </Button>
+            </div>
           )}
           <Tabs defaultValue="current" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6 bg-white p-1 border">

@@ -42,6 +42,8 @@ export default function CustomerLogin() {
   const [isLogin, setIsLogin] = useState(true);
   const [googleReady, setGoogleReady] = useState(false);
   const [identifier, setIdentifier] = useState(""); // email
+  const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email");
+  const [loginPhoneIdentifier, setLoginPhoneIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -427,7 +429,9 @@ export default function CustomerLogin() {
                           />
                         </div>
                         {phoneAvailable === false && (
-                          <p className="text-sm text-red-600">This phone number is already registered.</p>
+                          <p className="text-sm text-red-600">
+                            This phone number is already registered.
+                          </p>
                         )}
                       </div>
 
@@ -502,23 +506,80 @@ export default function CustomerLogin() {
                     </>
                   )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email *</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="email"
-                        placeholder="your@email.com"
-                        className="pl-10"
-                        value={identifier}
-                        onChange={(e) => setIdentifier(e.target.value)}
-                        required
-                      />
+                  {/* Login method toggle — only shown in login mode */}
+                  {isLogin && (
+                    <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-1">
+                      <button
+                        type="button"
+                        onClick={() => setLoginMethod("email")}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium transition-colors ${
+                          loginMethod === "email"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-white text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        <Mail size={14} />
+                        Email
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLoginMethod("phone")}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium transition-colors ${
+                          loginMethod === "phone"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-white text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        <Phone size={14} />
+                        Phone Number
+                      </button>
                     </div>
-                    {emailAvailable === false && (
-                      <p className="text-sm text-red-600">This email is already registered.</p>
-                    )}
-                  </div>
+                  )}
+
+                  {/* Email input — always shown for signup, conditionally for login */}
+                  {(!isLogin || loginMethod === "email") && (
+                    <div className="space-y-2">
+                      <Label htmlFor="email">
+                        {isLogin ? "Email *" : "Email *"}
+                      </Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Input
+                          id="email"
+                          placeholder="your@email.com"
+                          className="pl-10"
+                          value={identifier}
+                          onChange={(e) => setIdentifier(e.target.value)}
+                          required
+                        />
+                      </div>
+                      {emailAvailable === false && (
+                        <p className="text-sm text-red-600">
+                          This email is already registered.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Phone number input — only shown in login mode with phone method */}
+                  {isLogin && loginMethod === "phone" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="login-phone">Phone Number *</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Input
+                          id="login-phone"
+                          placeholder="+91 98765 43210"
+                          className="pl-10"
+                          value={loginPhoneIdentifier}
+                          onChange={(e) =>
+                            setLoginPhoneIdentifier(e.target.value)
+                          }
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="password">Password *</Label>
@@ -544,19 +605,41 @@ export default function CustomerLogin() {
                       setFormLoading(true);
                       try {
                         if (isLogin) {
-                          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
-                            toast.warning(
-                              "Please enter a valid email address to login.",
-                              {
-                                description:
-                                  "Email format is required for login.",
-                                duration: 5000,
-                              },
-                            );
-                            return;
+                          if (loginMethod === "email") {
+                            if (
+                              !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)
+                            ) {
+                              toast.warning(
+                                "Please enter a valid email address to login.",
+                                {
+                                  description:
+                                    "Email format is required for login.",
+                                  duration: 5000,
+                                },
+                              );
+                              return;
+                            }
+                          } else {
+                            const normalizedLoginPhone =
+                              normalizePhone(loginPhoneIdentifier);
+                            if (!/^[6-9]\d{9}$/.test(normalizedLoginPhone)) {
+                              toast.warning(
+                                "Please enter a valid 10-digit phone number.",
+                                {
+                                  description:
+                                    "Phone must be 10 digits starting with 6-9.",
+                                  duration: 5000,
+                                },
+                              );
+                              return;
+                            }
                           }
+                          const loginIdentifier =
+                            loginMethod === "phone"
+                              ? normalizePhone(loginPhoneIdentifier)
+                              : identifier;
                           const ok = await login(
-                            identifier,
+                            loginIdentifier,
                             password,
                             "customer",
                           );
@@ -598,7 +681,8 @@ export default function CustomerLogin() {
 
                           if (emailAvailable === false) {
                             toast.warning("Email already registered", {
-                              description: "Please use a different email address.",
+                              description:
+                                "Please use a different email address.",
                               duration: 5000,
                             });
                             return;
@@ -606,7 +690,8 @@ export default function CustomerLogin() {
 
                           if (phoneAvailable === false) {
                             toast.warning("Phone number already registered", {
-                              description: "Please use a different phone number.",
+                              description:
+                                "Please use a different phone number.",
                               duration: 5000,
                             });
                             return;

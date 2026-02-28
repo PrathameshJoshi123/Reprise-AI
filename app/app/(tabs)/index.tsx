@@ -181,13 +181,22 @@ export default function PartnerDashboard() {
             <Text className="text-teal-100 text-xs mb-4">
               Use credits to purchase leads from marketplace
             </Text>
-            <TouchableOpacity
-              className="bg-white rounded-xl py-3 px-6 self-start"
-              activeOpacity={0.8}
-              onPress={() => router.push("/(tabs)/wallet")}
-            >
-              <Text className="text-teal-600 font-bold">💳 Buy Credits</Text>
-            </TouchableOpacity>
+            <View className="flex-row space-x-3">
+              <TouchableOpacity
+                className="bg-white rounded-xl py-3 px-6"
+                activeOpacity={0.8}
+                onPress={() => router.push("/(tabs)/wallet")}
+              >
+                <Text className="text-teal-600 font-bold">💳 Buy Credits</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="bg-teal-50 border border-teal-200 rounded-xl py-3 px-6 ml-5"
+                activeOpacity={0.8}
+                onPress={() => router.push("/(tabs)/dashboard")}
+              >
+                <Text className="text-teal-700 font-bold">Dashboard</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 

@@ -1,33 +1,40 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  StyleSheet,
-  RefreshControl,
   ActivityIndicator,
   Alert,
   Modal,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import EmptyState from "../../components/EmptyState";
+
+import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
 import { Agent } from "../../types";
-import EmptyState from "../../components/EmptyState";
+import { getErrorMessage } from "../../utils/error";
 import {
   validateEmail,
+  validatePassword,
   validatePhone,
   validateRequired,
-  validatePassword,
 } from "../../utils/validation";
 
 export default function AgentsScreen() {
+  const { user, switchToAgentPortal } = useAuth();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
+  const [selfAssigning, setSelfAssigning] = useState(false);
+  const [switchingToAgent, setSwitchingToAgent] = useState(false);
+
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
@@ -36,6 +43,8 @@ export default function AgentsScreen() {
     employee_id: "",
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const isSelfAssigned = agents.some((a) => a.email === user?.email);
 
   const fetchAgents = async () => {
     try {
@@ -110,10 +119,41 @@ export default function AgentsScreen() {
       });
       fetchAgents();
     } catch (error: any) {
+      Alert.alert("Error", getErrorMessage(error, "Failed to add agent"));
+    }
+  };
+
+  const handleSelfAssign = async () => {
+    if (!user) return;
+
+    // We need to cast user to Partner to access specific fields if typescript complains,
+    // or just assume properties exist. User type has email, phone, full_name.
+    const partnerUser = user as any;
+
+    setSelfAssigning(true);
+    try {
+      // "Uses partner's existing password if not provided"
+      // We will send basic details.
+      const payload = {
+        email: partnerUser.email,
+        phone: partnerUser.phone || "",
+        full_name: partnerUser.full_name || partnerUser.name || "",
+        // Sending empty password to trigger "use existing" logic
+        password: "",
+        employee_id: "PARTNER", // Optional indicator
+      };
+
+      await api.post("/partner/self-assign-as-agent", payload);
+      Alert.alert("Success", "You have been assigned as an agent!");
+      fetchAgents();
+    } catch (error: any) {
+      console.error("Self assign error:", error);
       Alert.alert(
         "Error",
-        error.response?.data?.detail || "Failed to add agent",
+        getErrorMessage(error, "Failed to self-assign as agent"),
       );
+    } finally {
+      setSelfAssigning(false);
     }
   };
 
@@ -133,7 +173,7 @@ export default function AgentsScreen() {
     } catch (error: any) {
       Alert.alert(
         "Error",
-        error.response?.data?.detail || "Failed to update agent status",
+        getErrorMessage(error, "Failed to update agent status"),
       );
     }
   };
@@ -187,6 +227,57 @@ export default function AgentsScreen() {
           </Text>
           <Text style={styles.statLabel}>Inactive</Text>
         </View>
+      </View>
+
+      {/* Self Assign Section */}
+      <View style={styles.sectionContainer}>
+        {isSelfAssigned ? (
+          <View style={styles.selfAssignedCard}>
+            <Text style={styles.selfAssignedText}>
+              ✅ You are self assigned agent !!!
+            </Text>
+            <TouchableOpacity
+              style={styles.switchToAgentButton}
+              onPress={async () => {
+                setSwitchingToAgent(true);
+                try {
+                  await switchToAgentPortal();
+                  // Navigation is handled automatically by root layout
+                } catch {
+                  Alert.alert(
+                    "Error",
+                    "Failed to switch to Agent Portal. Please try again.",
+                  );
+                } finally {
+                  setSwitchingToAgent(false);
+                }
+              }}
+              disabled={switchingToAgent}
+            >
+              {switchingToAgent ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <Text style={styles.switchToAgentButtonText}>
+                  Switch to Agent Portal →
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.selfAssignButton}
+            onPress={handleSelfAssign}
+            disabled={selfAssigning}
+          >
+            {selfAssigning ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <Text style={styles.selfAssignButtonText}>
+                Self Assign as Agent
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Search */}
@@ -673,5 +764,52 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  sectionContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  selfAssignedCard: {
+    backgroundColor: "#ecfdf5",
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#10b981",
+    alignItems: "center",
+  },
+  selfAssignedText: {
+    color: "#059669",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  selfAssignButton: {
+    backgroundColor: "#0d9488",
+    padding: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  selfAssignButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  switchToAgentButton: {
+    backgroundColor: "#7c3aed",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 12,
+    width: "100%",
+  },
+  switchToAgentButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "700",
   },
 });

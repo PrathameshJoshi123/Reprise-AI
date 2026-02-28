@@ -56,8 +56,9 @@ interface Agent {
 }
 
 export default function PartnerDashboard() {
-  const { user, logout, refreshUser } = useAuth();
+  const { user, logout, refreshUser, switchToAgentPortal } = useAuth();
   const navigate = useNavigate();
+  const [switchingToAgent, setSwitchingToAgent] = useState(false);
   const [activeTab, setActiveTab] = useState<
     | "lead_locked"
     | "lead_purchased"
@@ -360,6 +361,23 @@ export default function PartnerDashboard() {
     navigate("/");
   };
 
+  // Check if this partner has self-assigned as an agent
+  const isSelfAssigned = user?.email
+    ? agents.some((a) => a.email.toLowerCase() === user.email.toLowerCase())
+    : false;
+
+  const handleSwitchToAgent = async () => {
+    setSwitchingToAgent(true);
+    try {
+      await switchToAgentPortal();
+      navigate("/agent/dashboard");
+    } catch {
+      // error handled by context
+    } finally {
+      setSwitchingToAgent(false);
+    }
+  };
+
   const LeadCard = ({
     lead,
     showLockButton,
@@ -484,6 +502,40 @@ export default function PartnerDashboard() {
               reason={user.hold_reason}
               liftDate={user.hold_lift_date}
             />
+          )}
+          {isSelfAssigned && (
+            <div className="mb-4 flex justify-end">
+              <Button
+                onClick={handleSwitchToAgent}
+                disabled={switchingToAgent}
+                className="bg-green-600 hover:bg-green-700 text-white gap-2"
+              >
+                {switchingToAgent ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
+                    Switching...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                      />
+                    </svg>
+                    Switch to Agent Portal
+                  </span>
+                )}
+              </Button>
+            </div>
           )}
           {/* Custom Tabs */}
           <div className="mb-4 md:mb-6 overflow-x-auto">
