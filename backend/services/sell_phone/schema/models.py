@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, Text, JSON
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, Text, JSON, event
 from sqlalchemy.sql import func
 from backend.shared.db.connections import Base, engine
 
@@ -15,10 +15,36 @@ class PhoneList(Base):
     Selling_Price = Column(Float, nullable=False)
     RAM_GB = Column(Float, nullable=True)
     Internal_Storage_GB = Column(Float, nullable=False)
+    # Combined lower‑case text used for trigram similarity searches
+    search_text = Column(Text, nullable=True, index=True)
     
     # Image storage fields
     image_url = Column(String, nullable=True)  # Link to external image URL
     image_blob = Column(String, nullable=True)  # Base64 encoded image data or file path
+
+
+# ============================================================================
+# SQLAlchemy Events for Auto-Populating search_text
+# ============================================================================
+
+@event.listens_for(PhoneList, "before_insert")
+def update_search_text_on_insert(mapper, connection, target):
+    """
+    Automatically populate search_text with lowercase Brand + Model
+    before inserting a new row.
+    """
+    if target.Brand and target.Model:
+        target.search_text = f"{target.Brand} {target.Model}".lower()
+
+
+@event.listens_for(PhoneList, "before_update")
+def update_search_text_on_update(mapper, connection, target):
+    """
+    Automatically update search_text with lowercase Brand + Model
+    before updating a row.
+    """
+    if target.Brand and target.Model:
+        target.search_text = f"{target.Brand} {target.Model}".lower()
 
 
 class Order(Base):

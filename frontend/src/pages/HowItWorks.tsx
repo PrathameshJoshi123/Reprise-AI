@@ -24,12 +24,12 @@ export default function HowItWorks() {
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
               {/* Step 1 */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-16 items-center">
-                <div className="md:col-span-2 order-2 md:order-1">
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-8 mb-16 items-center">
+                <div className="md:col-span-3 order-2 md:order-1">
                   <img
-                    src="/assets/client-photos/photo-3.jpeg"
+                    src="images/Cashnow_20260226_133014_0000.jpg.jpeg"
                     alt="Get a quote"
-                    className="w-full max-w-xs h-auto rounded-lg shadow-lg mx-auto"
+                    className="w-full h-auto rounded-lg shadow-lg mx-auto"
                   />
                 </div>
                 <div className="md:col-span-3 order-1 md:order-2">
@@ -63,7 +63,7 @@ export default function HowItWorks() {
               </div>
 
               {/* Step 2 */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-16 items-center">
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-8 mb-16 items-center">
                 <div className="md:col-span-3">
                   <div className="flex items-center mb-4">
                     <div className="bg-primary text-primary-foreground w-10 h-10 rounded-full flex items-center justify-center font-bold mr-3">
@@ -100,22 +100,22 @@ export default function HowItWorks() {
                     </ul>
                   </div>
                 </div>
-                <div className="md:col-span-2">
+                <div className="md:col-span-3">
                   <img
-                    src="/assets/client-photos/photo-8.jpeg"
+                    src="images/Cashnow_20260226_140025_0000.jpg.jpeg"
                     alt="Schedule pickup"
-                    className="w-full max-w-xs h-auto rounded-lg shadow-lg mx-auto"
+                    className="w-full h-auto rounded-lg shadow-lg mx-auto"
                   />
                 </div>
               </div>
 
               {/* Step 3 */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-center">
-                <div className="md:col-span-2 order-2 md:order-1">
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-8 items-center">
+                <div className="md:col-span-3 order-2 md:order-1">
                   <img
-                    src="/assets/client-photos/photo-13.jpeg"
+                    src="images/Cashnow_20260223_135656_0000.jpg.jpeg"
                     alt="Get paid"
-                    className="w-full max-w-xs h-auto rounded-lg shadow-lg mx-auto"
+                    className="w-full h-auto rounded-lg shadow-lg mx-auto"
                   />
                 </div>
                 <div className="md:col-span-3 order-1 md:order-2">
@@ -199,10 +199,10 @@ export default function HowItWorks() {
               </div>
             </div>
           </div>
-        </section >
+        </section>
 
         {/* FAQ Section */}
-        < section className="py-12 bg-white" >
+        <section className="py-12 bg-white">
           <div className="container mx-auto px-4">
             <div className="text-center mb-10">
               <h2 className="text-2xl font-bold">Frequently Asked Questions</h2>
@@ -217,8 +217,8 @@ export default function HowItWorks() {
                   Is it safe to sell my phone online?
                 </h3>
                 <p className="text-gray-600 mt-2">
-                  Yes, it's completely safe with CashNow. We ensure secure
-                  data wiping of your device, and our executives are trained
+                  Yes, it's completely safe with CashNow. We ensure secure data
+                  wiping of your device, and our executives are trained
                   professionals who follow strict protocols.
                 </p>
               </div>
@@ -269,10 +269,10 @@ export default function HowItWorks() {
               </div>
             </div>
           </div>
-        </section >
-      </main >
+        </section>
+      </main>
 
       <Footer />
-    </div >
+    </div>
   );
 }

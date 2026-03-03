@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status, Body
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_
+from sqlalchemy import func, or_
 from backend.shared.db.connections import get_db
 from ..schema.models import PhoneList, Order, LeadLock, OrderStatusHistory
 from ..schema import schemas as sell_schemas
@@ -24,66 +24,98 @@ router = APIRouter(prefix="/sell-phone", tags=["Sell Phone"])
 @router.get("/phones")
 def get_phones_list(
     db: Session = Depends(get_db),
-    page: int = Query(1, ge=1, description="Page number"),
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
-    search: str = Query(None, description="Search query for Brand or Model")
+    search: str = Query(None, description="Search query (e.g., '7t pro', 'nord 5', typos like 'onepluss')")
 ):
-    # Subquery to get unique Brand + Model combinations, selecting the max id for each
-    subquery = db.query(
-        PhoneList.Brand,
-        PhoneList.Model,
-        func.max(PhoneList.id).label('max_id')
-    ).group_by(PhoneList.Brand, PhoneList.Model).subquery()
+    """
+    Fuzzy/typo-tolerant phone search endpoint.
     
-    query = db.query(PhoneList).join(subquery, PhoneList.id == subquery.c.max_id)
+    Features:
+    - Trigram-based similarity search using PostgreSQL pg_trgm
+    - Handles typos and partial matches (e.g., "7T pro", "nord 5", "onepluss 7T")
+    - Deduplicates by Brand + Model (returns highest variant price)
+    - Supports pagination with page and limit parameters
+    - Returns top-N results ordered by similarity score
     
-    if search:
-        # Decode '+' back to spaces for proper search
-        search = search.replace('+', ' ').strip()
+    Example:
+        GET /sell-phone/phones?search=7t+pro&page=1&limit=10
+    """
+    
+    if not search:
+        # If no search query, return all unique phones paginated
+        subquery = db.query(
+            PhoneList.Brand,
+            PhoneList.Model,
+            func.max(PhoneList.id).label('max_id')
+        ).group_by(PhoneList.Brand, PhoneList.Model).subquery()
         
-        # Split search into words to handle "brand model" queries like "samsung s23"
-        search_words = [word.strip() for word in search.split() if word.strip()]
+        total_phones = db.query(func.count(subquery.c.max_id)).scalar()
+        phones_query = db.query(PhoneList).join(
+            subquery, PhoneList.id == subquery.c.max_id
+        ).order_by(PhoneList.Brand, PhoneList.Model)
         
-        if len(search_words) == 1:
-            # Single word search - match in either Brand or Model
-            word = search_words[0]
-            query = query.filter(
-                PhoneList.Brand.ilike(f"%{word}%") | PhoneList.Model.ilike(f"%{word}%")
-            )
-        elif len(search_words) == 2:
-            # Two-word search - match "brand model" or "model brand"
-            # e.g., "samsung s23" or "s23 samsung" should both work
-            word1, word2 = search_words[0], search_words[1]
-            query = query.filter(
-                or_(
-                    # Try: word1 in Brand AND word2 in Model
-                    and_(PhoneList.Brand.ilike(f"%{word1}%"), PhoneList.Model.ilike(f"%{word2}%")),
-                    # Try: word2 in Brand AND word1 in Model (reversed order)
-                    and_(PhoneList.Brand.ilike(f"%{word2}%"), PhoneList.Model.ilike(f"%{word1}%"))
-                )
-            )
-        else:
-            # 3+ words - each word must match somewhere (Brand or Model)
-            filter_conditions = []
-            for word in search_words:
-                filter_conditions.append(
-                    PhoneList.Brand.ilike(f"%{word}%") | PhoneList.Model.ilike(f"%{word}%")
-                )
-            # All conditions must be true (AND logic between words)
-            query = query.filter(and_(*filter_conditions))
+        phones = phones_query.offset((page - 1) * limit).limit(limit).all()
+    else:
+        # Normalize search input: strip whitespace and convert to lowercase
+        search_normalized = search.lower().strip()
+        
+        # Similarity score calculation using PostgreSQL pg_trgm
+        similarity_score = func.similarity(PhoneList.search_text, search_normalized)
+        
+        # Build the query with trigram similarity filtering
+        # Use both ILIKE (for exact substring matches) and % operator (for fuzzy trigram matches)
+        query = db.query(
+            PhoneList,
+            similarity_score.label("similarity")
+        ).filter(
+            # Match using trigram % operator OR substring match
+            PhoneList.search_text.op("%")(search_normalized) |
+            PhoneList.search_text.ilike(f"%{search_normalized}%")
+        ).order_by(
+            # Order by similarity score (descending) and then by Brand/Model for consistency
+            similarity_score.desc(),
+            PhoneList.Brand,
+            PhoneList.Model
+        )
+        
+        # Fetch all results and deduplicate by Brand + Model
+        # Keep only the highest-priced variant for each Brand+Model combo
+        all_results = query.all()
+        
+        # Dictionary to store deduplicated results: (Brand, Model) -> (PhoneList object, similarity)
+        deduped = {}
+        for phone_obj, sim_score in all_results:
+            key = (phone_obj.Brand, phone_obj.Model)
+            if key not in deduped:
+                deduped[key] = (phone_obj, sim_score)
+            else:
+                # Keep the one with higher selling price for the same Brand+Model
+                existing_phone, existing_sim = deduped[key]
+                if phone_obj.Selling_Price > existing_phone.Selling_Price:
+                    deduped[key] = (phone_obj, sim_score)
+        
+        # Sort deduplicated results by similarity score
+        sorted_results = sorted(
+            deduped.values(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        total_phones = len(sorted_results)
+        # Apply pagination to the deduplicated, sorted results
+        paginated_results = sorted_results[(page - 1) * limit:(page - 1) * limit + limit]
+        phones = [phone_obj for phone_obj, _ in paginated_results]
     
-    total = query.count()
-    phones = query.offset((page - 1) * limit).limit(limit).all()
-    total_pages = ceil(total / limit)
-    
+    # Format response
     result_phones = []
     for phone in phones:
-        # Get the highest variant price for this phone model
+        # Get highest variant price for the same brand/model
         highest_variant = db.query(func.max(PhoneList.Selling_Price)).filter(
             PhoneList.Brand == phone.Brand,
             PhoneList.Model == phone.Model
         ).scalar()
-        
+
         result_phones.append({
             "id": phone.id,
             "Brand": phone.Brand,
@@ -97,12 +129,14 @@ def get_phones_list(
             "image_url": phone.image_url,
             "image_blob": phone.image_blob
         })
+
+    total_pages = ceil(total_phones / limit) if total_phones > 0 else 1
     
     return {
         "phones": result_phones,
         "page": page,
         "limit": limit,
-        "total": total,
+        "total": total_phones,
         "total_pages": total_pages
     }
 

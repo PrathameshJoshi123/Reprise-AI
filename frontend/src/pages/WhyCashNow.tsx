@@ -36,8 +36,18 @@ export default function WhyCashNow() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-grow bg-gray-50">
-        <section className="bg-primary text-primary-foreground py-16">
-          <div className="container mx-auto px-4 text-center">
+        <section
+          className="relative text-primary-foreground py-24 md:py-32 mx-4 mt-4 rounded-3xl overflow-hidden"
+          style={{
+            backgroundImage:
+              'url("/images/Cashnow_20260226_125944_0000.jpg.jpeg")',
+            backgroundSize: "100% 100%", // squeeze/stretch to fill both dimensions
+            backgroundPosition: "center",
+          }}
+        >
+          {/* dark overlay to keep text readable */}
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="container mx-auto px-4 text-center relative">
             <h1 className="text-4xl font-bold mb-4">Why Choose CashNow?</h1>
             <p className="text-xl opacity-90 max-w-2xl mx-auto">
               Quick, secure and convenient way to sell your old device

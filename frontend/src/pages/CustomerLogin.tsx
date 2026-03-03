@@ -367,11 +367,11 @@ export default function CustomerLogin() {
       <Header />
 
       <main className="flex-grow flex items-center justify-center p-4 md:p-8">
-        <div className="w-full max-w-6xl grid lg:grid-cols-2 bg-white rounded-3xl shadow-2xl overflow-hidden min-h-[600px] border border-gray-100">
+        <div className="w-full max-w-6xl grid lg:grid-cols-2 bg-white rounded-3xl shadow-2xl overflow-hidden min-h-[480px] border border-gray-100">
           {/* Left Side - Hero Image */}
-          <div className="hidden lg:flex flex-col items-center justify-center relative h-full min-h-[600px] bg-gray-50 p-12">
+          <div className="hidden lg:flex flex-col items-center justify-center relative h-full min-h-[480px] bg-gray-50 p-12">
             <img
-              src="/assets/client-photos/photo-1.jpeg"
+              src="/images/1_20260223_141414_0000.jpg.jpeg"
               alt="Happy Customer"
               className="w-full max-w-lg h-auto rounded-2xl shadow-2xl object-contain"
             />

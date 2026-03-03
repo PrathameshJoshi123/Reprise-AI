@@ -64,10 +64,10 @@ const BRANDS = [
 ];
 
 const SLIDER_IMAGES = [
-  "/images/slider1.jpg",
-  "/images/slider2.jpg",
-  "/images/slider3.jpg",
-  "/images/slider4.jpg",
+  "/images/Cashnow_20260226_140025_0000.jpg.jpeg",
+  "/images/3_20260225_191315_0001.jpg.jpeg",
+  "/images/Cashnow_20260223_135656_0000.jpg.jpeg",
+  "/images/2_20260225_191315_0000.jpg.jpeg"
 ];
 
 export default function SellPhone() {
@@ -158,11 +158,12 @@ export default function SellPhone() {
               <CarouselContent>
                 {SLIDER_IMAGES.map((image, index) => (
                   <CarouselItem key={index}>
-                    <div className="relative h-[200px] sm:h-[260px] md:h-[320px] lg:h-[380px] rounded-2xl overflow-hidden">
+                    {/* squeeze image to fixed height (object-fit: fill) */}
+                    <div className="relative w-full h-[400px] rounded-2xl overflow-hidden bg-[#1a1a1a] flex items-center justify-center">
                       <img
                         src={image}
                         alt={`Slide ${index + 1}`}
-                        className="w-full h-full object-cover"
+                        className="w-full h-[400px] object-fill"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src =
                             `https://placehold.co/1200x400/3b82f6/ffffff?text=Slide+${

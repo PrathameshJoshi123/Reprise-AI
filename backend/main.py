@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from backend.services.auth.apis import router as auth_router
@@ -10,11 +10,13 @@ from backend.services.partner.apis.routes import router as partner_router
 from backend.services.partner.apis.agent_routes import router as agent_router
 from backend.services.referral.apis.routes import router as referral_router
 from backend.services.referral.apis.admin_routes import router as referral_admin_router
-from backend.shared.db.connections import Base, engine
+from backend.shared.db.connections import Base, engine, get_db
 from starlette.middleware.sessions import SessionMiddleware
 from backend.config import FRONTEND_URL
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 import asyncio
 from dotenv import load_dotenv
@@ -57,10 +59,75 @@ app.add_middleware(
 # Mount static files
 app.mount("/images", StaticFiles(directory="Images"), name="images")
 
-# create tables (models' Base.metadata.create_all also called in services, safe to call again)
-Base.metadata.create_all(bind=engine)
+# ============================================================================
+# Startup Event: Ensure Trigram Index and Set Similarity Threshold
+# ============================================================================
 
-# Exception handler for PartnerNotApprovedException
+def setup_pg_trgm(db_session: Session):
+    """
+    Initialize trigram search infrastructure:
+    - Enable pg_trgm extension (if not already enabled)
+    - Set pg_trgm.similarity_threshold to 0.1
+    - Create GIN index on PhoneList.search_text if it doesn't exist
+    """
+    try:
+        # 1️⃣ Create pg_trgm extension (idempotent)
+        db_session.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+        print("✓ pg_trgm extension enabled")
+    except Exception as e:
+        print(f"⚠ Could not enable pg_trgm extension: {e}")
+
+    try:
+        # 2️⃣ Set similarity threshold (session-level)
+        db_session.execute(text("SET pg_trgm.similarity_threshold = 0.1;"))
+        print("✓ pg_trgm.similarity_threshold set to 0.1")
+    except Exception as e:
+        print(f"⚠ Could not set similarity threshold: {e}")
+
+    try:
+        # 3️⃣ Create GIN index on search_text if it doesn't exist
+        db_session.execute(text("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE c.relname = 'idx_phone_search'
+            ) THEN
+                CREATE INDEX idx_phone_search
+                ON phones_list USING GIN (search_text gin_trgm_ops);
+            END IF;
+        END
+        $$;
+        """))
+        print("✓ Trigram GIN index 'idx_phone_search' verified/created")
+    except Exception as e:
+        print(f"⚠ Could not create trigram index: {e}")
+
+    try:
+        db_session.commit()
+    except Exception as e:
+        print(f"⚠ Could not commit transaction: {e}")
+        db_session.rollback()
+
+
+@app.on_event("startup")
+def startup_event():
+    """
+    FastAPI startup event to initialize database and trigram search.
+    """
+    # Create all tables
+    Base.metadata.create_all(bind=engine)
+    
+    # Setup trigram search infrastructure
+    db: Session = next(get_db())
+    try:
+        setup_pg_trgm(db)
+    finally:
+        db.close()
+
+
 from backend.services.auth.utils import PartnerNotApprovedException
 
 @app.exception_handler(PartnerNotApprovedException)
