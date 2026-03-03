@@ -722,7 +722,9 @@ export default function PhoneDetail() {
                         {phone.screenConditions.map((condition) => (
                           <div
                             key={condition.id}
-                            onClick={() => setSelectedScreenCondition(condition.id)}
+                            onClick={() =>
+                              setSelectedScreenCondition(condition.id)
+                            }
                             className={`flex items-start gap-3 border-2 rounded-2xl p-4 cursor-pointer hover:bg-white/80 bg-white/60 backdrop-blur transition-all select-none ${
                               selectedScreenCondition === condition.id
                                 ? "border-blue-600 bg-blue-50"
@@ -741,8 +743,12 @@ export default function PhoneDetail() {
                               )}
                             </div>
                             <div className="flex-grow">
-                              <div className="font-semibold">{condition.name}</div>
-                              <div className="text-sm text-gray-500">{condition.description}</div>
+                              <div className="font-semibold">
+                                {condition.name}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {condition.description}
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -846,10 +852,26 @@ export default function PhoneDetail() {
                       </h4>
                       <div className="space-y-3">
                         {[
-                          { id: "0-3 months", label: "0 – 3 months", description: "Almost new" },
-                          { id: "3-6 months", label: "3 – 6 months", description: "Lightly used" },
-                          { id: "6-11 months", label: "6 – 11 months", description: "Moderately used" },
-                          { id: "above 11 months", label: "Above 11 months", description: "More than a year" },
+                          {
+                            id: "0-3 months",
+                            label: "0 – 3 months",
+                            description: "Almost new",
+                          },
+                          {
+                            id: "3-6 months",
+                            label: "3 – 6 months",
+                            description: "Lightly used",
+                          },
+                          {
+                            id: "6-11 months",
+                            label: "6 – 11 months",
+                            description: "Moderately used",
+                          },
+                          {
+                            id: "above 11 months",
+                            label: "Above 11 months",
+                            description: "More than a year",
+                          },
                         ].map((option) => (
                           <div
                             key={option.id}
@@ -872,8 +894,12 @@ export default function PhoneDetail() {
                               )}
                             </div>
                             <div className="flex-grow">
-                              <div className="font-semibold">{option.label}</div>
-                              <div className="text-sm text-gray-500">{option.description}</div>
+                              <div className="font-semibold">
+                                {option.label}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {option.description}
+                              </div>
                             </div>
                           </div>
                         ))}
