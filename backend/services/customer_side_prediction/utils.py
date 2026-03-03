@@ -112,6 +112,7 @@ Screen Condition: {screen_condition}
 Device Turns On: {device_turns_on}
 Original Box Available: {has_original_box}
 Original Bill Available: {has_original_bill}
+Device Age: {device_age}
 
 ======================
 BASE PRICE (MAX VALUE)
@@ -127,10 +128,12 @@ VALUATION PROCESS (MANDATORY)
    - Device power / functionality
    - Missing original box
    - Missing original bill
+   - Device age (older device = larger deduction)
 3. Each deduction MUST reduce the price.
 4. If the device does NOT turn on, apply a MAJOR deduction.
-5. NEVER add value for good condition or accessories.
-6. NEVER reference market prices, demand, or resale platforms.
+5. Apply deductions for device age: "above 11 months" = largest age deduction, "6-11 months" = moderate, "3-6 months" = small, "0-3 months" = minimal.
+6. NEVER add value for good condition or accessories.
+7. NEVER reference market prices, demand, or resale platforms.
 
 ======================
 REASONING RULES (STRICT)

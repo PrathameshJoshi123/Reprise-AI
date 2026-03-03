@@ -224,6 +224,9 @@ export default function CheckoutScreen() {
       ) {
         customerConditionAnswers.original_bill = phoneData.original_bill;
       }
+      if (phoneData.device_age) {
+        customerConditionAnswers.device_age = phoneData.device_age;
+      }
 
       // Build order payload according to OpenAPI OrderCreate schema
       const orderPayload = {

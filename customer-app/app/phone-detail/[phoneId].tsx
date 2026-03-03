@@ -68,6 +68,7 @@ export default function PhoneDetailScreen() {
   const [deviceTurnsOn, setDeviceTurnsOn] = useState<boolean | null>(null);
   const [hasOriginalBox, setHasOriginalBox] = useState<boolean | null>(null);
   const [hasOriginalBill, setHasOriginalBill] = useState<boolean | null>(null);
+  const [deviceAge, setDeviceAge] = useState<string>("");
 
   // Base price and predicted price
   const [basePrice, setBasePrice] = useState<number>(0);
@@ -100,7 +101,8 @@ export default function PhoneDetailScreen() {
       selectedScreenCondition &&
       deviceTurnsOn !== null &&
       hasOriginalBox !== null &&
-      hasOriginalBill !== null
+      hasOriginalBill !== null &&
+      deviceAge !== ""
     ) {
       fetchPredictedPrice();
     }
@@ -113,6 +115,7 @@ export default function PhoneDetailScreen() {
     deviceTurnsOn,
     hasOriginalBox,
     hasOriginalBill,
+    deviceAge,
   ]);
 
   const fetchPhoneData = async () => {
@@ -182,6 +185,7 @@ export default function PhoneDetailScreen() {
           device_turns_on: deviceTurnsOn,
           has_original_box: hasOriginalBox,
           has_original_bill: hasOriginalBill,
+          device_age: deviceAge || null,
         },
       });
 
@@ -219,7 +223,8 @@ export default function PhoneDetailScreen() {
             !!selectedScreenCondition &&
             deviceTurnsOn !== null &&
             hasOriginalBox !== null &&
-            hasOriginalBill !== null
+            hasOriginalBill !== null &&
+            deviceAge !== ""
           );
         default:
           return true;
@@ -235,7 +240,8 @@ export default function PhoneDetailScreen() {
             !!selectedScreenCondition &&
             deviceTurnsOn !== null &&
             hasOriginalBox !== null &&
-            hasOriginalBill !== null
+            hasOriginalBill !== null &&
+            deviceAge !== ""
           );
         default:
           return true;
@@ -274,6 +280,7 @@ export default function PhoneDetailScreen() {
       device_turns_on: deviceTurnsOn,
       original_box: hasOriginalBox,
       original_bill: hasOriginalBill,
+      device_age: deviceAge || null,
       ai_estimated_price: predictedPrice || basePrice,
       final_quoted_price: predictedPrice || basePrice,
       image: phone?.image_blob || phone?.image_url,
@@ -618,6 +625,56 @@ export default function PhoneDetailScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Device Age */}
+      <Text style={styles.questionLabel}>How old is your device?</Text>
+      <View style={styles.conditionOptions}>
+        {(
+          [
+            {
+              id: "0-3 months",
+              label: "0 – 3 months",
+              description: "Almost new",
+            },
+            {
+              id: "3-6 months",
+              label: "3 – 6 months",
+              description: "Lightly used",
+            },
+            {
+              id: "6-11 months",
+              label: "6 – 11 months",
+              description: "Moderately used",
+            },
+            {
+              id: "above 11 months",
+              label: "Above 11 months",
+              description: "More than a year",
+            },
+          ] as { id: string; label: string; description: string }[]
+        ).map((option) => (
+          <TouchableOpacity
+            key={option.id}
+            style={[
+              styles.conditionOption,
+              deviceAge === option.id && styles.conditionOptionSelected,
+            ]}
+            onPress={() => setDeviceAge(option.id)}
+          >
+            <Text
+              style={[
+                styles.conditionLabel,
+                deviceAge === option.id && styles.conditionLabelSelected,
+              ]}
+            >
+              {option.label}
+            </Text>
+            <Text style={styles.conditionDescription}>
+              {option.description}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 
@@ -671,6 +728,12 @@ export default function PhoneDetailScreen() {
           <Text style={styles.summaryLabel}>Original Bill</Text>
           <Text style={styles.summaryValue}>
             {hasOriginalBill ? "Yes" : "No"}
+          </Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Device Age</Text>
+          <Text style={styles.summaryValue}>
+            {deviceAge || "Not specified"}
           </Text>
         </View>
       </View>

@@ -32,6 +32,7 @@ interface Lead {
     device_turns_on: boolean;
     has_original_box: boolean;
     has_original_bill: boolean;
+    device_age?: string;
   };
   status: string;
   created_at: string;
@@ -296,6 +297,16 @@ export default function LeadDetail() {
                           )}
                         </div>
                       </div>
+                      {lead.customer_condition_answers.device_age && (
+                        <div className="border-2 border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors bg-white col-span-2">
+                          <div className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">
+                            Device Age
+                          </div>
+                          <div className="font-bold text-base text-gray-900 capitalize">
+                            {lead.customer_condition_answers.device_age}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 

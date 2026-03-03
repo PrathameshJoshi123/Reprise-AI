@@ -10,6 +10,7 @@ class PhoneDetails(BaseModel):
     device_turns_on: bool
     has_original_box: bool
     has_original_bill: bool
+    device_age: Optional[str] = None  # e.g., "0-3 months", "3-6 months", "6-11 months", "above 11 months"
 
 class PricePredictionRequest(BaseModel):
     phone_details: PhoneDetails

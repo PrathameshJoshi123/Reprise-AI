@@ -51,17 +51,6 @@ export default function PhoneDetail() {
   const [isApplePhone, setIsApplePhone] = useState(false);
   const [STEPS, setSTEPS] = useState(BASE_STEPS);
 
-  if (!phoneId || isNaN(Number(phoneId))) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-lg mb-4">Invalid phone ID.</p>
-          <Button onClick={() => navigate("/")}>Go to Homepage</Button>
-        </div>
-      </div>
-    );
-  }
-
   // Form state
   const [selectedRam, setSelectedRam] = useState("");
   const [selectedStorage, setSelectedStorage] = useState("");
@@ -69,6 +58,7 @@ export default function PhoneDetail() {
   const [deviceTurnsOn, setDeviceTurnsOn] = useState<string>("");
   const [hasOriginalBox, setHasOriginalBox] = useState<string>("");
   const [hasOriginalBill, setHasOriginalBill] = useState<string>("");
+  const [deviceAge, setDeviceAge] = useState<string>("");
 
   // Fetch phone data from backend
   const {
@@ -166,6 +156,7 @@ export default function PhoneDetail() {
       deviceTurnsOn,
       hasOriginalBox,
       hasOriginalBill,
+      deviceAge,
     ],
     queryFn: async () => {
       const API_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
@@ -192,7 +183,8 @@ export default function PhoneDetail() {
       !!selectedScreenCondition &&
       !!deviceTurnsOn &&
       !!hasOriginalBox &&
-      !!hasOriginalBill,
+      !!hasOriginalBill &&
+      !!deviceAge,
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -245,6 +237,19 @@ export default function PhoneDetail() {
       }
     }
   }, [phoneData, isApplePhone]);
+
+  // Dynamically build options from variants (filter out null/invalid entries)
+
+  if (!phoneId || isNaN(Number(phoneId))) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg mb-4">Invalid phone ID.</p>
+          <Button onClick={() => navigate("/")}>Go to Homepage</Button>
+        </div>
+      </div>
+    );
+  }
 
   // Dynamically build options from variants (filter out null/invalid entries)
   const ramOptions =
@@ -353,6 +358,7 @@ export default function PhoneDetail() {
       device_turns_on: deviceTurnsOn === "yes",
       has_original_box: hasOriginalBox === "yes",
       has_original_bill: hasOriginalBill === "yes",
+      device_age: deviceAge || null,
     };
   };
 
@@ -365,7 +371,8 @@ export default function PhoneDetail() {
           selectedScreenCondition !== "" &&
           deviceTurnsOn !== "" &&
           hasOriginalBox !== "" &&
-          hasOriginalBill !== ""
+          hasOriginalBill !== "" &&
+          deviceAge !== ""
         );
       return true;
     } else {
@@ -379,7 +386,8 @@ export default function PhoneDetail() {
           selectedScreenCondition !== "" &&
           deviceTurnsOn !== "" &&
           hasOriginalBox !== "" &&
-          hasOriginalBill !== ""
+          hasOriginalBill !== "" &&
+          deviceAge !== ""
         );
       return true;
     }
@@ -411,6 +419,7 @@ export default function PhoneDetail() {
         device_turns_on: deviceTurnsOn,
         has_original_box: hasOriginalBox,
         has_original_bill: hasOriginalBill,
+        device_age: deviceAge,
       },
     };
     // Persist selected sale details so checkout (or post-login flow) can pick it up
@@ -709,45 +718,35 @@ export default function PhoneDetail() {
                       <h4 className="font-semibold mb-3 text-gray-700">
                         Screen Condition
                       </h4>
-                      <RadioGroup
-                        value={selectedScreenCondition}
-                        onValueChange={setSelectedScreenCondition}
-                        className="space-y-3"
-                      >
+                      <div className="space-y-3">
                         {phone.screenConditions.map((condition) => (
-                          <div key={condition.id}>
-                            <RadioGroupItem
-                              value={condition.id}
-                              id={`screen-${condition.id}`}
-                              className="peer sr-only"
-                            />
-                            <Label
-                              htmlFor={`screen-${condition.id}`}
-                              className="flex items-start gap-3 border-2 rounded-2xl p-4 cursor-pointer peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 hover:bg-white/80 bg-white/60 backdrop-blur transition-all"
+                          <div
+                            key={condition.id}
+                            onClick={() => setSelectedScreenCondition(condition.id)}
+                            className={`flex items-start gap-3 border-2 rounded-2xl p-4 cursor-pointer hover:bg-white/80 bg-white/60 backdrop-blur transition-all select-none ${
+                              selectedScreenCondition === condition.id
+                                ? "border-blue-600 bg-blue-50"
+                                : "border-transparent"
+                            }`}
+                          >
+                            <div
+                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 ${
+                                selectedScreenCondition === condition.id
+                                  ? "border-blue-600 bg-blue-600"
+                                  : "border-gray-300"
+                              }`}
                             >
-                              <div
-                                className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 ${
-                                  selectedScreenCondition === condition.id
-                                    ? "border-blue-600 bg-blue-600"
-                                    : "border-gray-300"
-                                }`}
-                              >
-                                {selectedScreenCondition === condition.id && (
-                                  <div className="w-3 h-3 rounded-full bg-white" />
-                                )}
-                              </div>
-                              <div className="flex-grow">
-                                <div className="font-semibold">
-                                  {condition.name}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {condition.description}
-                                </div>
-                              </div>
-                            </Label>
+                              {selectedScreenCondition === condition.id && (
+                                <div className="w-3 h-3 rounded-full bg-white" />
+                              )}
+                            </div>
+                            <div className="flex-grow">
+                              <div className="font-semibold">{condition.name}</div>
+                              <div className="text-sm text-gray-500">{condition.description}</div>
+                            </div>
                           </div>
                         ))}
-                      </RadioGroup>
+                      </div>
                     </div>
 
                     {/* Device Turns On */}
@@ -755,39 +754,29 @@ export default function PhoneDetail() {
                       <h4 className="font-semibold mb-3 text-gray-700">
                         Device turns on?
                       </h4>
-                      <RadioGroup
-                        value={deviceTurnsOn}
-                        onValueChange={setDeviceTurnsOn}
-                        className="grid grid-cols-2 gap-3"
-                      >
-                        <div>
-                          <RadioGroupItem
-                            value="yes"
-                            id="turns-on-yes"
-                            className="peer sr-only"
-                          />
-                          <Label
-                            htmlFor="turns-on-yes"
-                            className="flex items-center justify-center gap-2 border-2 rounded-2xl p-4 cursor-pointer peer-data-[state=checked]:border-green-600 peer-data-[state=checked]:bg-green-50 hover:bg-white/80 bg-white/60 backdrop-blur transition-all"
-                          >
-                            <Check size={18} />
-                            <span className="font-semibold">Yes</span>
-                          </Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div
+                          onClick={() => setDeviceTurnsOn("yes")}
+                          className={`flex items-center justify-center gap-2 border-2 rounded-2xl p-4 cursor-pointer hover:bg-white/80 bg-white/60 backdrop-blur transition-all select-none ${
+                            deviceTurnsOn === "yes"
+                              ? "border-green-600 bg-green-50"
+                              : "border-transparent"
+                          }`}
+                        >
+                          <Check size={18} />
+                          <span className="font-semibold">Yes</span>
                         </div>
-                        <div>
-                          <RadioGroupItem
-                            value="no"
-                            id="turns-on-no"
-                            className="peer sr-only"
-                          />
-                          <Label
-                            htmlFor="turns-on-no"
-                            className="flex items-center justify-center gap-2 border-2 rounded-2xl p-4 cursor-pointer peer-data-[state=checked]:border-red-600 peer-data-[state=checked]:bg-red-50 hover:bg-white/80 bg-white/60 backdrop-blur transition-all"
-                          >
-                            <span className="font-semibold">No</span>
-                          </Label>
+                        <div
+                          onClick={() => setDeviceTurnsOn("no")}
+                          className={`flex items-center justify-center gap-2 border-2 rounded-2xl p-4 cursor-pointer hover:bg-white/80 bg-white/60 backdrop-blur transition-all select-none ${
+                            deviceTurnsOn === "no"
+                              ? "border-red-600 bg-red-50"
+                              : "border-transparent"
+                          }`}
+                        >
+                          <span className="font-semibold">No</span>
                         </div>
-                      </RadioGroup>
+                      </div>
                     </div>
 
                     {/* Original Box */}
@@ -795,39 +784,29 @@ export default function PhoneDetail() {
                       <h4 className="font-semibold mb-3 text-gray-700">
                         Original box?
                       </h4>
-                      <RadioGroup
-                        value={hasOriginalBox}
-                        onValueChange={setHasOriginalBox}
-                        className="grid grid-cols-2 gap-3"
-                      >
-                        <div>
-                          <RadioGroupItem
-                            value="yes"
-                            id="box-yes"
-                            className="peer sr-only"
-                          />
-                          <Label
-                            htmlFor="box-yes"
-                            className="flex items-center justify-center gap-2 border-2 rounded-2xl p-4 cursor-pointer peer-data-[state=checked]:border-green-600 peer-data-[state=checked]:bg-green-50 hover:bg-white/80 bg-white/60 backdrop-blur transition-all"
-                          >
-                            <Box size={18} />
-                            <span className="font-semibold">Yes</span>
-                          </Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div
+                          onClick={() => setHasOriginalBox("yes")}
+                          className={`flex items-center justify-center gap-2 border-2 rounded-2xl p-4 cursor-pointer hover:bg-white/80 bg-white/60 backdrop-blur transition-all select-none ${
+                            hasOriginalBox === "yes"
+                              ? "border-green-600 bg-green-50"
+                              : "border-transparent"
+                          }`}
+                        >
+                          <Box size={18} />
+                          <span className="font-semibold">Yes</span>
                         </div>
-                        <div>
-                          <RadioGroupItem
-                            value="no"
-                            id="box-no"
-                            className="peer sr-only"
-                          />
-                          <Label
-                            htmlFor="box-no"
-                            className="flex items-center justify-center gap-2 border-2 rounded-2xl p-4 cursor-pointer peer-data-[state=checked]:border-gray-600 peer-data-[state=checked]:bg-gray-50 hover:bg-white/80 bg-white/60 backdrop-blur transition-all"
-                          >
-                            <span className="font-semibold">No</span>
-                          </Label>
+                        <div
+                          onClick={() => setHasOriginalBox("no")}
+                          className={`flex items-center justify-center gap-2 border-2 rounded-2xl p-4 cursor-pointer hover:bg-white/80 bg-white/60 backdrop-blur transition-all select-none ${
+                            hasOriginalBox === "no"
+                              ? "border-gray-600 bg-gray-50"
+                              : "border-transparent"
+                          }`}
+                        >
+                          <span className="font-semibold">No</span>
                         </div>
-                      </RadioGroup>
+                      </div>
                     </div>
 
                     {/* Original Bill */}
@@ -835,39 +814,70 @@ export default function PhoneDetail() {
                       <h4 className="font-semibold mb-3 text-gray-700">
                         Original bill/invoice?
                       </h4>
-                      <RadioGroup
-                        value={hasOriginalBill}
-                        onValueChange={setHasOriginalBill}
-                        className="grid grid-cols-2 gap-3"
-                      >
-                        <div>
-                          <RadioGroupItem
-                            value="yes"
-                            id="bill-yes"
-                            className="peer sr-only"
-                          />
-                          <Label
-                            htmlFor="bill-yes"
-                            className="flex items-center justify-center gap-2 border-2 rounded-2xl p-4 cursor-pointer peer-data-[state=checked]:border-green-600 peer-data-[state=checked]:bg-green-50 hover:bg-white/80 bg-white/60 backdrop-blur transition-all"
-                          >
-                            <Check size={18} />
-                            <span className="font-semibold">Yes</span>
-                          </Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div
+                          onClick={() => setHasOriginalBill("yes")}
+                          className={`flex items-center justify-center gap-2 border-2 rounded-2xl p-4 cursor-pointer hover:bg-white/80 bg-white/60 backdrop-blur transition-all select-none ${
+                            hasOriginalBill === "yes"
+                              ? "border-green-600 bg-green-50"
+                              : "border-transparent"
+                          }`}
+                        >
+                          <Check size={18} />
+                          <span className="font-semibold">Yes</span>
                         </div>
-                        <div>
-                          <RadioGroupItem
-                            value="no"
-                            id="bill-no"
-                            className="peer sr-only"
-                          />
-                          <Label
-                            htmlFor="bill-no"
-                            className="flex items-center justify-center gap-2 border-2 rounded-2xl p-4 cursor-pointer peer-data-[state=checked]:border-gray-600 peer-data-[state=checked]:bg-gray-50 hover:bg-white/80 bg-white/60 backdrop-blur transition-all"
-                          >
-                            <span className="font-semibold">No</span>
-                          </Label>
+                        <div
+                          onClick={() => setHasOriginalBill("no")}
+                          className={`flex items-center justify-center gap-2 border-2 rounded-2xl p-4 cursor-pointer hover:bg-white/80 bg-white/60 backdrop-blur transition-all select-none ${
+                            hasOriginalBill === "no"
+                              ? "border-gray-600 bg-gray-50"
+                              : "border-transparent"
+                          }`}
+                        >
+                          <span className="font-semibold">No</span>
                         </div>
-                      </RadioGroup>
+                      </div>
+                    </div>
+
+                    {/* Device Age */}
+                    <div>
+                      <h4 className="font-semibold mb-3 text-gray-700">
+                        How old is your device?
+                      </h4>
+                      <div className="space-y-3">
+                        {[
+                          { id: "0-3 months", label: "0 – 3 months", description: "Almost new" },
+                          { id: "3-6 months", label: "3 – 6 months", description: "Lightly used" },
+                          { id: "6-11 months", label: "6 – 11 months", description: "Moderately used" },
+                          { id: "above 11 months", label: "Above 11 months", description: "More than a year" },
+                        ].map((option) => (
+                          <div
+                            key={option.id}
+                            onClick={() => setDeviceAge(option.id)}
+                            className={`flex items-start gap-3 border-2 rounded-2xl p-4 cursor-pointer hover:bg-white/80 bg-white/60 backdrop-blur transition-all select-none ${
+                              deviceAge === option.id
+                                ? "border-blue-600 bg-blue-50"
+                                : "border-transparent"
+                            }`}
+                          >
+                            <div
+                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 ${
+                                deviceAge === option.id
+                                  ? "border-blue-600 bg-blue-600"
+                                  : "border-gray-300"
+                              }`}
+                            >
+                              {deviceAge === option.id && (
+                                <div className="w-3 h-3 rounded-full bg-white" />
+                              )}
+                            </div>
+                            <div className="flex-grow">
+                              <div className="font-semibold">{option.label}</div>
+                              <div className="text-sm text-gray-500">{option.description}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}

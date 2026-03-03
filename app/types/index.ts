@@ -90,6 +90,7 @@ export interface Order {
     device_turns_on?: string;
     has_original_box?: string;
     has_original_bill?: string;
+    device_age?: string;
   } | null;
 
   // Customer info

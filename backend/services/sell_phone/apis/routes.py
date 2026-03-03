@@ -177,8 +177,8 @@ def get_phone_variants(phone_id: int, db: Session = Depends(get_db)):
         PhoneList.Model == phone.Model
     ).distinct().all()
     
-    rams = sorted(set(v.RAM_GB for v in variants))
-    storages = sorted(set(v.Internal_Storage_GB for v in variants))
+    rams = sorted(set(v.RAM_GB for v in variants if v.RAM_GB is not None))
+    storages = sorted(set(v.Internal_Storage_GB for v in variants if v.Internal_Storage_GB is not None))
     
     return {"rams": rams, "storages": storages}
 

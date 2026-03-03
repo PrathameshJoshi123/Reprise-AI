@@ -44,6 +44,7 @@ async def predict_phone_price(request: PricePredictionRequest, db: Session = Dep
                 "device_turns_on": "Yes" if request.phone_details.device_turns_on else "No",
                 "has_original_box": "Yes" if request.phone_details.has_original_box else "No",
                 "has_original_bill": "Yes" if request.phone_details.has_original_bill else "No",
+                "device_age": request.phone_details.device_age or "Not specified",
                 "base_price": base_price
             })
 

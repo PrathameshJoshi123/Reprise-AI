@@ -54,8 +54,6 @@ export default function OrderDetailScreen() {
     );
   }
 
-  
-
   if (!order) {
     return (
       <SafeAreaView style={styles.container}>
@@ -193,9 +191,7 @@ export default function OrderDetailScreen() {
               )}
             </View>
             <Text style={styles.estimatedPrice}>
-              {formatPrice(
-                order.ai_estimated_price,
-              )}
+              {formatPrice(order.ai_estimated_price)}
             </Text>
           </View>
 
@@ -303,6 +299,12 @@ export default function OrderDetailScreen() {
                 />
               )}
             </View>
+            {order.customer_condition_answers.device_age && (
+              <InfoRow
+                label="Device Age"
+                value={order.customer_condition_answers.device_age}
+              />
+            )}
           </View>
         )}
 
