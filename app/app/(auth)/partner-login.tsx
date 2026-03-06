@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import React, { useState } from "react";
 import {
   Alert,
@@ -15,11 +16,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
+import api from "../../lib/api";
 import { getErrorMessage } from "../../utils/error";
 import { parsePincodes } from "../../utils/formatting";
 import {
   validateEmail,
-  validateGST,
+  validateUdyamId,
   validatePAN,
   validatePassword,
   validatePhone,
@@ -56,10 +58,33 @@ export default function PartnerLoginScreen() {
     phone: "",
     company_name: "",
     business_address: "",
-    gst_number: "",
+    udyam_id: "",
     pan_number: "",
     serviceable_pincodes: "",
   });
+
+  // Udyam Aadhaar certificate image
+  const [udyamAadharImage, setUdyamAadharImage] =
+    useState<ImagePicker.ImagePickerAsset | null>(null);
+
+  const pickUdyamAadharImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission required",
+        "Please allow access to your photo library to upload the certificate.",
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.85,
+      allowsEditing: false,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      setUdyamAadharImage(result.assets[0]);
+    }
+  };
 
   const validateForm = async (): Promise<boolean> => {
     const newErrors: Record<string, string> = {};
@@ -88,8 +113,8 @@ export default function PartnerLoginScreen() {
       const panError = validatePAN(formData.pan_number);
       if (panError) newErrors.pan_number = panError;
 
-      const gstError = validateGST(formData.gst_number);
-      if (gstError) newErrors.gst_number = gstError;
+      const udyamError = validateUdyamId(formData.udyam_id);
+      if (udyamError) newErrors.udyam_id = udyamError;
 
       const pincodesError = validatePincodes(formData.serviceable_pincodes);
       if (pincodesError) newErrors.serviceable_pincodes = pincodesError;
@@ -97,12 +122,13 @@ export default function PartnerLoginScreen() {
       // Async validations - check email and phone uniqueness
       if (!emailError) {
         const emailExists = await checkEmailExists(formData.email);
-        if (emailExists) newErrors.email = 'This email is already registered';
+        if (emailExists) newErrors.email = "This email is already registered";
       }
 
       if (!phoneError) {
         const phoneExists = await checkPhoneExists(formData.phone);
-        if (phoneExists) newErrors.phone = 'This phone number is already registered';
+        if (phoneExists)
+          newErrors.phone = "This phone number is already registered";
       }
     }
 
@@ -127,9 +153,10 @@ export default function PartnerLoginScreen() {
           formData.phone,
           formData.company_name,
           formData.business_address,
-          formData.gst_number,
+          formData.udyam_id,
           formData.pan_number,
           pincodes,
+          udyamAadharImage?.uri ?? null,
         );
 
         // Show success modal for signup as requested
@@ -254,7 +281,10 @@ export default function PartnerLoginScreen() {
                       placeholderTextColor="#94a3b8"
                       value={formData.email}
                       onChangeText={(text) =>
-                        setFormData({ ...formData, email: sanitizeInput(text.trim()) })
+                        setFormData({
+                          ...formData,
+                          email: sanitizeInput(text.trim()),
+                        })
                       }
                       keyboardType="email-address"
                       autoCapitalize="none"
@@ -282,7 +312,10 @@ export default function PartnerLoginScreen() {
                       placeholderTextColor="#94a3b8"
                       value={formData.password}
                       onChangeText={(text) =>
-                        setFormData({ ...formData, password: sanitizeInput(text) })
+                        setFormData({
+                          ...formData,
+                          password: sanitizeInput(text),
+                        })
                       }
                       secureTextEntry
                       autoCapitalize="none"
@@ -469,7 +502,9 @@ export default function PartnerLoginScreen() {
                 backgroundColor: "#fff",
               }}
               value={formData.phone}
-              onChangeText={(text) => setFormData({ ...formData, phone: formatPhoneNumber(text) })}
+              onChangeText={(text) =>
+                setFormData({ ...formData, phone: formatPhoneNumber(text) })
+              }
               placeholder="10-digit mobile number"
               keyboardType="phone-pad"
               maxLength={10}
@@ -525,7 +560,10 @@ export default function PartnerLoginScreen() {
               }}
               value={formData.business_address}
               onChangeText={(text) =>
-                setFormData({ ...formData, business_address: sanitizeInput(text) })
+                setFormData({
+                  ...formData,
+                  business_address: sanitizeInput(text),
+                })
               }
               placeholder="Complete business address"
               multiline
@@ -554,7 +592,10 @@ export default function PartnerLoginScreen() {
               }}
               value={formData.pan_number}
               onChangeText={(text) =>
-                setFormData({ ...formData, pan_number: formatUppercase(sanitizeInput(text)) })
+                setFormData({
+                  ...formData,
+                  pan_number: formatUppercase(sanitizeInput(text)),
+                })
               }
               placeholder="ABCDE1234F"
               maxLength={10}
@@ -569,30 +610,80 @@ export default function PartnerLoginScreen() {
 
           <View style={{ marginBottom: 16 }}>
             <Text style={{ fontSize: 14, fontWeight: "500", marginBottom: 6 }}>
-              GST Number (Optional)
+              Udyam Registration Number (Optional)
             </Text>
             <TextInput
               style={{
                 borderWidth: 1,
-                borderColor: errors.gst_number ? "#dc2626" : "#d1d5db",
+                borderColor: errors.udyam_id ? "#dc2626" : "#d1d5db",
                 borderRadius: 8,
                 padding: 12,
                 fontSize: 16,
                 backgroundColor: "#fff",
               }}
-              value={formData.gst_number}
+              value={formData.udyam_id}
               onChangeText={(text) =>
-                setFormData({ ...formData, gst_number: formatUppercase(sanitizeInput(text)) })
+                setFormData({
+                  ...formData,
+                  udyam_id: formatUppercase(sanitizeInput(text)),
+                })
               }
-              placeholder="15-digit GST number"
-              maxLength={15}
+              placeholder="UDYAM-XX-00-0000000"
+              maxLength={19}
               autoCapitalize="characters"
             />
-            {errors.gst_number && (
+            <Text style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+              16-digit MSME Udyam Registration ID (e.g. UDYAM-DL-14-0004089)
+            </Text>
+            {errors.udyam_id && (
               <Text style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>
-                {errors.gst_number}
+                {errors.udyam_id}
               </Text>
             )}
+          </View>
+
+          {/* Udyam Aadhaar Certificate Upload */}
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 14, fontWeight: "500", marginBottom: 6 }}>
+              Udyam Aadhaar Certificate (Optional)
+            </Text>
+            <TouchableOpacity
+              onPress={pickUdyamAadharImage}
+              style={{
+                borderWidth: 2,
+                borderStyle: "dashed",
+                borderColor: udyamAadharImage ? "#16a34a" : "#d1d5db",
+                borderRadius: 8,
+                padding: 14,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 10,
+                backgroundColor: udyamAadharImage ? "#f0fdf4" : "#f9fafb",
+              }}
+            >
+              <Ionicons
+                name={
+                  udyamAadharImage ? "checkmark-circle" : "cloud-upload-outline"
+                }
+                size={22}
+                color={udyamAadharImage ? "#16a34a" : "#6b7280"}
+              />
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: udyamAadharImage ? "#15803d" : "#6b7280",
+                  flex: 1,
+                }}
+                numberOfLines={1}
+              >
+                {udyamAadharImage
+                  ? udyamAadharImage.uri.split("/").pop()
+                  : "Tap to upload certificate photo"}
+              </Text>
+            </TouchableOpacity>
+            <Text style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+              JPEG or PNG image · max 5 MB
+            </Text>
           </View>
 
           <View style={{ marginBottom: 16 }}>
@@ -609,7 +700,9 @@ export default function PartnerLoginScreen() {
                 backgroundColor: "#fff",
               }}
               value={formData.email}
-              onChangeText={(text) => setFormData({ ...formData, email: sanitizeInput(text.trim()) })}
+              onChangeText={(text) =>
+                setFormData({ ...formData, email: sanitizeInput(text.trim()) })
+              }
               placeholder="email@example.com"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -671,7 +764,10 @@ export default function PartnerLoginScreen() {
               }}
               value={formData.serviceable_pincodes}
               onChangeText={(text) =>
-                setFormData({ ...formData, serviceable_pincodes: sanitizeInput(text) })
+                setFormData({
+                  ...formData,
+                  serviceable_pincodes: sanitizeInput(text),
+                })
               }
               placeholder="e.g. 110001, 110002"
               multiline

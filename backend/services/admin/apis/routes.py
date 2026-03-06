@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session, load_only
 from sqlalchemy import func, desc
 from typing import Optional, List
 from datetime import datetime, timezone
+import os
+import uuid
 from backend.shared.db.connections import get_db
 from backend.services.auth import models as auth_models, utils as auth_utils
 from backend.services.sell_phone.schema import models as sell_models
@@ -578,7 +580,7 @@ def get_payment_requests(
                 reviewed_by_admin_id=req.reviewed_by_admin_id,
                 reviewed_at=req.reviewed_at,
                 created_at=req.created_at,
-                has_screenshot=bool(req.payment_screenshot_blob)
+                has_screenshot=bool(req.payment_screenshot_url)
             ))
     
     return result
@@ -613,7 +615,7 @@ def get_payment_request(
         reviewed_by_admin_id=req.reviewed_by_admin_id,
         reviewed_at=req.reviewed_at,
         created_at=req.created_at,
-        has_screenshot=bool(req.payment_screenshot_blob)
+        has_screenshot=bool(req.payment_screenshot_url)
     )
 
 
@@ -623,20 +625,16 @@ def get_payment_screenshot(
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin)
 ):
-    """Get payment screenshot for a request"""
+    """Get payment screenshot URL for a request"""
     req = db.query(PartnerPaymentRequest).filter(PartnerPaymentRequest.id == request_id).first()
     if not req:
         raise HTTPException(status_code=404, detail="Payment request not found")
     
-    if not req.payment_screenshot_blob:
+    if not req.payment_screenshot_url:
         raise HTTPException(status_code=404, detail="Screenshot not found")
     
-    import base64
-    # Return image data as base64
-    image_data = base64.b64encode(req.payment_screenshot_blob).decode('utf-8')
     return {
-        "data": image_data,
-        "metadata": req.payment_screenshot_metadata
+        "url": req.payment_screenshot_url
     }
 
 
@@ -1319,12 +1317,8 @@ def upload_phone_image(
     current_admin: Admin = Depends(get_current_admin)
 ):
     """
-    Upload an image for a phone and store it as base64.
+    Upload an image for a phone and store it on the filesystem.
     """
-    from backend.services.admin.utils.image_handler import (
-        encode_image_to_base64, validate_image_file, create_base64_data_url
-    )
-    
     phone = db.query(sell_models.PhoneList).filter(sell_models.PhoneList.id == phone_id).first()
     if not phone:
         raise HTTPException(status_code=404, detail="Phone not found")
@@ -1332,17 +1326,22 @@ def upload_phone_image(
     try:
         # Read file content
         content = file.file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="File is empty")
         
-        # Validate image
-        is_valid, error_msg = validate_image_file(content, file.filename or "")
-        if not is_valid:
-            raise HTTPException(status_code=400, detail=error_msg)
+        # Determine file extension
+        original_name = file.filename or "image.jpg"
+        ext = os.path.splitext(original_name)[1].lower() or ".jpg"
         
-        # Encode to base64
-        base64_content = encode_image_to_base64(content)
+        # Save to Images/phones/
+        os.makedirs("Images/phones", exist_ok=True)
+        filename = f"phone_{phone_id}_{uuid.uuid4().hex}{ext}"
+        filepath = os.path.join("Images", "phones", filename)
+        with open(filepath, "wb") as f_out:
+            f_out.write(content)
         
-        # Store as data URL in image_blob
-        phone.image_blob = create_base64_data_url(base64_content, file.filename or "image.jpg")
+        phone.image_url = f"/images/phones/{filename}"
+        phone.image_blob = None
         
         db.commit()
         db.refresh(phone)

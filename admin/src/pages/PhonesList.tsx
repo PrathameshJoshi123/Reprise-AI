@@ -62,7 +62,6 @@ interface Phone {
   RAM_GB: number | null;
   Internal_Storage_GB: number;
   image_url?: string | null;
-  image_blob?: string | null;
 }
 
 interface PhoneFormData {
@@ -75,7 +74,6 @@ interface PhoneFormData {
   RAM_GB: string;
   Internal_Storage_GB: string;
   image_url?: string;
-  image_blob?: string;
 }
 
 const initialFormData: PhoneFormData = {
@@ -88,7 +86,6 @@ const initialFormData: PhoneFormData = {
   RAM_GB: "",
   Internal_Storage_GB: "",
   image_url: "",
-  image_blob: "",
 };
 
 export default function PhonesList() {
@@ -199,7 +196,10 @@ export default function PhonesList() {
 
       // Refresh phone data to show updated image
       if (selectedPhone) {
-        setSelectedPhone({ ...selectedPhone, image_blob: imagePreview });
+        setSelectedPhone({
+          ...selectedPhone,
+          image_url: imagePreview || selectedPhone.image_url,
+        });
       }
 
       await fetchPhones();
@@ -362,14 +362,11 @@ export default function PhonesList() {
       RAM_GB: phone.RAM_GB?.toString() || "",
       Internal_Storage_GB: phone.Internal_Storage_GB.toString(),
       image_url: phone.image_url || "",
-      image_blob: phone.image_blob || "",
     });
     setImagePreview(
-      phone.image_blob
-        ? `data:image/jpeg;base64,${phone.image_blob}`
-        : phone.image_url
-          ? `${import.meta.env.VITE_API_BASE_URL}${phone.image_url}`
-          : null,
+      phone.image_url
+        ? `${import.meta.env.VITE_API_BASE_URL}${phone.image_url}`
+        : null,
     );
     setEditDialog(true);
   };
@@ -889,18 +886,12 @@ export default function PhonesList() {
               <h3 className="font-semibold text-sm">Phone Image</h3>
 
               {/* Current Image Display */}
-              {(selectedPhone?.image_blob || selectedPhone?.image_url) && (
+              {selectedPhone?.image_url && (
                 <div className="space-y-2">
                   <Label>Current Image</Label>
                   <div className="relative w-full h-40 bg-gray-100 rounded-lg overflow-hidden">
                     <img
-                      src={
-                        selectedPhone.image_blob
-                          ? `data:image/jpeg;base64,${selectedPhone.image_blob}`
-                          : selectedPhone.image_url
-                            ? `${import.meta.env.VITE_API_BASE_URL}${selectedPhone.image_url}`
-                            : ""
-                      }
+                      src={`${import.meta.env.VITE_API_BASE_URL}${selectedPhone.image_url}`}
                       alt="Current"
                       className="w-full h-full object-contain"
                     />

@@ -6,7 +6,7 @@ import React, {
   ReactNode,
 } from "react";
 import api, { tokenManager } from "../lib/api";
-import type { User, PartnerAuthResponse } from "../types";
+import type { User } from "../types";
 
 interface AuthContextType {
   user: User | null;
@@ -26,9 +26,10 @@ interface AuthContextType {
     phone: string,
     company_name: string,
     business_address: string,
-    gst_number: string,
+    udyam_id: string,
     pan_number: string,
     serviceable_pincodes: string[],
+    udyamImageUri?: string | null,
   ) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -114,28 +115,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     phone: string,
     company_name: string,
     business_address: string,
-    gst_number: string,
+    udyam_id: string,
     pan_number: string,
     serviceable_pincodes: string[],
+    udyamImageUri?: string | null,
   ) => {
-    const response = await api.post<PartnerAuthResponse>("/partner/signup", {
-      full_name,
-      email,
-      password,
-      phone,
-      company_name,
-      business_address,
-      gst_number: gst_number || null,
-      pan_number,
-      serviceable_pincodes,
+    const formData = new FormData();
+    formData.append("full_name", full_name);
+    formData.append("email", email);
+    formData.append("password", password);
+    formData.append("phone", phone);
+    formData.append("company_name", company_name);
+    formData.append("business_address", business_address);
+    formData.append("udyam_id", udyam_id);
+    formData.append("pan_number", pan_number);
+    formData.append("serviceable_pincodes", serviceable_pincodes.join(","));
+    if (udyamImageUri) {
+      const filename = udyamImageUri.split("/").pop() ?? "udyam.jpg";
+      const match = /\.([a-zA-Z]+)$/.exec(filename);
+      const mimeType = match ? `image/${match[1].toLowerCase()}` : "image/jpeg";
+      formData.append("udyam_aadhar_image", {
+        uri: udyamImageUri,
+        name: filename,
+        type: mimeType,
+      } as any);
+    }
+
+    await api.post("/partner/signup", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
     });
-
-    const token = response.data.access_token;
-    await tokenManager.setToken(token);
-    await tokenManager.setUserType("partner");
-
-    setUserType("partner");
-    await fetchUser("partner");
+    // No token issued — partner must wait for admin approval before logging in
   };
 
   const logout = async () => {

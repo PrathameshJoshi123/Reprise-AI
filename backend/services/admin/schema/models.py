@@ -111,8 +111,9 @@ class PartnerPaymentRequest(Base):
     payment_amount = Column(Float, nullable=False)
     bonus_percentage = Column(Float, nullable=False, default=0.0)
     
-    # Payment proof: stored as binary BLOB (like agent photos)
-    payment_screenshot_blob = Column(LargeBinary, nullable=True)
+    # Payment proof: stored as file on disk, URL saved here
+    payment_screenshot_url = Column(String, nullable=True)
+    payment_screenshot_blob = Column(LargeBinary, nullable=True)  # kept for backward compat
     payment_screenshot_metadata = Column(JSON, nullable=True)  # {filename, content_type, size_bytes, captured_at}
     
     # Status: 'pending', 'approved', 'rejected'

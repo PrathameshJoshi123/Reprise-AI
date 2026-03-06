@@ -168,7 +168,9 @@ export default function CreditPlans() {
       const response = await api.get(
         `/admin/payment-requests/${req.id}/screenshot`,
       );
-      setScreenshotData(`data:image/jpeg;base64,${response.data.data}`);
+      setScreenshotData(
+        `${import.meta.env.VITE_API_BASE_URL}${response.data.url}`,
+      );
       setSelectedPaymentRequest(req);
       setPaymentScreenshotModal(true);
     } catch (error: any) {

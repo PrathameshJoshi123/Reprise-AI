@@ -17,8 +17,9 @@ class Partner(Base):
     hashed_password = Column(String, nullable=False)
     company_name = Column(String, nullable=True)
     business_address = Column(String, nullable=True)
-    gst_number = Column(String, nullable=True)
+    udyam_id = Column(String, nullable=False)
     pan_number = Column(String, nullable=True)
+    udyam_aadhar_image = Column(String, nullable=True)  # File path to uploaded Udyam Aadhaar certificate
     
     # Verification status: 'pending', 'under_review', 'clarification_needed', 'approved', 'rejected', 'suspended'
     verification_status = Column(String, nullable=False, default='pending', index=True)

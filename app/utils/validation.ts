@@ -7,7 +7,7 @@ import api from "../lib/api";
 
 // Constants for field length constraints
 export const PAN_LENGTH = 10;
-export const GST_LENGTH = 15;
+export const UDYAM_ID_LENGTH = 19;
 export const PHONE_LENGTH = 10;
 export const PINCODE_LENGTH = 6;
 
@@ -50,7 +50,9 @@ export const validateEmail = (email: string): string | null => {
  */
 export const checkEmailExists = async (email: string): Promise<boolean> => {
   try {
-    const response = await api.post("/partner/check-email", { email });
+    const response = await api.post("/partner/check-email", null, {
+      params: { email },
+    });
     return response.data.exists;
   } catch (error) {
     // If check fails, allow submission (backend will handle)
@@ -81,7 +83,9 @@ export const validatePhone = (phone: string): string | null => {
  */
 export const checkPhoneExists = async (phone: string): Promise<boolean> => {
   try {
-    const response = await api.post("/partner/check-phone", { phone });
+    const response = await api.post("/partner/check-phone", null, {
+      params: { phone },
+    });
     return response.data.exists;
   } catch (error) {
     // If check fails, allow submission (backend will handle)
@@ -125,13 +129,14 @@ export const validatePAN = (pan: string): string | null => {
   return null;
 };
 
-// Validate GST number (exactly 15 characters if provided)
-export const validateGST = (gst: string): string | null => {
-  if (!gst || !gst.trim()) return null; // Optional field
-  const gstRegex = /^[A-Z0-9]{15}$/;
-  if (gst.length !== GST_LENGTH)
-    return `GST number must be exactly ${GST_LENGTH} characters if provided`;
-  if (!gstRegex.test(gst)) return "GST must be alphanumeric uppercase";
+// Validate Udyam Registration Number (format: UDYAM-XX-00-0000000, optional)
+// 16 alphanumeric characters + 3 dashes = 19 characters total
+export const validateUdyamId = (udyamId: string): string | null => {
+  if (!udyamId || !udyamId.trim())
+    return "Udyam Registration Number is required";
+  const udyamRegex = /^UDYAM-[A-Z]{2}-\d{2}-\d{7}$/;
+  if (!udyamRegex.test(udyamId))
+    return "Invalid Udyam ID. Expected format: UDYAM-XX-00-0000000 (e.g. UDYAM-DL-14-0004089)";
   return null;
 };
 

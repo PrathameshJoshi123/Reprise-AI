@@ -15,6 +15,8 @@ from backend.services.admin.schema.models import CreditPlan, PartnerCreditTransa
 from backend.services.admin import schema as admin_schemas
 import base64
 import json
+import os
+import uuid
 
 router = APIRouter(prefix="/partner", tags=["Partner"])
 
@@ -169,16 +171,16 @@ def upload_payment_screenshot(
         if not screenshot_bytes:
             raise HTTPException(status_code=400, detail="Screenshot file is empty")
         
-        # Store binary data
-        payment_request.payment_screenshot_blob = screenshot_bytes
+        # Save to documents/payment/
+        os.makedirs("documents/payment", exist_ok=True)
+        original_name = screenshot.filename or "screenshot.jpg"
+        ext = os.path.splitext(original_name)[1].lower() or ".jpg"
+        filename = f"payment_{request_id}_{uuid.uuid4().hex}{ext}"
+        filepath = os.path.join("documents", "payment", filename)
+        with open(filepath, "wb") as f_out:
+            f_out.write(screenshot_bytes)
         
-        # Store metadata
-        payment_request.payment_screenshot_metadata = {
-            "filename": screenshot.filename,
-            "content_type": screenshot.content_type,
-            "size_bytes": len(screenshot_bytes),
-            "uploaded_at": datetime.utcnow().isoformat()
-        }
+        payment_request.payment_screenshot_url = f"/documents/payment/{filename}"
         
         db.add(payment_request)
         db.commit()
@@ -189,6 +191,8 @@ def upload_payment_screenshot(
             "request_id": request_id,
             "file_size": len(screenshot_bytes)
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to upload screenshot: {str(e)}")
 
@@ -225,7 +229,7 @@ def get_partner_payment_requests(
                 "bonus_percentage": r.bonus_percentage,
                 "approval_status": r.approval_status,
                 "approval_notes": r.approval_notes,
-                "has_screenshot": bool(r.payment_screenshot_blob),
+                "has_screenshot": bool(r.payment_screenshot_url),
                 "created_at": r.created_at,
                 "reviewed_at": r.reviewed_at
             }
@@ -260,7 +264,7 @@ def get_payment_request_details(
         "bonus_percentage": payment_request.bonus_percentage,
         "approval_status": payment_request.approval_status,
         "approval_notes": payment_request.approval_notes,
-        "has_screenshot": bool(payment_request.payment_screenshot_blob),
+        "has_screenshot": bool(payment_request.payment_screenshot_url),
         "created_at": payment_request.created_at,
         "reviewed_at": payment_request.reviewed_at
     }
@@ -284,42 +288,136 @@ def check_phone_exists(phone: str, db: Session = Depends(get_db)):
     return {"exists": existing is not None}
 
 
-@router.post("/signup", response_model=partner_schemas.PartnerToken, status_code=201)
-def partner_signup(
-    payload: partner_schemas.PartnerApplicationCreate,
+@router.post("/signup", status_code=201)
+async def partner_signup(
+    full_name: str = Form(...),
+    email: str = Form(...),
+    phone: str = Form(...),
+    password: str = Form(...),
+    company_name: str = Form(...),
+    business_address: str = Form(...),
+    udyam_id: str = Form(...),
+    pan_number: str = Form(...),
+    serviceable_pincodes: str = Form(...),  # comma-separated string
+    udyam_aadhar_image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
     """
     Partner application (signup).
     Creates partner account with 'pending' verification status.
-    Admin must approve before partner can access leads.
+    Does NOT issue a login token - partner must wait for admin approval before logging in.
     """
+    import re
+
+    # Validate udyam_id format
+    if not re.match(r'^UDYAM-[A-Z]{2}-\d{2}-\d{7}$', udyam_id):
+        raise HTTPException(status_code=400, detail="Invalid Udyam ID format. Expected: UDYAM-XX-00-0000000")
+
+    # Validate PAN
+    if not re.match(r'^[A-Z0-9]{10}$', pan_number):
+        raise HTTPException(status_code=400, detail="PAN number must be 10 alphanumeric uppercase characters")
+
+    # Parse pincodes
+    pincodes = [p.strip() for p in serviceable_pincodes.split(",") if p.strip()]
+    if not pincodes:
+        raise HTTPException(status_code=400, detail="At least one serviceable pincode is required")
+
     try:
         partner = partner_utils.create_partner_application(
             db=db,
-            full_name=payload.full_name,
-            email=payload.email,
-            phone=payload.phone,
-            password=payload.password,
-            company_name=payload.company_name,
-            business_address=payload.business_address,
-            gst_number=payload.gst_number,
-            pan_number=payload.pan_number,
-            serviceable_pincodes=payload.serviceable_pincodes
+            full_name=full_name,
+            email=email,
+            phone=phone,
+            password=password,
+            company_name=company_name,
+            business_address=business_address,
+            udyam_id=udyam_id,
+            pan_number=pan_number,
+            serviceable_pincodes=pincodes
         )
         db.commit()
         db.refresh(partner)
-        
-        # Generate token
-        access_token = partner_utils.create_partner_token(partner)
-        
-        return partner_schemas.PartnerToken(
-            access_token=access_token,
-            token_type="bearer",
-            partner=partner
-        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    # Handle optional Udyam Aadhaar image upload (non-fatal)
+    if udyam_aadhar_image and udyam_aadhar_image.filename:
+        try:
+            contents = await udyam_aadhar_image.read()
+            if contents:
+                save_dir = os.path.join("documents", "udyam-aadhar")
+                os.makedirs(save_dir, exist_ok=True)
+                ext = os.path.splitext(udyam_aadhar_image.filename)[1].lower() or ".jpg"
+                filename = f"partner_{partner.id}_{uuid.uuid4().hex[:10]}{ext}"
+                filepath = os.path.join(save_dir, filename)
+                with open(filepath, "wb") as f_img:
+                    f_img.write(contents)
+                partner.udyam_aadhar_image = f"/documents/udyam-aadhar/{filename}"
+                db.commit()
+        except Exception:
+            pass  # Non-fatal - partner record already created
+
+    return {
+        "status": "success",
+        "message": "Application submitted successfully! You will be notified once your application is approved.",
+        "partner_id": partner.id
+    }
+
+
+@router.post("/upload-udyam-aadhar")
+async def upload_udyam_aadhar(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_partner: Partner = Depends(auth_utils.get_current_partner_any_status),
+):
+    """
+    Upload Udyam Aadhaar certificate image for the authenticated partner.
+    Stores the file in documents/udyam-aadhar/ and saves the URL path in the DB.
+    """
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+    # Check file size (max 5 MB)
+    size_mb = len(contents) / (1024 * 1024)
+    if size_mb > 5:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large ({size_mb:.1f} MB). Maximum allowed size is 5 MB."
+        )
+
+    # Validate content type
+    allowed_types = {"image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"}
+    content_type = file.content_type or ""
+    if content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type '{content_type}'. Allowed: JPEG, PNG, WEBP, PDF."
+        )
+
+    # Ensure directory exists
+    save_dir = os.path.join("documents", "udyam-aadhar")
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Generate a unique filename
+    original_name = file.filename or "upload"
+    ext = os.path.splitext(original_name)[1].lower() or ".jpg"
+    filename = f"partner_{current_partner.id}_{uuid.uuid4().hex[:10]}{ext}"
+    filepath = os.path.join(save_dir, filename)
+
+    # Write file to disk
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    # Build the URL path that will be served via the /documents static mount
+    file_url = f"/documents/udyam-aadhar/{filename}"
+
+    # Persist URL in the DB
+    current_partner.udyam_aadhar_image = file_url
+    db.add(current_partner)
+    db.commit()
+
+    return {"url": file_url, "message": "Udyam Aadhaar certificate uploaded successfully"}
 
 
 @router.post("/login", response_model=partner_schemas.PartnerToken)

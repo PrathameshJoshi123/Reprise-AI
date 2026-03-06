@@ -90,6 +90,30 @@ def get_current_partner(token: str = Depends(oauth2_scheme), db: Session = Depen
     
     return partner
 
+def get_current_partner_any_status(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """
+    Dependency to get the currently authenticated partner from JWT token.
+    Allows partners with ANY verification status (pending, under_review, etc).
+    Used for endpoints like document uploads that should work before approval.
+    """
+    from backend.services.partner.schema.models import Partner
+    
+    payload = decode_access_token(token)
+    if not payload or "partner_id" not in payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid partner authentication credentials"
+        )
+    
+    partner = db.query(Partner).filter(Partner.id == int(payload["partner_id"])).first()
+    if not partner:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Partner not found"
+        )
+    
+    return partner
+
 def get_current_agent(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     """
     Dependency to get the currently authenticated agent from JWT token.

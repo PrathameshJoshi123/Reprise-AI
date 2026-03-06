@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../lib/api";
@@ -34,6 +34,8 @@ import {
   UserPlus,
   Mail,
   Briefcase,
+  Upload,
+  CheckCircle2,
 } from "lucide-react";
 import PartnerOnHoldModal from "../components/PartnerOnHoldModal";
 
@@ -47,18 +49,20 @@ export default function PartnerLogin() {
     phone: "",
     company_name: "",
     business_address: "",
-    gst_number: "",
+    udyam_id: "",
     pan_number: "",
     serviceable_pincodes: "",
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [udyamAadharFile, setUdyamAadharFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { login, signup, holdInfo } = useAuth();
 
   const PAN_LENGTH = 10;
-  const GST_LENGTH = 15;
+  const UDYAM_ID_LENGTH = 19;
   const PHONE_LENGTH = 10;
 
   const extractErrorMessage = (error: any): string => {
@@ -98,7 +102,7 @@ export default function PartnerLogin() {
       // Specific formatting
       if (field === "pan_number") {
         value = value.toUpperCase();
-      } else if (field === "gst_number") {
+      } else if (field === "udyam_id") {
         value = value.toUpperCase();
       } else if (field === "phone") {
         // Allow +91 prefix, but normalize
@@ -125,8 +129,8 @@ export default function PartnerLogin() {
 
     // Check if email already exists
     try {
-      const emailCheck = await api.post("/partner/check-email", {
-        email: formData.email,
+      const emailCheck = await api.post("/partner/check-email", null, {
+        params: { email: formData.email },
       });
       if (emailCheck.data.exists) return "This email is already registered";
     } catch (error) {
@@ -146,8 +150,8 @@ export default function PartnerLogin() {
 
     // Check if phone already exists
     try {
-      const phoneCheck = await api.post("/partner/check-phone", {
-        phone: formData.phone,
+      const phoneCheck = await api.post("/partner/check-phone", null, {
+        params: { phone: formData.phone },
       });
       if (phoneCheck.data.exists)
         return "This phone number is already registered";
@@ -170,8 +174,12 @@ export default function PartnerLogin() {
     if (formData.pan_number.length !== PAN_LENGTH)
       return `PAN number must be exactly ${PAN_LENGTH} characters`;
 
-    if (formData.gst_number && formData.gst_number.length !== GST_LENGTH)
-      return `GST number must be exactly ${GST_LENGTH} characters if provided`;
+    if (!formData.udyam_id || !formData.udyam_id.trim())
+      return "Udyam Registration Number is required";
+    if (formData.udyam_id.length !== UDYAM_ID_LENGTH)
+      return `Udyam Registration Number must be exactly ${UDYAM_ID_LENGTH} characters (e.g. UDYAM-DL-14-0004089)`;
+    if (!/^UDYAM-[A-Z]{2}-\d{2}-\d{7}$/.test(formData.udyam_id))
+      return "Udyam ID format must be UDYAM-XX-00-0000000";
 
     if (!formData.serviceable_pincodes.trim())
       return "At least one serviceable pincode is required";
@@ -215,15 +223,28 @@ export default function PartnerLogin() {
           formData.phone,
           formData.company_name,
           formData.business_address,
-          formData.gst_number || "",
+          formData.udyam_id,
           formData.pan_number,
           pincodes,
+          udyamAadharFile ?? null,
         );
+
         setSuccess(
           "Application submitted successfully! You'll receive an email once approved.",
         );
-        // Navigate after a short delay to show success message
-        setTimeout(() => navigate("/partner/dashboard"), 2000);
+        setActiveTab("login");
+        setFormData({
+          full_name: "",
+          email: "",
+          password: "",
+          phone: "",
+          company_name: "",
+          business_address: "",
+          udyam_id: "",
+          pan_number: "",
+          serviceable_pincodes: "",
+        });
+        setUdyamAadharFile(null);
       }
     } catch (err: any) {
       if (!err.response) {
@@ -515,22 +536,68 @@ export default function PartnerLogin() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="gst" className="text-sm font-medium">
-                        GST Number (Optional)
+                      <Label htmlFor="udyam_id" className="text-sm font-medium">
+                        Udyam Registration Number *
                       </Label>
                       <div className="relative">
                         <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <Input
-                          id="gst"
+                          id="udyam_id"
                           type="text"
-                          maxLength={15}
+                          maxLength={19}
                           className="pl-10 h-11 uppercase"
-                          placeholder="15-digit GST number"
-                          value={formData.gst_number}
-                          onChange={handleInputChange("gst_number")}
+                          placeholder="UDYAM-XX-00-0000000"
+                          value={formData.udyam_id}
+                          onChange={handleInputChange("udyam_id")}
                         />
                       </div>
+                      <p className="text-xs text-gray-500">
+                        16-digit MSME Udyam Registration ID (e.g.
+                        UDYAM-DL-14-0004089)
+                      </p>
                     </div>
+                  </div>
+
+                  {/* Udyam Aadhaar Certificate Upload */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      Udyam Aadhaar Certificate *
+                    </Label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
+                      className="hidden"
+                      onChange={(e) =>
+                        setUdyamAadharFile(e.target.files?.[0] ?? null)
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`w-full h-11 flex items-center gap-2 px-4 border-2 border-dashed rounded-lg text-sm transition-colors ${
+                        udyamAadharFile
+                          ? "border-green-400 bg-green-50 text-green-700"
+                          : "border-gray-300 bg-gray-50 text-gray-500 hover:border-purple-400 hover:bg-purple-50 hover:text-purple-700"
+                      }`}
+                    >
+                      {udyamAadharFile ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 shrink-0" />
+                          <span className="truncate">
+                            {udyamAadharFile.name}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 shrink-0" />
+                          <span>Upload Udyam Aadhaar Certificate</span>
+                        </>
+                      )}
+                    </button>
+                    <p className="text-xs text-gray-500">
+                      JPEG, PNG, WEBP or PDF · max 5 MB
+                    </p>
                   </div>
 
                   <div className="space-y-2">

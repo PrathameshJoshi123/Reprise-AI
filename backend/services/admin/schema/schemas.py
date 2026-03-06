@@ -68,8 +68,9 @@ class PartnerOut(BaseModel):
     phone: str
     company_name: Optional[str] = None
     business_address: Optional[str] = None
-    gst_number: Optional[str] = None
+    udyam_id: str
     pan_number: Optional[str] = None
+    udyam_aadhar_image: Optional[str] = None
     verification_status: str
     rejection_reason: Optional[str] = None
     credit_balance: float
@@ -338,7 +339,6 @@ class PhoneListOut(BaseModel):
     RAM_GB: Optional[float] = None
     Internal_Storage_GB: float
     image_url: Optional[str] = None
-    image_blob: Optional[str] = None
     
     model_config = {"from_attributes": True}
 
@@ -353,7 +353,6 @@ class PhoneListCreate(BaseModel):
     RAM_GB: Optional[float] = None
     Internal_Storage_GB: float
     image_url: Optional[str] = None
-    image_blob: Optional[str] = None
 
 
 class PhoneListUpdate(BaseModel):
@@ -366,7 +365,6 @@ class PhoneListUpdate(BaseModel):
     RAM_GB: Optional[float] = None
     Internal_Storage_GB: Optional[float] = None
     image_url: Optional[str] = None
-    image_blob: Optional[str] = None
 
 
 class PhoneListPaginatedOut(BaseModel):

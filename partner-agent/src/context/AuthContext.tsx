@@ -48,9 +48,10 @@ interface AuthContextType {
     phone: string,
     company_name: string,
     business_address: string,
-    gst_number: string,
+    udyam_id: string,
     pan_number: string,
     serviceable_pincodes: string[],
+    udyamAadharFile?: File | null,
   ) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -159,33 +160,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     phone: string,
     company_name: string,
     business_address: string,
-    gst_number: string,
+    udyam_id: string,
     pan_number: string,
     serviceable_pincodes: string[],
+    udyamAadharFile?: File | null,
   ) => {
     try {
-      const response = await api.post(
-        "/partner/signup",
-        {
-          full_name,
-          email,
-          password,
-          phone,
-          company_name,
-          business_address,
-          gst_number: gst_number || null,
-          pan_number,
-          serviceable_pincodes,
-        },
-        {
-          headers: { "x-skip-auth-redirect": "true" },
-        },
-      );
+      const formData = new FormData();
+      formData.append("full_name", full_name);
+      formData.append("email", email);
+      formData.append("password", password);
+      formData.append("phone", phone);
+      formData.append("company_name", company_name);
+      formData.append("business_address", business_address);
+      formData.append("udyam_id", udyam_id);
+      formData.append("pan_number", pan_number);
+      formData.append("serviceable_pincodes", serviceable_pincodes.join(","));
+      if (udyamAadharFile) {
+        formData.append("udyam_aadhar_image", udyamAadharFile);
+      }
 
-      localStorage.setItem("token", response.data.access_token);
-      localStorage.setItem("userType", "partner");
-      setUserType("partner");
-      await fetchUser("partner");
+      await api.post("/partner/signup", formData, {
+        headers: { "x-skip-auth-redirect": "true" },
+      });
+      // No token issued — partner must wait for admin approval before logging in
     } catch (error: any) {
       handleApiError(error, "auth");
       throw error;

@@ -55,7 +55,7 @@ class PartnerApplicationCreate(BaseModel):
     password: str = Field(..., min_length=8)
     company_name: str = Field(..., min_length=2, max_length=200)
     business_address: str = Field(..., min_length=10, max_length=500)
-    gst_number: Optional[str] = Field(None, min_length=15, max_length=15)
+    udyam_id: str = Field(..., min_length=19, max_length=19, pattern=r"^UDYAM-[A-Z]{2}-\d{2}-\d{7}$", description="Udyam Registration Number (e.g. UDYAM-XX-00-0000000)")
     pan_number: str = Field(..., min_length=10, max_length=10)
     serviceable_pincodes: List[str] = Field(..., min_items=1, description="List of pincodes the partner can service")
 
@@ -74,8 +74,9 @@ class PartnerOut(BaseModel):
     phone: str
     company_name: Optional[str]
     business_address: Optional[str]
-    gst_number: Optional[str]
+    udyam_id: str
     pan_number: Optional[str]
+    udyam_aadhar_image: Optional[str] = None
     verification_status: str
     rejection_reason: Optional[str] = None
     credit_balance: float

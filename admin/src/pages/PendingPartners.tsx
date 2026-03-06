@@ -21,7 +21,14 @@ import {
   TableRow,
 } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
-import { AlertCircle, CheckCircle, Clock, XCircle } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import { AlertCircle, CheckCircle, Clock, XCircle, Image } from "lucide-react";
 
 interface Partner {
   id: number;
@@ -33,11 +40,15 @@ interface Partner {
   credit_balance: number;
   is_active: boolean;
   created_at: string;
+  udyam_id?: string;
+  udyam_aadhar_image?: string | null;
 }
 
 export default function PendingPartners() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [imageTitle, setImageTitle] = useState<string>("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -123,6 +134,7 @@ export default function PendingPartners() {
                   <TableHead>Company</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
+                  <TableHead>Udyam Certificate</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Applied On</TableHead>
                   <TableHead>Actions</TableHead>
@@ -137,6 +149,26 @@ export default function PendingPartners() {
                     <TableCell>{partner.company_name || "-"}</TableCell>
                     <TableCell>{partner.email}</TableCell>
                     <TableCell>{partner.phone}</TableCell>
+                    <TableCell>
+                      {partner.udyam_aadhar_image ? (
+                        <button
+                          onClick={() => {
+                            setSelectedImage(
+                              `${import.meta.env.VITE_API_BASE_URL}${partner.udyam_aadhar_image}`,
+                            );
+                            setImageTitle(
+                              `${partner.full_name} - Udyam Certificate`,
+                            );
+                          }}
+                          className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          <Image className="h-4 w-4" />
+                          View
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-500">-</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {getStatusBadge(partner.verification_status)}
                     </TableCell>
@@ -156,6 +188,28 @@ export default function PendingPartners() {
           )}
         </CardContent>
       </Card>
+
+      {/* Image Preview Modal */}
+      <Dialog
+        open={!!selectedImage}
+        onOpenChange={() => setSelectedImage(null)}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{imageTitle}</DialogTitle>
+            <DialogDescription>Udyam Aadhaar Certificate</DialogDescription>
+          </DialogHeader>
+          {selectedImage && (
+            <div className="w-full flex items-center justify-center bg-gray-50 rounded-lg p-4">
+              <img
+                src={selectedImage}
+                alt="Udyam Certificate"
+                className="max-w-full max-h-96 object-contain"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

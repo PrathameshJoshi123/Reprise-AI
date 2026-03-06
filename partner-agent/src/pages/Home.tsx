@@ -19,8 +19,7 @@ import {
   CheckCircle,
   ArrowRight,
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import api from "../lib/api";
+import { useState } from "react";
 
 // Animation variants
 const fadeInUp = {
@@ -54,19 +53,7 @@ export default function Home() {
     rating: 4.8,
   });
 
-  useEffect(() => {
-    // Fetch dynamic stats from API
-    const fetchStats = async () => {
-      try {
-        const response = await api.get("/stats");
-        setStats(response.data);
-      } catch (error) {
-        console.error("Failed to fetch stats:", error);
-        // Keep default values if API fails
-      }
-    };
-    fetchStats();
-  }, []);
+  // Static placeholder stats (no /stats backend route)
 
   const handleLogout = async () => {
     if (window.confirm("Are you sure you want to logout?")) {
@@ -84,7 +71,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+    <div className="min-h-screen bg-linear-to-br from-purple-50 via-white to-blue-50">
       {/* Header */}
       <Header
         showLoginButtons={!user}
@@ -113,7 +100,7 @@ export default function Home() {
             variants={fadeInUp}
           >
             Maximize Your
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600">
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-purple-600 to-blue-600">
               {" "}
               Phone Trading{" "}
             </span>

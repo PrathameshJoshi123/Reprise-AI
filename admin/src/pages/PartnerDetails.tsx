@@ -54,7 +54,8 @@ interface PartnerDetails {
     phone: string;
     company_name: string;
     business_address: string;
-    gst_number: string;
+    udyam_id: string;
+    udyam_aadhar_image?: string | null;
     pan_number: string;
     verification_status: string;
     rejection_reason: string;
@@ -313,9 +314,35 @@ export default function PartnerDetails() {
               <p className="font-medium">{partner.business_address || "-"}</p>
             </div>
             <div>
-              <Label className="text-muted-foreground">GST Number</Label>
-              <p className="font-medium">{partner.gst_number || "-"}</p>
+              <Label className="text-muted-foreground">
+                Udyam Registration ID
+              </Label>
+              <p className="font-medium">{partner.udyam_id || "-"}</p>
             </div>
+            {partner.udyam_aadhar_image && (
+              <div className="col-span-2">
+                <Label className="text-muted-foreground">
+                  Udyam Aadhaar Certificate
+                </Label>
+                <div className="mt-1">
+                  <a
+                    href={`${import.meta.env.VITE_API_BASE_URL}${partner.udyam_aadhar_image}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline text-sm"
+                  >
+                    View Certificate
+                  </a>
+                  <div className="mt-2 border rounded overflow-hidden max-w-xs">
+                    <img
+                      src={`${import.meta.env.VITE_API_BASE_URL}${partner.udyam_aadhar_image}`}
+                      alt="Udyam Aadhaar Certificate"
+                      className="max-w-full object-contain"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <Label className="text-muted-foreground">PAN Number</Label>
               <p className="font-medium">{partner.pan_number || "-"}</p>

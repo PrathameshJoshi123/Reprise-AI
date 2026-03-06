@@ -20,7 +20,7 @@ def create_partner_application(
     password: str,
     company_name: str,
     business_address: str,
-    gst_number: str,
+    udyam_id: str,
     pan_number: str,
     serviceable_pincodes: List[str]
 ) -> Partner:
@@ -36,7 +36,7 @@ def create_partner_application(
         password: Plain text password (will be hashed)
         company_name: Company/business name
         business_address: Business address
-        gst_number: GST number (optional)
+        udyam_id: Udyam Registration Number (required)
         pan_number: PAN number
         serviceable_pincodes: List of pincodes partner can service
         
@@ -62,7 +62,7 @@ def create_partner_application(
         hashed_password=hashed_password,
         company_name=company_name,
         business_address=business_address,
-        gst_number=gst_number if gst_number else None,
+        udyam_id=udyam_id,
         pan_number=pan_number,
         verification_status='pending',
         credit_balance=0.0,

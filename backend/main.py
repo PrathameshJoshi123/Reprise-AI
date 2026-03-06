@@ -57,7 +57,13 @@ app.add_middleware(
 )
 
 # Mount static files
+os.makedirs("Images/phones", exist_ok=True)
 app.mount("/images", StaticFiles(directory="Images"), name="images")
+
+# Mount documents (Udyam Aadhaar uploads, payment screenshots, etc.)
+os.makedirs("documents/udyam-aadhar", exist_ok=True)
+os.makedirs("documents/payment", exist_ok=True)
+app.mount("/documents", StaticFiles(directory="documents"), name="documents")
 
 # ============================================================================
 # Startup Event: Ensure Trigram Index and Set Similarity Threshold
