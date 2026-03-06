@@ -183,11 +183,6 @@ export default function PhonesList() {
       await api.post(
         `/admin/phones/${phoneId}/upload-image`,
         formDataForUpload,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        },
       );
 
       showSuccessToast("Image uploaded successfully!");
@@ -235,7 +230,7 @@ export default function PhonesList() {
     e.preventDefault();
     try {
       setSubmitting(true);
-      const payload = {
+      const payload: Record<string, any> = {
         Brand: formData.Brand,
         Series: formData.Series,
         Model: formData.Model,
@@ -247,10 +242,29 @@ export default function PhonesList() {
         RAM_GB: formData.RAM_GB ? parseFloat(formData.RAM_GB) : null,
         Internal_Storage_GB: parseFloat(formData.Internal_Storage_GB),
       };
-      await api.post("/admin/phones", payload);
+      // Include typed image URL if provided
+      if (formData.image_url?.trim()) {
+        payload.image_url = formData.image_url.trim();
+      }
+      const created = await api.post("/admin/phones", payload);
+      const newPhoneId: number = created.data.id;
+
+      // If a file was selected, upload it to the newly created phone
+      if (selectedImageFile) {
+        try {
+          const fd = new FormData();
+          fd.append("file", selectedImageFile);
+          await api.post(`/admin/phones/${newPhoneId}/upload-image`, fd);
+        } catch {
+          // non-fatal — phone was created; image can be re-uploaded via edit
+        }
+      }
+
       showSuccessToast("Phone created successfully!");
       setCreateDialog(false);
       setFormData(initialFormData);
+      setImagePreview(null);
+      setSelectedImageFile(null);
       await fetchPhones();
     } catch (error: any) {
       if (
@@ -274,6 +288,25 @@ export default function PhonesList() {
 
     try {
       setSubmitting(true);
+      // If an image file is selected, upload it first so the phone record has image_url
+      if (selectedImageFile && selectedPhone) {
+        try {
+          setUploadingImage(true);
+          const formDataForUpload = new FormData();
+          formDataForUpload.append("file", selectedImageFile);
+          await api.post(
+            `/admin/phones/${selectedPhone.id}/upload-image`,
+            formDataForUpload,
+          );
+          // Refresh selectedPhone preview will be done after update
+        } catch (uploadErr) {
+          // Non-fatal: allow edit to continue even if image upload failed
+          console.error("Image upload failed during edit:", uploadErr);
+        } finally {
+          setUploadingImage(false);
+        }
+      }
+
       const payload: any = {};
 
       if (formData.Brand !== selectedPhone.Brand)
@@ -302,11 +335,19 @@ export default function PhonesList() {
       if (internalStorage !== selectedPhone.Internal_Storage_GB)
         payload.Internal_Storage_GB = internalStorage;
 
+      // Include image_url if the user typed a new URL (not a file upload)
+      const typedImageUrl = formData.image_url?.trim() ?? "";
+      const existingImageUrl = selectedPhone.image_url ?? "";
+      if (typedImageUrl && typedImageUrl !== existingImageUrl)
+        payload.image_url = typedImageUrl;
+
       await api.put(`/admin/phones/${selectedPhone.id}`, payload);
       showSuccessToast("Phone updated successfully!");
       setEditDialog(false);
       setSelectedPhone(null);
       setFormData(initialFormData);
+      setImagePreview(null);
+      setSelectedImageFile(null);
       await fetchPhones();
     } catch (error: any) {
       if (error.response?.status === 404) {

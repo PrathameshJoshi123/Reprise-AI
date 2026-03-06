@@ -158,28 +158,19 @@ export default function SellPhone() {
               <CarouselContent>
                 {SLIDER_IMAGES.map((image, index) => (
                   <CarouselItem key={index}>
-                    {/* squeeze image to fixed height (object-fit: fill) */}
-                    <div className="relative w-full h-[400px] rounded-2xl overflow-hidden bg-[#1a1a1a] flex items-center justify-center">
+                    {/* Hero banner with 3:1 aspect ratio for proper display */}
+                    <div className="relative w-full aspect-[3/1] rounded-2xl overflow-hidden bg-[#1a1a1a]">
                       <img
                         src={image}
                         alt={`Slide ${index + 1}`}
-                        className="w-full h-[400px] object-fill"
+                        className="w-full h-full object-cover object-center"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src =
-                            `https://placehold.co/1200x400/3b82f6/ffffff?text=Slide+${
+                            `https://placehold.co/1920x640/3b82f6/ffffff?text=Slide+${
                               index + 1
                             }`;
                         }}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
-                      <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 text-white">
-                        <h2 className="text-base sm:text-lg md:text-2xl lg:text-3xl font-bold">
-                          Sell Your Old Phone Today
-                        </h2>
-                        <p className="text-xs sm:text-sm md:text-base lg:text-lg opacity-90">
-                          Get instant quotes and best prices
-                        </p>
-                      </div>
                     </div>
                   </CarouselItem>
                 ))}

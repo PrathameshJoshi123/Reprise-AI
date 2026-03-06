@@ -38,7 +38,8 @@ const DialogContent = React.forwardRef<
       ref={ref}
       // Solid white background with strong shadow to visually separate from page
       className={cn(
-        "fixed left-[50%] top-[50%] z-[2000] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border-2 border-gray-200 bg-white text-gray-900 p-8 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        // Allow content to scroll when it's taller than the viewport
+        "fixed left-[50%] top-[50%] z-[2000] grid w-full max-w-lg max-h-[90vh] overflow-auto translate-x-[-50%] translate-y-[-50%] gap-4 border-2 border-gray-200 bg-white text-gray-900 p-8 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
         className,
       )}
       {...props}

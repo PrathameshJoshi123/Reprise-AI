@@ -46,7 +46,7 @@ export default function Home() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [stats, setStats] = useState({
+  const [stats] = useState({
     phones: 10000,
     partners: 500,
     agents: 2000,

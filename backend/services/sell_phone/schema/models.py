@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, Text, JSON, event
 from sqlalchemy.sql import func
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from backend.shared.db.connections import Base, engine
 
 
@@ -17,7 +18,9 @@ class PhoneList(Base):
     Internal_Storage_GB = Column(Float, nullable=False)
     # Combined lower‑case text used for trigram similarity searches
     search_text = Column(Text, nullable=True, index=True)
-    
+    # PostgreSQL tsvector used for full-text search
+    search_vector = Column(TSVECTOR, nullable=True)
+
     # Image storage fields
     image_url = Column(String, nullable=True)  # Link to external image URL
     image_blob = Column(String, nullable=True)  # Base64 encoded image data or file path

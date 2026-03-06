@@ -1,10 +1,24 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, File, UploadFile
 from sqlalchemy.orm import Session, load_only
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, text
 from typing import Optional, List
 from datetime import datetime, timezone
 import os
 import uuid
+
+
+def _sync_search_vector(db: Session, phone_id: int, brand: str, series: str, model: str, storage: str) -> None:
+    """Populate the PostgreSQL tsvector search_vector column for a phone row."""
+    content = f"{brand} {series} {model} {storage}"
+    db.execute(
+        text(
+            "UPDATE phones_list "
+            "SET search_vector = to_tsvector('english', :content) "
+            "WHERE id = :id"
+        ),
+        {"content": content, "id": phone_id},
+    )
+    db.commit()
 from backend.shared.db.connections import get_db
 from backend.services.auth import models as auth_models, utils as auth_utils
 from backend.services.sell_phone.schema import models as sell_models
@@ -1261,8 +1275,13 @@ def create_phone(
         )
     
     phone = sell_models.PhoneList(**payload.model_dump())
+    # Explicitly build search_text so it's always populated regardless of event timing
+    phone.search_text = f"{phone.Brand} {phone.Model}".lower()
     db.add(phone)
     db.commit()
+    db.refresh(phone)
+    # Populate tsvector search_vector via raw SQL (to_tsvector is a DB function)
+    _sync_search_vector(db, phone.id, phone.Brand, phone.Series, phone.Model, phone.Storage_Raw)
     db.refresh(phone)
     return phone
 
@@ -1285,8 +1304,15 @@ def update_phone(
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(phone, field, value)
-    
+
+    # Always keep search_text in sync with Brand + Model
+    if phone.Brand and phone.Model:
+        phone.search_text = f"{phone.Brand} {phone.Model}".lower()
+
     db.commit()
+    db.refresh(phone)
+    # Populate tsvector search_vector via raw SQL
+    _sync_search_vector(db, phone.id, phone.Brand, phone.Series, phone.Model, phone.Storage_Raw)
     db.refresh(phone)
     return phone
 
@@ -1333,17 +1359,23 @@ def upload_phone_image(
         original_name = file.filename or "image.jpg"
         ext = os.path.splitext(original_name)[1].lower() or ".jpg"
         
-        # Save to Images/phones/
-        os.makedirs("Images/phones", exist_ok=True)
+        # Save directly to Images/ (not a subfolder)
+        os.makedirs("Images", exist_ok=True)
         filename = f"phone_{phone_id}_{uuid.uuid4().hex}{ext}"
-        filepath = os.path.join("Images", "phones", filename)
+        filepath = os.path.join("Images", filename)
         with open(filepath, "wb") as f_out:
             f_out.write(content)
         
-        phone.image_url = f"/images/phones/{filename}"
+        phone.image_url = f"/images/{filename}"
         phone.image_blob = None
-        
+        # Keep search_text in sync
+        if phone.Brand and phone.Model:
+            phone.search_text = f"{phone.Brand} {phone.Model}".lower()
+
         db.commit()
+        db.refresh(phone)
+        # Keep search_vector in sync
+        _sync_search_vector(db, phone.id, phone.Brand, phone.Series, phone.Model, phone.Storage_Raw)
         db.refresh(phone)
         
         return phone

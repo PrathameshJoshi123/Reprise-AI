@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../lib/api";
 import { Button } from "../components/ui/button";
@@ -40,7 +39,6 @@ import {
 import PartnerOnHoldModal from "../components/PartnerOnHoldModal";
 
 export default function PartnerLogin() {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("login");
   const [formData, setFormData] = useState({
     full_name: "",
