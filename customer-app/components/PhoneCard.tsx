@@ -10,20 +10,12 @@ interface PhoneCardProps {
 
 export default function PhoneCard({ phone, onPress }: PhoneCardProps) {
   const getImageSource = () => {
-    if (phone.image_blob) {
-      return { uri: phone.image_blob };
-    }
     if (phone.image_url) {
-      return { uri: phone.image_url };
+      return {
+        uri: `${process.env.EXPO_PUBLIC_API_BASE_URL}${phone.image_url}`,
+      };
     }
-    // Default placeholder
-    return {
-      uri: `https://placehold.co/200x200/e2e8f0/475569?text=${encodeURIComponent(
-        phone.Brand,
-      )}`,
-    };
   };
-
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
       <View style={styles.imageContainer}>

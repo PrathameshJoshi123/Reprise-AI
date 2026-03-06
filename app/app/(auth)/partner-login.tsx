@@ -610,7 +610,7 @@ export default function PartnerLoginScreen() {
 
           <View style={{ marginBottom: 16 }}>
             <Text style={{ fontSize: 14, fontWeight: "500", marginBottom: 6 }}>
-              Udyam Registration Number (Optional)
+              Udyam Registration Number *
             </Text>
             <TextInput
               style={{
@@ -645,7 +645,7 @@ export default function PartnerLoginScreen() {
           {/* Udyam Aadhaar Certificate Upload */}
           <View style={{ marginBottom: 16 }}>
             <Text style={{ fontSize: 14, fontWeight: "500", marginBottom: 6 }}>
-              Udyam Aadhaar Certificate (Optional)
+              Udyam Aadhaar Certificate *
             </Text>
             <TouchableOpacity
               onPress={pickUdyamAadharImage}

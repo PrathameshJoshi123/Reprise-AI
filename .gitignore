@@ -89,6 +89,8 @@ phones.csv
 final_mobile_master_data.csv
 build/
 Images/
+!assets/images/
+!assets/images/*
 Images_Seeder.py
 phone_image_downloader.py
 Images.zip
