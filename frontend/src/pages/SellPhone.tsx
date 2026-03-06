@@ -11,6 +11,7 @@ import {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
+  type CarouselApi,
 } from "@/components/ui/carousel";
 import {
   Search,
@@ -63,17 +64,30 @@ const BRANDS = [
   },
 ];
 
-const SLIDER_IMAGES = [
+const SLIDE_IMAGES = [
   "/images/Cashnow_20260226_140025_0000.jpg.jpeg",
   "/images/3_20260225_191315_0001.jpg.jpeg",
   "/images/Cashnow_20260223_135656_0000.jpg.jpeg",
-  "/images/2_20260225_191315_0000.jpg.jpeg"
+  "/images/2_20260225_191315_0000.jpg.jpeg",
 ];
 
 export default function SellPhone() {
+  const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const limit = 12; // Items per page
+
+  // Track active carousel slide for scaling effect
+  useEffect(() => {
+    if (!carouselApi) return;
+    const onSelect = () => setSelectedIndex(carouselApi.selectedScrollSnap());
+    carouselApi.on("select", onSelect);
+    onSelect();
+    return () => {
+      carouselApi.off("select", onSelect);
+    };
+  }, [carouselApi]);
 
   // Reset page to 1 when search query changes
   useEffect(() => {
@@ -147,38 +161,48 @@ export default function SellPhone() {
       <Header />
 
       <main className="flex-grow">
-        {/* Carousel Section */}
-        <section className="bg-background">
-          <div className="container mx-auto px-4 py-8">
-            <Carousel
-              opts={{ align: "start", loop: true }}
-              plugins={[Autoplay({ delay: 4000 })]}
-              className="w-full"
-            >
-              <CarouselContent>
-                {SLIDER_IMAGES.map((image, index) => (
-                  <CarouselItem key={index}>
-                    {/* Hero banner with 3:1 aspect ratio for proper display */}
-                    <div className="relative w-full aspect-[3/1] rounded-2xl overflow-hidden bg-[#1a1a1a]">
+        {/* Carousel Section — center-peek layout */}
+        <section className="bg-background py-8 overflow-hidden">
+          <Carousel
+            setApi={setCarouselApi}
+            opts={{ align: "center", loop: true, containScroll: false }}
+            plugins={[
+              Autoplay({
+                delay: 3000,
+                stopOnInteraction: false,
+                stopOnMouseEnter: true,
+              }),
+            ]}
+            className="w-full"
+          >
+            <CarouselContent className="-ml-3">
+              {SLIDE_IMAGES.map((image, index) => {
+                const isActive = selectedIndex === index;
+                return (
+                  <CarouselItem
+                    key={index}
+                    className={`pl-3 basis-[82%] sm:basis-[75%] lg:basis-[65%] transition-all duration-500 ${
+                      isActive
+                        ? "scale-100 opacity-100 z-10"
+                        : "scale-90 opacity-50"
+                    }`}
+                  >
+                    <div className="rounded-2xl overflow-hidden aspect-square shadow-xl">
                       <img
                         src={image}
                         alt={`Slide ${index + 1}`}
                         className="w-full h-full object-cover object-center"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src =
-                            `https://placehold.co/1920x640/3b82f6/ffffff?text=Slide+${
-                              index + 1
-                            }`;
+                            `https://placehold.co/600x600/3b82f6/ffffff?text=Slide+${index + 1}`;
                         }}
                       />
                     </div>
                   </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious className="left-2 sm:left-4" />
-              <CarouselNext className="right-2 sm:right-4" />
-            </Carousel>
-          </div>
+                );
+              })}
+            </CarouselContent>
+          </Carousel>
         </section>
 
         {/* Search and Tabs Section */}
