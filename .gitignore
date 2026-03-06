@@ -99,3 +99,5 @@ dist.zip
 !/customer-app/assets/
 !/customer-app/assets/images/
 !/customer-app/assets/images/*
+!/app/assets/images/
+!/app/assets/images/*
