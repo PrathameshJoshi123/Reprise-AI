@@ -88,12 +88,14 @@ QR_CODE.jpg
 phones.csv
 final_mobile_master_data.csv
 build/
-Images/
-!assets/images/
-!assets/images/*
+/Images/
+
 Images_Seeder.py
 phone_image_downloader.py
 Images.zip
 phones_list.csv
 
 dist.zip
+!/customer-app/assets/
+!/customer-app/assets/images/
+!/customer-app/assets/images/*
