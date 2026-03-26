@@ -1411,3 +1411,69 @@ def set_phone_image_url(
     db.refresh(phone)
     
     return phone
+
+
+# ============================================================================
+# COUPON MANAGEMENT
+# ============================================================================
+
+from backend.services.sell_phone.schema.models import Coupon
+from backend.services.admin.schema.schemas import CouponOut, CouponCreate, CouponUpdate
+
+@router.get("/coupons", response_model=List[CouponOut])
+def get_coupons(
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    return db.query(Coupon).order_by(Coupon.created_at.desc()).all()
+
+@router.post("/coupons", response_model=CouponOut, status_code=201)
+def create_coupon(
+    payload: CouponCreate,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    # Check if code already exists
+    existing = db.query(Coupon).filter(Coupon.code == payload.code).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Coupon code already exists")
+    coupon = Coupon(**payload.dict())
+    db.add(coupon)
+    db.commit()
+    db.refresh(coupon)
+    return coupon
+
+@router.put("/coupons/{coupon_id}", response_model=CouponOut)
+def update_coupon(
+    coupon_id: int,
+    payload: CouponUpdate,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    coupon = db.query(Coupon).filter(Coupon.id == coupon_id).first()
+    if not coupon:
+        raise HTTPException(status_code=404, detail="Coupon not found")
+        
+    if payload.code is not None and payload.code != coupon.code:
+        existing = db.query(Coupon).filter(Coupon.code == payload.code).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Coupon code already exists")
+            
+    for field, value in payload.dict(exclude_unset=True).items():
+        setattr(coupon, field, value)
+    db.commit()
+    db.refresh(coupon)
+    return coupon
+
+@router.delete("/coupons/{coupon_id}")
+def delete_coupon(
+    coupon_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    coupon = db.query(Coupon).filter(Coupon.id == coupon_id).first()
+    if not coupon:
+        raise HTTPException(status_code=404, detail="Coupon not found")
+    db.delete(coupon)
+    db.commit()
+    return {"message": "Coupon deleted"}

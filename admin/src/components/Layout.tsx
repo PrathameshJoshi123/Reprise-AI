@@ -13,6 +13,7 @@ import {
   LogOut,
   Smartphone,
   Gift,
+  Tag,
   Menu,
   X,
 } from "lucide-react";
@@ -81,6 +82,11 @@ export default function Layout() {
       label: "Referral Settings",
       icon: Gift,
       path: "/referral-settings",
+    },
+    {
+      label: "Coupons",
+      icon: Tag,
+      path: "/coupons",
     },
   ];
 

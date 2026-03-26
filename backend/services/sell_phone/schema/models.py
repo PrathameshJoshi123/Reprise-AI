@@ -129,6 +129,11 @@ class Order(Base):
     agent_phone = Column(String, nullable=True)  # Denormalized for quick access
     agent_email = Column(String, nullable=True)  # Denormalized for quick access
     
+    # Implemented Coupon Logic
+    coupon_id = Column(Integer, ForeignKey("coupons.id", ondelete="SET NULL"), nullable=True)
+    coupon_code_applied = Column(String, nullable=True)
+    coupon_bonus_amount = Column(Float, nullable=True, default=0.0)
+    
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -163,6 +168,25 @@ class LeadLock(Base):
     locked_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
     is_active = Column(Boolean, default=True, index=True)
+
+
+class Coupon(Base):
+    """
+    Coupons created by admins to give a bonus price for phones.
+    """
+    __tablename__ = "coupons"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, unique=True, index=True, nullable=False)
+    description = Column(String, nullable=True)
+    amount = Column(Float, nullable=False, default=0.0)
+    
+    is_global = Column(Boolean, default=True)  # True = all phones, False = specific phone
+    applicable_phone_id = Column(Integer, ForeignKey("phones_list.id", ondelete="CASCADE"), nullable=True)
+    
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 # ensure tables exist

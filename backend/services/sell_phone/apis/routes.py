@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from backend.shared.db.connections import get_db
-from ..schema.models import PhoneList, Order, LeadLock, OrderStatusHistory
+from ..schema.models import PhoneList, Order, LeadLock, OrderStatusHistory, Coupon
 from ..schema import schemas as sell_schemas
 from ..utils import (
     mock_ai_price_prediction, get_serviceable_partners, calculate_lead_cost,
@@ -25,7 +25,7 @@ router = APIRouter(prefix="/sell-phone", tags=["Sell Phone"])
 def get_phones_list(
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
-    limit: int = Query(10, ge=1, le=100, description="Items per page"),
+    limit: int = Query(10, ge=1, le=1000, description="Items per page"),
     search: str = Query(None, description="Search query (e.g., '7t pro', 'nord 5', typos like 'onepluss')")
 ):
     """
@@ -241,6 +241,19 @@ def create_order(
 	# Use quoted_price as ai_estimated_price
 	quoted_price = payload.quoted_price or 0
 	
+	# Validate/Apply Coupon
+	coupon_amount = 0.0
+	if payload.coupon_code:
+		coupon = db.query(Coupon).filter(
+			Coupon.code == payload.coupon_code,
+			Coupon.is_active == True
+		).first()
+		if coupon:
+			# Trust that frontend already called /coupons/validate for phone-specific check
+			coupon_amount = coupon.amount
+
+	final_quoted_price = quoted_price + coupon_amount
+	
 	# Create order
 	order = Order(
 		# Link to customer
@@ -261,9 +274,11 @@ def create_order(
 		ai_reasoning="Price provided by customer",
 		customer_condition_answers=payload.customer_condition_answers,
 		
-		# Pricing
+		# Pricing (base)
 		quoted_price=quoted_price,
-		final_quoted_price=quoted_price,
+		final_quoted_price=final_quoted_price,
+		coupon_code_applied=payload.coupon_code,
+		coupon_bonus_amount=coupon_amount,
 		
 		# Customer contact info
 		customer_name=payload.customer_name or current_user.full_name,
@@ -319,6 +334,34 @@ def create_order(
 		serviceable=is_serviceable,
 		serviceable_partners_count=serviceable_partners
 	)
+
+@router.post("/coupons/validate", response_model=sell_schemas.CouponValidateResponse)
+def validate_coupon(
+    payload: sell_schemas.CouponValidateRequest,
+    db: Session = Depends(get_db)
+):
+    coupon = db.query(Coupon).filter(Coupon.code == payload.code, Coupon.is_active == True).first()
+    if not coupon:
+        return sell_schemas.CouponValidateResponse(valid=False, message="Invalid or inactive coupon code")
+    
+    if not coupon.is_global:
+        if not payload.phone_id:
+            return sell_schemas.CouponValidateResponse(valid=False, message="This coupon is specific to another phone model")
+        
+        # Get both phones to compare their model/brand
+        current_phone = db.query(PhoneList).filter(PhoneList.id == payload.phone_id).first()
+        applicable_phone = db.query(PhoneList).filter(PhoneList.id == coupon.applicable_phone_id).first()
+        
+        if not current_phone or not applicable_phone:
+             return sell_schemas.CouponValidateResponse(valid=False, message="This coupon is not applicable to this phone")
+
+        # Compare Model and Brand instead of internal variant ID
+        if (current_phone.Brand.lower() != applicable_phone.Brand.lower() or 
+            current_phone.Model.lower() != applicable_phone.Model.lower()):
+            return sell_schemas.CouponValidateResponse(valid=False, message="This coupon is not applicable to this phone model")
+            
+    return sell_schemas.CouponValidateResponse(valid=True, message="Coupon applied successfully", amount=coupon.amount)
+
 
 @router.get("/my-orders", response_model=list[sell_schemas.OrderOut])
 def get_my_orders(

@@ -378,3 +378,37 @@ class PhoneListPaginatedOut(BaseModel):
 
 
 from backend.services.sell_phone.schema.schemas import OrderOut
+
+# ============================================================================
+# COUPON MANAGEMENT
+# ============================================================================
+
+class CouponOut(BaseModel):
+    id: int
+    code: str
+    description: Optional[str] = None
+    amount: float
+    is_global: bool
+    applicable_phone_id: Optional[int] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CouponCreate(BaseModel):
+    code: str
+    description: Optional[str] = None
+    amount: float
+    is_global: bool = True
+    applicable_phone_id: Optional[int] = None
+
+
+class CouponUpdate(BaseModel):
+    code: Optional[str] = None
+    description: Optional[str] = None
+    amount: Optional[float] = None
+    is_global: Optional[bool] = None
+    applicable_phone_id: Optional[int] = None
+    is_active: Optional[bool] = None

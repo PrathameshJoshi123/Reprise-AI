@@ -32,6 +32,9 @@ class OrderCreate(BaseModel):
     payment_method: Optional[str] = None
     # Pricing (required)
     quoted_price: float = Field(..., gt=0, description="Quoted price for the phone")
+    
+    # Coupon (optional)
+    coupon_code: Optional[str] = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -115,6 +118,10 @@ class OrderOut(BaseModel):
     agent_name: Optional[str] = None
     agent_phone: Optional[str] = None
     agent_email: Optional[str] = None
+    
+    # Coupon details
+    coupon_code_applied: Optional[str] = None
+    coupon_bonus_amount: Optional[float] = None
     
     # Timestamps
     created_at: datetime
@@ -220,3 +227,14 @@ class OrderCancelResponse(BaseModel):
     pickup_date: Optional[datetime] = None
     pickup_time: Optional[str] = None
     payment_method: Optional[str] = None
+
+
+class CouponValidateRequest(BaseModel):
+    code: str
+    phone_id: Optional[int] = None
+
+
+class CouponValidateResponse(BaseModel):
+    valid: bool
+    message: str
+    amount: Optional[float] = None

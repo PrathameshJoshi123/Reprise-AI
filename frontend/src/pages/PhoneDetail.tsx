@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { Http } from "@capacitor-community/http";
 
 const BASE_STEPS = [
   { id: 1, name: "RAM", icon: HardDrive },
@@ -69,9 +70,14 @@ export default function PhoneDetail() {
     queryKey: ["phone", phoneId],
     queryFn: async () => {
       const API_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
-      const response = await fetch(`${API_URL}/sell-phone/phones/${phoneId}`);
-      if (!response.ok) throw new Error("Failed to fetch phone");
-      return response.json();
+      const response = await Http.request({
+        method: "GET",
+        url: `${API_URL}/sell-phone/phones/${phoneId}`,
+        params: {},
+        headers: { Accept: "application/json" },
+      });
+      if (response.status >= 400) throw new Error("Failed to fetch phone");
+      return response.data;
     },
     enabled: !!phoneId,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -98,11 +104,14 @@ export default function PhoneDetail() {
     queryKey: ["phoneVariants", phoneId],
     queryFn: async () => {
       const API_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
-      const response = await fetch(
-        `${API_URL}/sell-phone/phones/${phoneId}/variants`,
-      );
-      if (!response.ok) throw new Error("Failed to fetch variants");
-      return response.json();
+      const response = await Http.request({
+        method: "GET",
+        url: `${API_URL}/sell-phone/phones/${phoneId}/variants`,
+        params: {},
+        headers: { Accept: "application/json" },
+      });
+      if (response.status >= 400) throw new Error("Failed to fetch variants");
+      return response.data;
     },
     enabled: !!phoneId,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -124,13 +133,17 @@ export default function PhoneDetail() {
         return match ? parseInt(match[1], 10) : storage === "1tb" ? 1024 : 0;
       };
       const API_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
-      const response = await fetch(
-        `${API_URL}/sell-phone/phones/${phoneId}/price?ram_gb=${parseRam(
-          selectedRam,
-        )}&storage_gb=${parseStorage(selectedStorage)}`,
-      );
-      if (!response.ok) throw new Error("Failed to fetch variant price");
-      return response.json();
+      const response = await Http.request({
+        method: "GET",
+        url: `${API_URL}/sell-phone/phones/${phoneId}/price`,
+        params: {
+          ram_gb: parseRam(selectedRam).toString(),
+          storage_gb: parseStorage(selectedStorage).toString()
+        },
+        headers: { Accept: "application/json" },
+      });
+      if (response.status >= 400) throw new Error("Failed to fetch variant price");
+      return response.data;
     },
     enabled: !!phoneId && !!selectedRam && !!selectedStorage,
     staleTime: 5 * 60 * 1000,
@@ -160,19 +173,21 @@ export default function PhoneDetail() {
     ],
     queryFn: async () => {
       const API_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
-      const response = await fetch(
-        `${API_URL}/customer-side-prediction/predict-price`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            phone_details: getPhoneDetailsForAPI(),
-            // base_price is now fetched from DB based on brand, model, ram_gb, storage_gb
-          }),
+      const response = await Http.request({
+        method: "POST",
+        url: `${API_URL}/customer-side-prediction/predict-price`,
+        data: {
+          phone_details: getPhoneDetailsForAPI(),
+          // base_price is now fetched from DB based on brand, model, ram_gb, storage_gb
         },
-      );
-      if (!response.ok) throw new Error("Failed to fetch prediction");
-      return response.json();
+        params: {},
+        headers: { 
+          "Content-Type": "application/json",
+          Accept: "application/json" 
+        },
+      });
+      if (response.status >= 400) throw new Error("Failed to fetch prediction");
+      return response.data;
     },
     enabled:
       !!phoneData &&
@@ -404,6 +419,7 @@ export default function PhoneDetail() {
     };
 
     const saleData = {
+      id: phoneData.id,
       name: phone.name,
       brand: phoneData.Brand,
       model: phoneData.Model,

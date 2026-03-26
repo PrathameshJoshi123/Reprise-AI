@@ -7,6 +7,7 @@ import {
 } from "react";
 import api from "../lib/api"; // Adjust the import based on your project structure
 import { toast } from "sonner";
+import { Http } from "@capacitor-community/http";
 
 interface User {
   id: string;
@@ -70,11 +71,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function fetchMe(token: string) {
-    const res = await fetch(`${API_URL}/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const res = await Http.request({
+      method: "GET",
+      url: `${API_URL}/auth/me`,
+      params: {},
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json"
+      },
     });
-    if (!res.ok) throw new Error("Failed to fetch user");
-    return res.json();
+    if (res.status >= 400) throw new Error("Failed to fetch user");
+    return res.data;
   }
 
   const login = async (
@@ -200,10 +207,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Fallback: try using fetch directly (bypasses axios interceptors)
       try {
         // fetch fallback: use /auth/me/details to get role as well
-        const fallbackRes = await fetch(`${API_URL}/auth/me/details`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
+        const fallbackRes = await Http.request({
+          method: "GET",
+          url: `${API_URL}/auth/me/details`,
+          params: {},
+          headers: { 
+            Authorization: `Bearer ${accessToken}`,
+            Accept: "application/json"
+          },
         });
-        const userResponseData = await fallbackRes.json();
+        const userResponseData = fallbackRes.data;
 
         const mappedUser: User = {
           id: String(userResponseData.id),

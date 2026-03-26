@@ -286,7 +286,7 @@ export default function MyOrders() {
                                 : "Unknown Phone")}
                           </CardTitle>
                           <p className="text-sm text-gray-500">
-                            Order #{order.id} •{" "}
+                            Order ID: ORD-{order.id} •{" "}
                             {safeFormatDate(order.created_at, "PPp")}
                           </p>
                         </div>

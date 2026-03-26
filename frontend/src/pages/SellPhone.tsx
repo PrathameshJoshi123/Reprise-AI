@@ -24,6 +24,7 @@ import { Link } from "react-router-dom";
 import Autoplay from "embla-carousel-autoplay";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Http } from "@capacitor-community/http";
 
 const BRANDS = [
   {
@@ -98,16 +99,21 @@ export default function SellPhone() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["phones", page, limit, searchQuery],
     queryFn: async () => {
-      const params = new URLSearchParams({
+      const API_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
+      const paramsObj: Record<string, string> = {
         page: page.toString(),
         limit: limit.toString(),
+      };
+      if (searchQuery) paramsObj.search = searchQuery;
+
+      const response = await Http.request({
+        method: "GET",
+        url: `${API_URL}/sell-phone/phones`,
+        params: paramsObj,
+        headers: { Accept: "application/json" },
       });
-      if (searchQuery) params.append("search", searchQuery);
-      const API_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
-      const response = await fetch(
-        `${API_URL}/sell-phone/phones?${params.toString()}`,
-      );
-      if (!response.ok) {
+
+      if (response.status >= 400) {
         const errorMessage =
           response.status === 404
             ? "No phones found for your search."
@@ -116,7 +122,7 @@ export default function SellPhone() {
               : "Failed to fetch phones.";
         throw { status: response.status, message: errorMessage };
       }
-      return response.json();
+      return response.data;
     },
     retry: (failureCount, error) => {
       // Don't retry on 4xx errors

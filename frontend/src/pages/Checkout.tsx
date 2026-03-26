@@ -36,6 +36,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { Http } from "@capacitor-community/http";
 
 export default function Checkout() {
   // Validation functions
@@ -105,6 +106,59 @@ export default function Checkout() {
   const [retrying, setRetrying] = useState(false);
 
   const [updatingProfile, setUpdatingProfile] = useState(false);
+
+  // ── Coupon State ──
+  const [couponCode, setCouponCode] = useState("");
+  const [couponBonus, setCouponBonus] = useState(0);
+  const [couponApplied, setCouponApplied] = useState("");
+  const [couponMsg, setCouponMsg] = useState("");
+  const [couponSuccess, setCouponSuccess] = useState(false);
+  const [couponLoading, setCouponLoading] = useState(false);
+
+  const applyOrRemoveCoupon = async () => {
+    if (couponApplied) {
+      // Remove coupon
+      setCouponApplied("");
+      setCouponBonus(0);
+      setCouponMsg("");
+      setCouponCode("");
+      setCouponSuccess(false);
+      toast.info("Coupon removed");
+      return;
+    }
+    if (!couponCode.trim()) {
+      toast.error("Please enter a coupon code");
+      return;
+    }
+    setCouponLoading(true);
+    try {
+      const API_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
+      const res = await api.post(`/sell-phone/coupons/validate`, {
+        code: couponCode.trim().toUpperCase(),
+        phone_id: (phoneData.id && phoneData.id !== "default") ? Number(phoneData.id) : null,
+      });
+      const data = res.data;
+      if (data.valid) {
+        setCouponApplied(couponCode.trim().toUpperCase());
+        setCouponBonus(data.amount ?? 0);
+        setCouponMsg(data.message);
+        setCouponSuccess(true);
+        toast.success(`Coupon applied! +₹${(data.amount ?? 0).toLocaleString()} bonus`);
+      } else {
+        setCouponMsg(data.message);
+        setCouponSuccess(false);
+        toast.error(data.message);
+      }
+    } catch {
+      setCouponMsg("Could not validate coupon. Try again.");
+      setCouponSuccess(false);
+      toast.error("Coupon validation failed");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const totalPrice = phoneData.price + couponBonus;
 
   // Error states for inline validation
   const [fieldErrors, setFieldErrors] = useState({
@@ -181,11 +235,17 @@ export default function Checkout() {
       if (!token) return;
       try {
         const API_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
-        const res = await fetch(`${API_URL}/auth/me/details`, {
-          headers: { Authorization: `Bearer ${token}` },
+        const res = await Http.request({
+          method: "GET",
+          url: `${API_URL}/auth/me/details`,
+          params: {},
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json"
+          },
         });
-        if (!res.ok) return;
-        const u = await res.json();
+        if (res.status >= 400) return;
+        const u = res.data;
         setFetchedUser(u);
 
         // Prefill name from full_name if available (handles Google /server data)
@@ -378,6 +438,7 @@ export default function Checkout() {
       pickup_time: pickupTimeVal || null,
       payment_method: paymentMethod,
       // coordinates removed — not collected
+      coupon_code: couponApplied || undefined,
     };
 
     try {
@@ -873,21 +934,58 @@ export default function Checkout() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label
-                            htmlFor="pickup-date"
-                            className="text-gray-700 font-medium"
-                          >
+                          <Label className="text-gray-700 font-medium">
                             Preferred Pickup Date
                           </Label>
-                          <Input
-                            id="pickup-date"
-                            type="date"
-                            value={pickupDateVal}
-                            onChange={(e) => setPickupDateVal(e.target.value)}
-                            min={new Date().toISOString().split("T")[0]}
-                            required
-                            className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                          />
+                          {(() => {
+                            const today = new Date();
+                            const days = Array.from({ length: 7 }, (_, i) => {
+                              const d = new Date(today);
+                              d.setDate(today.getDate() + i);
+                              return d;
+                            });
+                            const dayNames = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+                            return (
+                              <div className="grid grid-cols-7 gap-1.5">
+                                {days.map((d, i) => {
+                                  const iso = d.toISOString().split("T")[0];
+                                  const isSelected = pickupDateVal === iso;
+                                  const isToday = i === 0;
+                                  return (
+                                    <button
+                                      key={iso}
+                                      type="button"
+                                      id={i === 0 ? "pickup-date" : undefined}
+                                      onClick={() => setPickupDateVal(iso)}
+                                      className={`
+                                        flex flex-col items-center justify-center rounded-xl py-2.5 px-1 transition-all duration-200 border-2 cursor-pointer select-none
+                                        ${isToday && isSelected
+                                          ? "bg-gradient-to-b from-orange-400 to-orange-600 border-orange-500 text-white shadow-lg shadow-orange-300"
+                                          : isToday
+                                          ? "bg-gradient-to-b from-orange-400 to-orange-600 border-orange-500 text-white shadow-md shadow-orange-200 opacity-90"
+                                          : isSelected
+                                          ? "border-blue-500 bg-blue-50 text-blue-700 shadow-md"
+                                          : "border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:bg-blue-50/50"
+                                        }
+                                      `}
+                                    >
+                                      <span className={`text-[10px] font-semibold tracking-wider ${isToday ? "text-white/90" : isSelected ? "text-blue-500" : "text-gray-400"}`}>
+                                        {isToday ? "TODAY" : dayNames[d.getDay()]}
+                                      </span>
+                                      <span className={`text-lg font-bold leading-tight ${isToday ? "text-white" : isSelected ? "text-blue-700" : "text-gray-800"}`}>
+                                        {d.getDate()}
+                                      </span>
+                                      {isToday && (
+                                        <span className="text-[9px] font-bold tracking-widest text-white/80 mt-0.5">
+                                          INSTANT
+                                        </span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="space-y-2">
                           <Label
@@ -1236,6 +1334,43 @@ export default function Checkout() {
                     </Accordion>
                   </div>
 
+                  {/* Coupon Code Input */}
+                  {step < 3 && (
+                    <div className="my-4">
+                      <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                        <Sparkles size={14} className="text-yellow-500" />
+                        Have a coupon?
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          id="coupon-code-input"
+                          type="text"
+                          placeholder="Enter code (e.g. SUMMER50)"
+                          value={couponCode}
+                          disabled={!!couponApplied}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                          onKeyDown={(e) => e.key === 'Enter' && applyOrRemoveCoupon()}
+                          className="flex-1 h-9 rounded-lg border border-gray-200 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 disabled:text-gray-400"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={couponApplied ? "outline" : "default"}
+                          onClick={applyOrRemoveCoupon}
+                          disabled={couponLoading}
+                          className={couponApplied ? "border-red-300 text-red-600 hover:bg-red-50" : ""}
+                        >
+                          {couponLoading ? "..." : couponApplied ? "Remove" : "Apply"}
+                        </Button>
+                      </div>
+                      {couponMsg && (
+                        <p className={`text-xs mt-1 font-medium ${couponSuccess ? "text-green-600" : "text-red-500"}`}>
+                          {couponSuccess ? "✓ " : "✗ "}{couponMsg}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="space-y-3 mb-4">
                     <div className="flex justify-between">
                       <span className="text-gray-500">Base Price:</span>
@@ -1251,15 +1386,29 @@ export default function Checkout() {
                       <span className="text-gray-500">Processing Fee:</span>
                       <span className="text-green-600 font-medium">Free</span>
                     </div>
+                    {couponBonus > 0 && (
+                      <div className="flex justify-between animate-in fade-in slide-in-from-top-1 duration-200">
+                        <span className="text-green-600 font-medium flex items-center gap-1">
+                          <Sparkles size={13} className="text-yellow-500" />
+                          Coupon Bonus ({couponApplied}):
+                        </span>
+                        <span className="text-green-600 font-semibold">+₹{couponBonus.toLocaleString()}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="border-t pt-4">
                     <div className="flex justify-between font-bold text-lg">
                       <span>Total Amount:</span>
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-                        ₹{phoneData.price.toLocaleString()}
+                        ₹{totalPrice.toLocaleString()}
                       </span>
                     </div>
+                    {couponBonus > 0 && (
+                      <p className="text-xs text-green-600 font-medium mt-1">
+                        🎉 You're getting ₹{couponBonus.toLocaleString()} extra with coupon!
+                      </p>
+                    )}
                     <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
                       <Shield size={12} />
                       Final amount subject to physical verification
